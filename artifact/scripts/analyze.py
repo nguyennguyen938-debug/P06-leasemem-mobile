@@ -298,6 +298,39 @@ def decision_cost(t, phase, c):
             "n_sup": sum(1 for x in base.values() if x["src"] in SUPPORTED)}
 
 
+def gap_effects(T):
+    """Gap taxonomy of valid trials of one condition; also used by physical/analyze_phys.py."""
+    survived = sum(1 for t in T if t["pid_obs"] == t["late"]["pid"])
+    nsrc = ev_e = ev_l = trg = new_exit = 0
+    reasons = Counter()
+    for t in T:
+        msrc = set(m["src"] for m in t.get("muts", []) if m["src"] != "files")
+        for phase in ("early", "late"):
+            evs = Counter(e["src"] for e in (t[phase].get("events") or []) if e["t"] >= t["t_gap_start"])
+            hit = sum(1 for s in msrc if evs[s] > 0)
+            if phase == "early":
+                ev_e += hit
+            else:
+                ev_l += hit
+        trg += sum(1 for s in msrc if s in trig_fired(t, t["late"]["t_dec"]))
+        nsrc += len(msrc)
+        ex = (t["late"].get("last_start") or {}).get("exit") or {}
+        if ex.get("ts", 0) > t["t_obs"]:
+            new_exit += 1
+            reasons[ex.get("reason")] += 1
+    fcl = []          # first-callback latency per mutated provider source (s), from the last decision's event list
+    for t in T:
+        last = t.get("vlate") or t["late"]
+        for m in t.get("muts", []):
+            if m["src"] == "files":
+                continue
+            after = [e["t"] for e in (last.get("events") or []) if e["src"] == m["src"] and e["t"] >= m["t_pre"]]
+            if after:
+                fcl.append((min(after) - m["t_pre"]) / 1000.0)
+    fcl.sort()
+    return survived, nsrc, ev_e, ev_l, trg, new_exit, reasons, fcl
+
+
 def e2():
     trials = load("e2v3_*.jsonl") + load("round1/e2_*.jsonl")
     ok, why = [], Counter()
@@ -312,35 +345,7 @@ def e2():
     rows, trows, taxo, costrows, ages, labels = [], [], [], [], [], []
     for cond, T in sorted(by.items()):
         plat, proto, client, gap = cond
-        # taxonomy
-        survived = sum(1 for t in T if t["pid_obs"] == t["late"]["pid"])
-        nsrc = ev_e = ev_l = trg = new_exit = 0
-        reasons = Counter()
-        for t in T:
-            msrc = set(m["src"] for m in t.get("muts", []) if m["src"] != "files")
-            for phase in ("early", "late"):
-                evs = Counter(e["src"] for e in (t[phase].get("events") or []) if e["t"] >= t["t_gap_start"])
-                hit = sum(1 for s in msrc if evs[s] > 0)
-                if phase == "early":
-                    ev_e += hit
-                else:
-                    ev_l += hit
-            trg += sum(1 for s in msrc if s in trig_fired(t, t["late"]["t_dec"]))
-            nsrc += len(msrc)
-            ex = (t["late"].get("last_start") or {}).get("exit") or {}
-            if ex.get("ts", 0) > t["t_obs"]:
-                new_exit += 1
-                reasons[ex.get("reason")] += 1
-        fcl = []          # first-callback latency per mutated provider source (s), from the last decision's event list
-        for t in T:
-            last = t.get("vlate") or t["late"]
-            for m in t.get("muts", []):
-                if m["src"] == "files":
-                    continue
-                after = [e["t"] for e in (last.get("events") or []) if e["src"] == m["src"] and e["t"] >= m["t_pre"]]
-                if after:
-                    fcl.append((min(after) - m["t_pre"]) / 1000.0)
-        fcl.sort()
+        survived, nsrc, ev_e, ev_l, trg, new_exit, reasons, fcl = gap_effects(T)
         doze_idle2 = sum(1 for t in T if t.get("state_m2") == "IDLE") if gap in ("longdoze", "longdoze2") else ""
         taxo.append({"platform": plat, "protocol": proto, "client": client, "gap": gap, "n": len(T), "survived": survived,
                      "fcl_med_s": st.median(fcl) if fcl else "", "fcl_max_s": max(fcl) if fcl else "", "fcl_n": len(fcl),
@@ -705,49 +710,54 @@ def e8():
 def e9():
     """Long frozen gaps: lost vs delayed callbacks to a frozen process."""
     rows = load("e9_frozen_*.jsonl")
-    out = []
-    for r in rows:
-        plat = "api35" if r["_file"].endswith("_35.jsonl") else "api33"
-        if "error" in r or r.get("invalid") or "vlate" not in r:
-            out.append({"platform": plat, "trial": r["trial"], "valid": 0, "reason": r.get("invalid") or r.get("error", "")[:60]})
-            continue
-        samples = r.get("frozen_samples", [])
-        stayed = all(x[1] == "1" for x in samples) and r.get("frozen_at_end") == "1"
-        muts = [m for m in r["muts"]]
-        prov = [m for m in muts if m["src"] != "files"]
-        srcs = sorted(set(m["src"] for m in muts))
-        tg = r["t_gap_end"]
-        def got(phase):
-            ev = [e for e in (r[phase].get("events") or []) if e["t"] >= r["t_first_mut"]]
-            return ev
-        ev_v = got("vlate")
-        per_src_lost = [s_ for s_ in srcs if not any(e["src"] == s_ for e in ev_v)]
-        # callbacks for the last change of each source: did a callback arrive after that change?
-        last_unseen = 0
-        for s_ in srcs:
-            tl = max(m["t_pre"] for m in muts if m["src"] == s_)
-            if not any(e["src"] == s_ and e["t"] >= tl for e in ev_v):
-                last_unseen += 1
-        thaw = r["early"]["t_recv"]                     # the DECIDE broadcast thaws the process
-        after = [(e["t"] - thaw) / 1000.0 for e in ev_v if e["t"] >= tg]
-        first_after = after
-        lm_miss = {ph: sum(1 for f, v in r[ph]["facts"].items() if v["mem"] != v["truth"] and v["lm"] == "FRESH") for ph in ("early", "late", "vlate")}
-        ev_miss = {ph: sum(1 for f, v in r[ph]["facts"].items() if v["mem"] != v["truth"] and v["evr"] == "FRESH") for ph in ("early", "late", "vlate")}
-        evo_miss = {ph: sum(1 for f, v in r[ph]["facts"].items() if v["mem"] != v["truth"] and v["ev"] == "FRESH") for ph in ("early", "late", "vlate")}
-        died = r["pid_obs"] != r["vlate"]["pid"]
-        ex = (r["vlate"].get("last_start") or {}).get("exit") or {}
-        death_after = round((ex["ts"] - r["t_first_mut"]) / 1000.0, 1) if died and ex.get("ts") else ""
-        out.append({"platform": plat, "trial": r["trial"], "valid": 1, "stayed_frozen": int(stayed),
-                    "frozen_with_pending_s": r["frozen_with_pending_s"], "n_mut": len(muts), "n_mut_provider": len(prov),
-                    "callbacks_vlate": len(ev_v), "callbacks_early": len(got("early")), "callbacks_late": len(got("late")),
-                    "sources_mutated": len(srcs), "sources_no_callback": len(per_src_lost), "sources_last_change_unseen": last_unseen,
-                    "first_callback_after_thaw_s": min(first_after) if first_after else "",
-                    "last_callback_after_thaw_s": max(after) if after else "", "pid_same": int(r["pid_obs"] == r["vlate"]["pid"]),
-                    "evr_miss_early": ev_miss["early"], "evr_miss_late": ev_miss["late"], "evr_miss_vlate": ev_miss["vlate"],
-                    "lm_miss_any": lm_miss["early"] + lm_miss["late"] + lm_miss["vlate"],
-                    "died": int(died), "death_desc": ex.get("desc", "") if died else "", "death_after_s": death_after,
-                    "ev_miss_early": evo_miss["early"], "ev_miss_vlate": evo_miss["vlate"]})
+    out = [e9_row(r, "api35" if r["_file"].endswith("_35.jsonl") else "api33") for r in rows]
     wcsv("e9_frozen.csv", out)
+    e9_summary(out)
+
+
+def e9_row(r, plat):
+    """One E9 hold; also used by physical/analyze_phys.py."""
+    if "error" in r or r.get("invalid") or "vlate" not in r:
+        return {"platform": plat, "trial": r["trial"], "valid": 0, "reason": r.get("invalid") or r.get("error", "")[:60]}
+    samples = r.get("frozen_samples", [])
+    stayed = all(x[1] == "1" for x in samples) and r.get("frozen_at_end") == "1"
+    muts = [m for m in r["muts"]]
+    prov = [m for m in muts if m["src"] != "files"]
+    srcs = sorted(set(m["src"] for m in muts))
+    tg = r["t_gap_end"]
+    def got(phase):
+        ev = [e for e in (r[phase].get("events") or []) if e["t"] >= r["t_first_mut"]]
+        return ev
+    ev_v = got("vlate")
+    per_src_lost = [s_ for s_ in srcs if not any(e["src"] == s_ for e in ev_v)]
+    # callbacks for the last change of each source: did a callback arrive after that change?
+    last_unseen = 0
+    for s_ in srcs:
+        tl = max(m["t_pre"] for m in muts if m["src"] == s_)
+        if not any(e["src"] == s_ and e["t"] >= tl for e in ev_v):
+            last_unseen += 1
+    thaw = r["early"]["t_recv"]                     # the DECIDE broadcast thaws the process
+    after = [(e["t"] - thaw) / 1000.0 for e in ev_v if e["t"] >= tg]
+    first_after = after
+    lm_miss = {ph: sum(1 for f, v in r[ph]["facts"].items() if v["mem"] != v["truth"] and v["lm"] == "FRESH") for ph in ("early", "late", "vlate")}
+    ev_miss = {ph: sum(1 for f, v in r[ph]["facts"].items() if v["mem"] != v["truth"] and v["evr"] == "FRESH") for ph in ("early", "late", "vlate")}
+    evo_miss = {ph: sum(1 for f, v in r[ph]["facts"].items() if v["mem"] != v["truth"] and v["ev"] == "FRESH") for ph in ("early", "late", "vlate")}
+    died = r["pid_obs"] != r["vlate"]["pid"]
+    ex = (r["vlate"].get("last_start") or {}).get("exit") or {}
+    death_after = round((ex["ts"] - r["t_first_mut"]) / 1000.0, 1) if died and ex.get("ts") else ""
+    return ({"platform": plat, "trial": r["trial"], "valid": 1, "stayed_frozen": int(stayed),
+                "frozen_with_pending_s": r["frozen_with_pending_s"], "n_mut": len(muts), "n_mut_provider": len(prov),
+                "callbacks_vlate": len(ev_v), "callbacks_early": len(got("early")), "callbacks_late": len(got("late")),
+                "sources_mutated": len(srcs), "sources_no_callback": len(per_src_lost), "sources_last_change_unseen": last_unseen,
+                "first_callback_after_thaw_s": min(first_after) if first_after else "",
+                "last_callback_after_thaw_s": max(after) if after else "", "pid_same": int(r["pid_obs"] == r["vlate"]["pid"]),
+                "evr_miss_early": ev_miss["early"], "evr_miss_late": ev_miss["late"], "evr_miss_vlate": ev_miss["vlate"],
+                "lm_miss_any": lm_miss["early"] + lm_miss["late"] + lm_miss["vlate"],
+                "died": int(died), "death_desc": ex.get("desc", "") if died else "", "death_after_s": death_after,
+                "ev_miss_early": evo_miss["early"], "ev_miss_vlate": evo_miss["vlate"]})
+
+
+def e9_summary(out):
     for plat in ("api33", "api35"):
         V = [o for o in out if o["platform"] == plat and o["valid"]]
         SUMMARY["e9_%s_valid" % plat] = len(V)
