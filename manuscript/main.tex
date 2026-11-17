@@ -40,6 +40,8 @@
 \newtheorem{definition}{Definition}
 \newtheorem{assumption}{Assumption}
 
+\providecommand{\PhysTBD}[1]{\textcolor{red}{TBD}}
+\InputIfFileExists{generated/physical_macros.tex}{}{}
 \input{generated/macros.tex}
 \input{generated/revision_macros.tex}
 \input{generated/revision_deploy_macros.tex}
@@ -81,6 +83,7 @@
 \input{sections/04-design}
 \input{sections/05-theory}
 \input{sections/06-implementation}
+\input{sections/06b-physical-setup}
 \input{sections/07-evaluation}
 \input{sections/08-discussion}
 \input{sections/09-related-work}

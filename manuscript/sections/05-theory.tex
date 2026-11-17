@@ -1,28 +1,15 @@
 \section{Guarantees and Limits}
 \label{sec:theory}
-Let $q(\sigma_t)$ be a fact's value at time $t$. An observation certificate binds a value to an actual query snapshot. Validation must establish a later snapshot or stable interval for that same query, rather than merely record a subsequently read watermark.
-
-\begin{assumption}[Consistent evidence]\label{as:evidence}
-\begin{enumerate}[nosep,leftmargin=*]
-\item Every relevant commit changes a non-repeating sequence within its epoch.
-\item Supported reset/restore changes the epoch, without silent reuse.
-\item Value and support reads are snapshots, or are bracketed by complete evidence whose equality establishes an unchanged interval.
-\item Validation includes every support, delta and membership read.
-\item Failures withdraw certification.
-\end{enumerate}
-\end{assumption}
-
 \begin{theorem}[Conditional snapshot freshness]\label{thm:sound}
-Under Assumption~\ref{as:evidence}, a successful observation records its query's value at a certified instant. A validation that returns \Fresh certifies equality of that stored value and the query at its own certified instant. It does not certify response receipt, an independent source, or a later effect.
+Suppose every relevant commit changes a non-repeating sequence within its epoch, supported reset or restore changes the epoch, value and support reads are snapshots or lie inside an interval whose equal complete evidence excludes relevant commits, validation includes every support, delta and membership read, and failures withdraw certification. Then a successful observation records its query's value at a certified instant, and a validation that returns \Fresh certifies equality of that stored value and the query at its own certified instant. Neither certifies response receipt, an independent source, or a later effect.
 \end{theorem}
-The proof is direct: an atomic snapshot binds value and sequence; for a successful bracket, non-repeating complete evidence excludes intervening relevant commits. The query belongs to that interval, and comparison therefore refers to a consistent state. A mismatched epoch, failed read or exhausted retry produces no certificate. These are implementation obligations, not properties established by a finite number of zero-miss trials. In particular, a nondecreasing clock is weaker than a strictly changing sequence, and a digest of row versions does not supply a database incarnation identifier.
 
 \begin{theorem}[Notification silence]\label{thm:indist}
 If a relevant write can commit before its notification is delivered, a reader using only its prior state, delivered notifications and lifecycle records cannot distinguish that execution from an unchanged source before delivery. It must read establishing evidence, refresh, or decline to certify.
 \end{theorem}
-This includes short in-epoch delivery delays, not just process-ending gaps. Refresh-on-restart addresses lost coverage under the tested post-gap schedules. Waiting for old callbacks is sufficient only with separately established writer quiescence and delivery completion; a fixed duration does not establish either premise.
+Appendix~\ref{app:proofs} gives both arguments. The premises are implementation obligations that zero-miss trials cannot establish; a nondecreasing clock, a digest of row versions or a fixed wait does not discharge them.
 
 \begin{proposition}[Cost accounting]\label{prop:cost}
-A validated bracket pays for both evidence reads, all support/delta/query reads, failed attempts and fallback refreshes. A host additionally pays transport, serialization and helper residency. An unsupported source incurs refresh cost if the client requires a usable value. Input memoization pays for current inputs and recomputes only changed derived outputs.
+A validated bracket pays for both evidence reads, every inner read, failed attempts and fallback refreshes; a host adds transport and helper residency. Input memoization pays for current inputs and recomputes only changed outputs.
 \end{proposition}
-The one-watermark \stamp cost does not price \sys; each result identifies the measured policy. Neither the theorem nor the cost accounting implies that validation is faster than refresh.
+Neither result implies that validation is faster than refresh, and \stamp's measured cost does not price \sys.
