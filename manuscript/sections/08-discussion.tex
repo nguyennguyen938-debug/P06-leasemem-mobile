@@ -8,12 +8,12 @@ The evidence map supports the deployment-specific choices in Table~\ref{tab:guid
 \label{tab:guidance}
 \begin{tabular}{p{1.9cm}p{4.1cm}p{1.6cm}}\toprule
 \mhead Source & Appropriate strategy and condition & Evidence\\\midrule
-Cheap provider facts & Batch current-value queries; retain read intervals. & Emulator; phone \PhysTBD{B2 refresh cost}\\
+Cheap provider facts & Batch current-value queries; retain read intervals. & Emulator; \PhysEvidCheap\\
 LLM-derived facts & Read current inputs; memoize equal-input outputs. & Emulator only\\
-Bound service/FGS & Treat notifications as hints; handle epoch breaks. & Emulator; phone \PhysTBD{B1 deployments, B2 gaps}\\
+Bound service/FGS & Treat notifications as hints; handle epoch breaks. & Emulator; \PhysEvidBound\\
 Host controller & Match batching, helper residency and privileges. & Emulator only\\
 Cooperative provider & Use transactional snapshots and managed writes/reset. & Inferred; emulator\\
-Weak/absent evidence & Return \Unknown; refresh, re-observe or stop. & Emulator; phone \PhysTBD{B4 races, B10 pitfalls}\\\bottomrule
+Weak/absent evidence & Return \Unknown; refresh, re-observe or stop. & Emulator; \PhysEvidWeak\\\bottomrule
 \end{tabular}
 \end{table}
 
