@@ -1,0 +1,115 @@
+{
+  "references_begin_page": 12,
+  "references_start_at_top": false,
+  "main_body_at_most_pages": 12,
+  "body_limit_check": true,
+  "author_verified": true,
+  "font10_log_verified": true,
+  "max_review_lines_per_column": 53,
+  "line_counts": [
+    {
+      "page": 1,
+      "left_review_numbers": 53,
+      "right_review_numbers": 53
+    },
+    {
+      "page": 2,
+      "left_review_numbers": 53,
+      "right_review_numbers": 53
+    },
+    {
+      "page": 3,
+      "left_review_numbers": 53,
+      "right_review_numbers": 53
+    },
+    {
+      "page": 4,
+      "left_review_numbers": 53,
+      "right_review_numbers": 53
+    },
+    {
+      "page": 5,
+      "left_review_numbers": 53,
+      "right_review_numbers": 53
+    },
+    {
+      "page": 6,
+      "left_review_numbers": 53,
+      "right_review_numbers": 53
+    },
+    {
+      "page": 7,
+      "left_review_numbers": 53,
+      "right_review_numbers": 53
+    },
+    {
+      "page": 8,
+      "left_review_numbers": 53,
+      "right_review_numbers": 53
+    },
+    {
+      "page": 9,
+      "left_review_numbers": 53,
+      "right_review_numbers": 53
+    },
+    {
+      "page": 10,
+      "left_review_numbers": 45,
+      "right_review_numbers": 53
+    },
+    {
+      "page": 11,
+      "left_review_numbers": 0,
+      "right_review_numbers": 53
+    },
+    {
+      "page": 12,
+      "left_review_numbers": 0,
+      "right_review_numbers": 53
+    },
+    {
+      "page": 13,
+      "left_review_numbers": 0,
+      "right_review_numbers": 53
+    },
+    {
+      "page": 14,
+      "left_review_numbers": 0,
+      "right_review_numbers": 53
+    },
+    {
+      "page": 15,
+      "left_review_numbers": 0,
+      "right_review_numbers": 53
+    },
+    {
+      "page": 16,
+      "left_review_numbers": 0,
+      "right_review_numbers": 53
+    },
+    {
+      "page": 17,
+      "left_review_numbers": 0,
+      "right_review_numbers": 53
+    },
+    {
+      "page": 18,
+      "left_review_numbers": 0,
+      "right_review_numbers": 53
+    },
+    {
+      "page": 19,
+      "left_review_numbers": 0,
+      "right_review_numbers": 53
+    },
+    {
+      "page": 20,
+      "left_review_numbers": 0,
+      "right_review_numbers": 53
+    }
+  ],
+  "overfull": 0,
+  "undefined": false,
+  "type3_fonts": false,
+  "image_description_warning": false
+}

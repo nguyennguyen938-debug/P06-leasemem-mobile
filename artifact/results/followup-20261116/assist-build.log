@@ -1,0 +1,2 @@
+papers/P06-leasemem-mobile/artifact/app/assist/build.sh: line 6: cd: papers/P06-leasemem-mobile/artifact/app/assist/../../revision: No such file or directory
+papers/P06-leasemem-mobile/artifact/app/assist/build.sh: line 6: /build-env.sh: No such file or directory

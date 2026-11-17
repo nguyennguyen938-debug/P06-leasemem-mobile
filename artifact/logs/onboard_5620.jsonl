@@ -1,0 +1,7 @@
+{"app": "calendar", "step": 0, "tap": "next page", "text": "", "desc": "next page", "xy": [1006, 2252]}
+{"app": "calendar", "step": 1, "tap": "got it", "text": "got it", "desc": "", "xy": [539, 2174]}
+{"app": "calendar", "step": 2, "action": "none"}
+{"app": "dialer", "step": 0, "action": "none"}
+{"app": "contacts", "step": 0, "tap": "skip", "text": "skip", "desc": "", "xy": [659, 2253]}
+{"app": "contacts", "step": 1, "action": "none"}
+{"app": "messages", "step": 0, "action": "none"}

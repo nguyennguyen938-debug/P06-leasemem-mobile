@@ -1,0 +1,39 @@
+# LaTeX build products (main.pdf is kept)
+*.aux
+manuscript/*.log
+*.out
+*.bbl
+*.blg
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.toc
+
+# Python / OS
+__pycache__/
+*.pyc
+.DS_Store
+.venv/
+
+# Build outputs, signing keys, private keys
+build/
+*.jks
+*.keystore
+*.key
+
+# Review history and audits: only review.md and STATUS.md are kept
+review/
+
+# Regenerable publication packages and transient LaTeX output
+/output/
+/submission/
+*.cut
+
+# Local TLS test private keys; regenerate for each run
+*-key.pem
+
+# Private Figure 1 construction sources; exported PDFs are distributable.
+/manuscript/figures/src/
+/manuscript/figures/fig1.svg
+/manuscript/figures/fig1-overview-v0.tex
+/manuscript/figures/rebuild_fig1.sh

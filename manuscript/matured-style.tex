@@ -1,0 +1,62 @@
+% matured-style.tex -- shared table/plot look for the MobiSys 2027 papers (same palette as the Figure 1 comics).
+% Copy into each manuscript and \input{matured-style} after xcolor/booktabs/pgfplots are loaded.
+% Muted, print-safe colours; series also differ by marker/dash so the plots survive greyscale.
+\usepackage{colortbl}
+% ---- palette -----------------------------------------------------------------
+\definecolor{mInk}{HTML}{2B2A29}
+\definecolor{mSlate}{HTML}{5E6670}
+\definecolor{mNavy}{HTML}{2F3E55}
+\definecolor{mTeal}{HTML}{2F6F68}
+\definecolor{mSage}{HTML}{5F8A68}
+\definecolor{mOchre}{HTML}{B9873A}
+\definecolor{mBrick}{HTML}{9E4A3C}
+\definecolor{mPlum}{HTML}{5B3F66}
+\definecolor{mHead}{HTML}{E9ECEF}   % table header fill
+\definecolor{mGroup}{HTML}{F3F1EC}  % group/section row fill
+\definecolor{mHiB}{HTML}{F4E3DF}    % brick tint: bad/unsafe cell
+\definecolor{mHiT}{HTML}{DFEDEA}    % teal tint: good/safe cell
+\definecolor{mHiO}{HTML}{F6EBD6}    % ochre tint: emphasis
+% ---- tables ------------------------------------------------------------------
+% \mhead   : first command of a header row  -> shaded header
+% \mgroup{n}{text} : full-width shaded group label row spanning n columns
+% \mbad{x} \mgood{x} \mhi{x} : tinted cells (colortbl \cellcolor)
+\newcommand{\mhead}{\rowcolor{mHead}}
+% shaded rows overhang by \tabcolsep, so shaded tables keep the outer \tabcolsep (no @{} at the edges)
+\newcommand{\mgroup}[2]{\rowcolor{mGroup}\multicolumn{#1}{l}{\textit{#2}}\\}
+\newcommand{\mbad}[1]{\cellcolor{mHiB}#1}
+\newcommand{\mgood}[1]{\cellcolor{mHiT}#1}
+\newcommand{\mhi}[1]{\cellcolor{mHiO}#1}
+\newcommand{\mtab}{\footnotesize\setlength{\tabcolsep}{3.6pt}\renewcommand{\arraystretch}{1.05}}
+\setlength{\aboverulesep}{0.25ex}\setlength{\belowrulesep}{0.4ex}
+\setlength{\heavyrulewidth}{0.08em}\setlength{\lightrulewidth}{0.05em}
+% ---- plots -------------------------------------------------------------------
+\pgfplotscreateplotcyclelist{matured}{%
+  {mBrick,mark=*,mark size=1.4pt},
+  {mTeal,mark=square*,mark size=1.3pt},
+  {mOchre,mark=triangle*,mark size=1.7pt},
+  {mNavy,mark=diamond*,mark size=1.7pt},
+  {mSage,mark=pentagon*,mark size=1.5pt},
+  {mPlum,mark=o,mark size=1.4pt}}
+\pgfplotscreateplotcyclelist{maturedbars}{%
+  {fill=mBrick,draw=mInk!75},{fill=mTeal,draw=mInk!75},{fill=mOchre,draw=mInk!75},
+  {fill=mNavy,draw=mInk!75},{fill=mSage,draw=mInk!75},{fill=mPlum,draw=mInk!75}}
+\pgfplotsset{
+  matured/.style={
+    cycle list name=matured,
+    every axis plot/.append style={line width=0.9pt},
+    axis x line*=bottom, axis y line*=left,
+    axis line style={draw=mSlate!80, line width=0.5pt},
+    every tick/.style={draw=mSlate!80, line width=0.4pt}, tick align=outside, major tick length=2pt,
+    ymajorgrids, major grid style={draw=mSlate!18, line width=0.35pt},
+    tick label style={font=\footnotesize, text=mInk},
+    label style={font=\footnotesize, text=mInk},
+    title style={font=\footnotesize\bfseries, text=mInk, yshift=-1ex},
+    legend style={font=\footnotesize, draw=none, fill=white, fill opacity=0.85, text opacity=1,
+                  legend cell align=left, column sep=4pt},
+    legend image post style={line width=0.9pt},
+    error bars/error bar style={line width=0.5pt},
+    error bars/error mark options={rotate=90, mark size=1.4pt, line width=0.5pt},
+  },
+  maturedbar/.style={matured, ybar, bar width=5pt, enlarge x limits=0.12, cycle list name=maturedbars,
+    every axis plot/.append style={line width=0.4pt}},
+}

@@ -1,0 +1,11 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.leasemem.fgs35">
+ <uses-sdk android:minSdkVersion="30" android:targetSdkVersion="35"/>
+ <uses-permission android:name="android.permission.INTERNET"/>
+ <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+ <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+ <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+ <application android:name="org.leasemem.client.LmApp" android:label="FGS compatibility fixture" android:debuggable="true" android:theme="@android:style/Theme.Material.Light">
+  <activity android:name="org.leasemem.client.Main" android:exported="true"/>
+  <service android:name="org.leasemem.client.FgService" android:exported="true" android:foregroundServiceType="dataSync"/>
+ </application>
+</manifest>

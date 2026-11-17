@@ -1,0 +1,5 @@
+\section{Implementation}
+\label{sec:impl}
+Java client, mutator and JobScheduler-trigger apps use javac~17, d8 and aapt2. The main client targets API~33; the bound-assistant and FGS compatibility fixtures target 35. The client registers observers, persists memory by atomic rename and evaluates policies before the comparison read. The separate-package trigger cannot re-register client observers. Mutations use public provider/file APIs with test-granted permissions.
+
+The client implements \stamp and strict \sys with schema-v4 certificates, a loopback helper and a separate-process transactional SQLite provider. Reference writes/reset obey its managed contract; debug endpoints are not production authorization interfaces. Seeded drivers record process state, APK/source hashes, failures and exclusions. A separate Python oracle checks certificates without invoking Java verdict logic. The artifact retains cohort-specific sources and distinguishes summed-call costs from directly measured task execution.

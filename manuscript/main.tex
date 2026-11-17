@@ -1,0 +1,101 @@
+\documentclass[sigconf,review,10pt,acmthm=false]{acmart}
+% MobiSys 2027 submission: single-blind, 12-page body limit (references + appendix excluded).
+
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{amsmath,amsthm}   % acmart: do NOT load amssymb (clashes with newtx \Bbbk)
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{xspace}
+\xspaceaddexceptions{\% \,}
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,shapes.misc,decorations.pathreplacing,backgrounds,fit}
+\usepackage{pgfplots}
+\pgfplotsset{compat=1.17} % use 1.18 on TL>=2021
+\input{matured-style} % muted palette + compact table/plot styles (shared with the Figure 1 comics)
+\usepackage{url}
+\usepackage{enumitem}
+\emergencystretch=1.5em
+
+% ---- names and notation ------------------------------------------------------
+\newcommand{\stamp}{\textsc{StampCheck}\xspace}
+\newcommand{\sys}{\textsc{EvCheck}\xspace}
+\newcommand{\W}{\mathcal{W}}
+\newcommand{\tobs}{t_o}
+\newcommand{\tchk}{t_c}
+\newcommand{\tact}{t_a}
+\newcommand{\Fresh}{\textsf{FRESH}\xspace}
+\newcommand{\Changed}{\textsf{CHANGED}\xspace}
+\newcommand{\Unknown}{\textsf{UNKNOWN}\xspace}
+\newcommand{\icon}[2][1.0em]{\raisebox{-0.2em}{\includegraphics[height=#1]{figures/icons/#2}}}
+
+\theoremstyle{plain}
+\newtheorem{theorem}{Theorem}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{corollary}[theorem]{Corollary}
+\theoremstyle{definition}
+\newtheorem{definition}{Definition}
+\newtheorem{assumption}{Assumption}
+
+\input{generated/macros.tex}
+\input{generated/revision_macros.tex}
+\input{generated/revision_deploy_macros.tex}
+\input{generated/followup_macros.tex}
+
+\settopmatter{printacmref=false}
+\setcopyright{none}
+\renewcommand\footnotetextcopyrightpermission[1]{}
+\acmConference[MobiSys '27]{The 25th Annual International Conference on Mobile Systems, Applications and Services}{June 2027}{Ho Chi Minh City, Vietnam}
+\acmYear{2027}
+
+\begin{document}
+
+\title{Absent or Unchanged? What Android Tells a Cached-Fact Client After a Lifecycle Gap}
+
+\author{Xuan-Bach Le}
+\affiliation{\institution{Faculty of Computer Science and Engineering, Ho Chi Minh City University of Technology, VNU-HCM}\city{Ho Chi Minh City}\country{Vietnam}}
+\email{lexuanbach@hcmut.edu.vn}
+
+\input{sections/00-abstract}
+
+\begin{CCSXML}
+<ccs2012>
+<concept><concept_id>10003120.10003138</concept_id><concept_desc>Human-centered computing~Ubiquitous and mobile computing</concept_desc><concept_significance>500</concept_significance></concept>
+<concept><concept_id>10011007.10010940.10010941.10010949</concept_id><concept_desc>Software and its engineering~Operating systems</concept_desc><concept_significance>500</concept_significance></concept>
+<concept><concept_id>10010147.10010178</concept_id><concept_desc>Computing methodologies~Artificial intelligence</concept_desc><concept_significance>300</concept_significance></concept>
+</ccs2012>
+\end{CCSXML}
+\ccsdesc[500]{Human-centered computing~Ubiquitous and mobile computing}
+\ccsdesc[500]{Software and its engineering~Operating systems}
+\ccsdesc[300]{Computing methodologies~Artificial intelligence}
+\keywords{mobile agents, agent memory, cache validation, Android, process lifecycle, ContentObserver, measurement}
+
+\maketitle
+
+\input{sections/01-introduction}
+\input{sections/02-background}
+\input{sections/03-measurement}
+\input{sections/04-design}
+\input{sections/05-theory}
+\input{sections/06-implementation}
+\input{sections/07-evaluation}
+\input{sections/08-discussion}
+\input{sections/09-related-work}
+\input{sections/10-conclusion}
+
+\begin{acks}
+An LLM assisted in drafting and editing manuscript prose, including the abstract, explanations and discussion. The author is responsible for the final text, claims and reported evidence.
+\end{acks}
+
+\bibliographystyle{ACM-Reference-Format}
+\bibliography{references}
+
+\appendix
+\input{sections/appendix-proofs}
+\input{sections/appendix-extra}
+\input{sections/appendix-historical}
+
+\end{document}

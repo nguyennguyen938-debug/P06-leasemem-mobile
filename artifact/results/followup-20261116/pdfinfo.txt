@@ -1,0 +1,22 @@
+Title:           Absent or Unchanged? What Android Tells a Cached-Fact Client After a Lifecycle Gap
+Subject:         -  Human-centered computing  ->  Ubiquitous and mobile computing.-  Software and its engineering  ->  Operating systems.-  Computing methodologies  ->  Artificial intelligence.
+Keywords:        mobile agents, agent memory, cache validation, Android, process lifecycle, ContentObserver, measurement
+Author:          Xuan-Bach Le
+Creator:         LaTeX with acmart 2020/02/22 v1.70 Typesetting articles for the Association for Computing Machinery and hyperref 2020/01/14 v7.00d Hypertext links for LaTeX
+Producer:        pdfTeX-1.40.21
+CreationDate:    Mon Nov 16 17:00:57 2026 +07
+ModDate:         Mon Nov 16 17:00:57 2026 +07
+Custom Metadata: yes
+Metadata Stream: no
+Tagged:          no
+UserProperties:  no
+Suspects:        no
+Form:            none
+JavaScript:      no
+Pages:           20
+Encrypted:       no
+Page size:       612 x 792 pts (letter)
+Page rot:        0
+File size:       609442 bytes
+Optimized:       no
+PDF version:     1.5

@@ -1,0 +1,6 @@
+mode,where,stale,n
+bnd,after_effect,0,76
+bnd,before_check,0,130
+bnd,overlaps_check_or_residual,0,49
+bnd,overlaps_check_or_residual,1,55
+obs,before_action,1,40

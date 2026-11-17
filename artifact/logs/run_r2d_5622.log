@@ -1,0 +1,137 @@
+trial sigkill fg 0 6
+trial sigkill fg 1 3
+trial sigkill fg 2 4
+trial sigkill fg 3 2
+trial sigkill fg 4 3
+trial sigkill fg 5 1
+trial sigkill fg 6 4
+trial sigkill fg 7 3
+trial forcestop fg 0 3
+trial forcestop fg 1 6
+trial forcestop fg 2 4
+trial forcestop fg 3 4
+trial forcestop fg 4 4
+trial forcestop fg 5 3
+trial forcestop fg 6 4
+trial forcestop fg 7 3
+trial forcestop fg 8 4
+trial forcestop fg 9 4
+trial forcestop fg 10 2
+trial forcestop fg 11 3
+trial forcestop fg 12 4
+trial forcestop fg 13 5
+trial forcestop fg 14 5
+trial reboot fg 0 4
+trial reboot fg 1 5
+trial reboot fg 2 3
+trial reboot fg 3 2
+trial reboot fg 4 4
+trial reboot fg 5 3
+trial reboot fg 6 5
+trial reboot fg 7 3
+trial reboot fg 8 3
+trial reboot fg 9 3
+trial reboot fg 10 3
+trial reboot fg 11 6
+trial reboot fg 12 2
+trial reboot fg 13 5
+trial reboot fg 14 3
+Stopping service: Intent { cmp=org.leasemem.client/.FgService }
+Service stopped
+debounce (default expected):   freeze_debounce_timeout=600000
+trial longfreeze bg 0 4
+trial longfreeze bg 1 3
+trial longfreeze bg 2 5
+trial longfreeze bg 3 5
+trial longfreeze bg 4 2
+D_API33_DONE Sun Nov 8 19:31:38 +07 2026
+OK: killing emulator, bye bye
+OK
+restarting adbd as root
+fingerprint: google/sdk_gphone64_arm64/emu64a:15/AE3A.240806.043/12960925:userdebug/dev-keys
+Success
+All files should be loaded. Notifying the device.
+Install command complete in 626 ms
+All files should be loaded. Notifying the device.
+Install command complete in 423 ms
+freezer:   use_freezer=true
+  freeze_debounce_timeout=10000
+trial 0 [('contacts', 'insert'), ('sms', 'insert'), ('calllog', 'delete'), ('media', 'insert'), ('calendar', 'insert'), ('settings', 'update'), ('files', 'delete')]
+trial 1 [('contacts', 'update'), ('sms', 'update'), ('calllog', 'delete'), ('media', 'delete'), ('calendar', 'delete'), ('settings', 'none'), ('files', 'none')]
+trial 2 [('contacts', 'none'), ('sms', 'delete'), ('calllog', 'none'), ('media', 'none'), ('calendar', 'delete'), ('settings', 'none'), ('files', 'update')]
+trial 3 [('contacts', 'none'), ('sms', 'insert'), ('calllog', 'update'), ('media', 'none'), ('calendar', 'delete'), ('settings', 'update'), ('files', 'none')]
+trial 4 [('contacts', 'none'), ('sms', 'delete'), ('calllog', 'none'), ('media', 'update'), ('calendar', 'update'), ('settings', 'update'), ('files', 'update')]
+trial 5 [('contacts', 'update'), ('sms', 'delete'), ('calllog', 'none'), ('media', 'delete'), ('calendar', 'none'), ('settings', 'none'), ('files', 'insert')]
+trial 6 [('contacts', 'update'), ('sms', 'none'), ('calllog', 'insert'), ('media', 'update'), ('calendar', 'none'), ('settings', 'none'), ('files', 'none')]
+trial 7 [('contacts', 'none'), ('sms', 'none'), ('calllog', 'none'), ('media', 'insert'), ('calendar', 'insert'), ('settings', 'none'), ('files', 'update')]
+trial 8 [('contacts', 'update'), ('sms', 'insert'), ('calllog', 'insert'), ('media', 'none'), ('calendar', 'insert'), ('settings', 'none'), ('files', 'delete')]
+trial 9 [('contacts', 'delete'), ('sms', 'insert'), ('calllog', 'delete'), ('media', 'none'), ('calendar', 'update'), ('settings', 'none'), ('files', 'delete')]
+trial 10 [('contacts', 'none'), ('sms', 'insert'), ('calllog', 'insert'), ('media', 'delete'), ('calendar', 'delete'), ('settings', 'update'), ('files', 'update')]
+trial 11 [('contacts', 'insert'), ('sms', 'delete'), ('calllog', 'insert'), ('media', 'insert'), ('calendar', 'insert'), ('settings', 'update'), ('files', 'delete')]
+trial 12 [('contacts', 'none'), ('sms', 'delete'), ('calllog', 'insert'), ('media', 'update'), ('calendar', 'update'), ('settings', 'update'), ('files', 'update')]
+trial 13 [('contacts', 'delete'), ('sms', 'update'), ('calllog', 'insert'), ('media', 'update'), ('calendar', 'delete'), ('settings', 'update'), ('files', 'delete')]
+trial 14 [('contacts', 'insert'), ('sms', 'delete'), ('calllog', 'update'), ('media', 'delete'), ('calendar', 'update'), ('settings', 'none'), ('files', 'none')]
+trial 15 [('contacts', 'delete'), ('sms', 'delete'), ('calllog', 'none'), ('media', 'update'), ('calendar', 'insert'), ('settings', 'update'), ('files', 'none')]
+trial 16 [('contacts', 'delete'), ('sms', 'insert'), ('calllog', 'update'), ('media', 'none'), ('calendar', 'delete'), ('settings', 'update'), ('files', 'delete')]
+trial 17 [('contacts', 'insert'), ('sms', 'none'), ('calllog', 'none'), ('media', 'none'), ('calendar', 'update'), ('settings', 'update'), ('files', 'none')]
+trial 18 [('contacts', 'insert'), ('sms', 'delete'), ('calllog', 'update'), ('media', 'update'), ('calendar', 'insert'), ('settings', 'none'), ('files', 'update')]
+trial 19 [('contacts', 'delete'), ('sms', 'delete'), ('calllog', 'delete'), ('media', 'insert'), ('calendar', 'delete'), ('settings', 'none'), ('files', 'update')]
+trial 20 [('contacts', 'insert'), ('sms', 'insert'), ('calllog', 'insert'), ('media', 'update'), ('calendar', 'update'), ('settings', 'none'), ('files', 'none')]
+trial 21 [('contacts', 'none'), ('sms', 'update'), ('calllog', 'update'), ('media', 'insert'), ('calendar', 'none'), ('settings', 'none'), ('files', 'insert')]
+trial 22 [('contacts', 'insert'), ('sms', 'insert'), ('calllog', 'insert'), ('media', 'delete'), ('calendar', 'none'), ('settings', 'none'), ('files', 'update')]
+trial 23 [('contacts', 'update'), ('sms', 'update'), ('calllog', 'update'), ('media', 'insert'), ('calendar', 'insert'), ('settings', 'update'), ('files', 'none')]
+trial 24 [('contacts', 'delete'), ('sms', 'insert'), ('calllog', 'update'), ('media', 'none'), ('calendar', 'insert'), ('settings', 'none'), ('files', 'none')]
+trial 25 [('contacts', 'delete'), ('sms', 'delete'), ('calllog', 'none'), ('media', 'insert'), ('calendar', 'none'), ('settings', 'none'), ('files', 'insert')]
+trial 26 [('contacts', 'none'), ('sms', 'update'), ('calllog', 'delete'), ('media', 'update'), ('calendar', 'update'), ('settings', 'update'), ('files', 'none')]
+trial 27 [('contacts', 'update'), ('sms', 'update'), ('calllog', 'insert'), ('media', 'delete'), ('calendar', 'delete'), ('settings', 'none'), ('files', 'update')]
+trial 28 [('contacts', 'insert'), ('sms', 'delete'), ('calllog', 'none'), ('media', 'delete'), ('calendar', 'insert'), ('settings', 'update'), ('files', 'insert')]
+trial 29 [('contacts', 'none'), ('sms', 'insert'), ('calllog', 'none'), ('media', 'update'), ('calendar', 'none'), ('settings', 'none'), ('files', 'none')]
+trial none bg 0 5
+trial none bg 1 5
+trial none bg 2 6
+trial none bg 3 3
+trial none bg 4 4
+trial none bg 5 2
+trial none bg 6 3
+trial none bg 7 2
+trial none bg 8 6
+trial none bg 9 3
+trial none bg 10 1
+trial none bg 11 2
+trial kill bg 0 3
+trial kill bg 1 3
+trial kill bg 2 5
+trial kill bg 3 0
+trial kill bg 4 2
+trial kill bg 5 2
+trial kill bg 6 3
+trial kill bg 7 5
+trial kill bg 8 3
+trial kill bg 9 5
+trial kill bg 10 2
+trial kill bg 11 6
+trial unregister bg 0 4
+trial unregister bg 1 4
+trial unregister bg 2 5
+trial unregister bg 3 3
+trial unregister bg 4 6
+trial unregister bg 5 2
+trial unregister bg 6 3
+trial unregister bg 7 4
+trial unregister bg 8 4
+trial unregister bg 9 3
+trial unregister bg 10 2
+trial unregister bg 11 7
+trial freeze bg 0 5
+trial freeze bg 1 4
+trial freeze bg 2 3
+trial freeze bg 3 3
+trial freeze bg 4 3
+trial freeze bg 5 2
+trial freeze bg 6 3
+trial freeze bg 7 3
+trial freeze bg 8 5
+trial freeze bg 9 6
+trial freeze bg 10 3
+trial freeze bg 11 4
+R2D_DONE Sun Nov 8 20:14:34 +07 2026

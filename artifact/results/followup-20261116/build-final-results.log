@@ -1,0 +1,26 @@
+python3 scripts/render.py
+wrote 1479 macros
+python3 revision/oracle.py
+{
+  "reference": {
+    "action_residual_trials": 40,
+    "trials": 560,
+    "historical_stale": 80,
+    "verdicts": {
+      "FRESH": 200,
+      "CHANGED": 240,
+      "UNKNOWN": 120
+    },
+    "oracle_failures": 0
+  },
+  "tick": {
+    "trials": 40,
+    "pairs": 4000,
+    "equal_tick_changed_trials": 0
+  }
+}
+python3 revision/deployment_summary.py >/dev/null
+python3 followup/analyze.py
+{"deployment_groups": 9, "agent_trials": 144, "agent_errors": 0}
+cd ../manuscript && pdflatex -halt-on-error -interaction=nonstopmode main >/dev/null && bibtex main >/dev/null && pdflatex -halt-on-error -interaction=nonstopmode main >/dev/null && pdflatex -halt-on-error -interaction=nonstopmode main >/dev/null && pdfinfo main.pdf | grep Pages
+Pages:           21

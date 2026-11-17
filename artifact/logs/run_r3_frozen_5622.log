@@ -1,0 +1,22 @@
+debounce:   freeze_debounce_timeout=2000
+trial 0 muts 193 frozen_end 1
+trial 1 muts 192 frozen_end 1
+trial 2 muts 193 frozen_end 1
+trial 3 muts 195 frozen_end 1
+trial 4 muts 195 frozen_end 1
+trial 5 muts 195 frozen_end 1
+trial 6 muts 195 frozen_end 1
+trial 7 muts 196 frozen_end 1
+trial 8 muts 196 frozen_end 1
+trial 9 muts 195 frozen_end 1
+trial 10 muts 196 frozen_end 1
+trial 11 muts 195 frozen_end 1
+trial 12 muts 195 frozen_end 1
+trial 13 muts 191 frozen_end 1
+trial 14 muts 189 frozen_end 1
+trial 15 muts 189 frozen_end 1
+trial 16 muts 192 frozen_end 1
+trial 17 muts 192 frozen_end 1
+trial 18 muts 193 frozen_end 1
+trial 19 muts 191 frozen_end 1
+E9_DONE_5622 Mon Nov 9 01:01:37 +07 2026

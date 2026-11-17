@@ -1,0 +1,15 @@
+store,class,tasks,apps,where
+Shared files (Documents/Markor),watermark,17,markor,env/device_constants.py MARKOR_DATA
+MediaStore (Pictures),watermark,4,simple gallery pro,task_evals/single/simple_gallery_pro.py
+MediaStore (DCIM),watermark,3,camera,env/device_constants.py GALLERY_DATA
+ContactsContract,watermark,3,contacts,utils/contacts_utils.py (content query)
+Shared files (Download),watermark,2,files,task_evals/single/files.py
+CallLog,watermark,1,dialer,task_evals/single/phone.py
+Shared files (Pictures),watermark,1,simple draw pro,task_evals/single/simple_draw_pro.py:43 (file)
+Settings / radio state,api-only,15,settings,task_evals/single/system.py (adb settings/toggles)
+Telephony SMS,api-only,7,simple sms messenger,task_evals/common_validators/sms_validators.py
+Clipboard,api-only,3,clipper,task_evals/composite/markor_sms.py
+App-private SQLite,gui-only,62,broccoli app;ir:Notes;ir:SimpleCalendar;ir:SportsTracker;ir:Tasks;pro expense;retro music;simple calendar pro;vlc,task_evals/single/expense.py (sqlite_utils)
+App-specific dir (Android/data),gui-only,5,audio recorder;osmand,env/device_constants.py AUDIORECORDER_DATA
+Transient UI state,gui-only,4,clock,task_evals/single/clock.py:148 (ui_elements)
+Web/app state,gui-only,3,chrome,task_evals/single/browser.py

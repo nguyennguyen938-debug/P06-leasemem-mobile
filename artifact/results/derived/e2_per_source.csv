@@ -1,0 +1,9 @@
+source,uses,changed,lab_FRESH,lab_CHANGED,lab_UNKNOWN,lab_REFRESH,unchanged,unch_fresh,unch_false,chg_detected,ev_miss,evr_miss,evr_miss_early,changed_early
+contacts,747,158,550,197,,,589,550,39,158,72,0,12,158
+sms,747,212,,,747,,535,0,0,212,103,0,10,212
+calllog,498,194,234,264,,,304,234,70,194,103,0,12,194
+media,498,129,327,171,,,369,327,42,129,61,0,12,129
+calendar,498,118,,,498,,380,0,0,118,57,0,8,118
+settings,498,119,,,498,,379,0,0,119,55,0,13,119
+files,498,117,264,234,,,381,264,117,117,55,0,0,117
+derived,747,292,99,,,648,455,99,0,292,138,0,24,292

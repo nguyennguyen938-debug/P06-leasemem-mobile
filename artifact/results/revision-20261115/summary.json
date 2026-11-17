@@ -1,0 +1,712 @@
+{
+  "historical_trial_groups": [
+    {
+      "client": "bg",
+      "evr": {
+        "ci": [
+          1.734723475976807e-18,
+          0.029815393708326456
+        ],
+        "k": 0,
+        "n": 125
+      },
+      "group": "epoch break",
+      "lm": {
+        "ci": [
+          1.734723475976807e-18,
+          0.029815393708326456
+        ],
+        "k": 0,
+        "n": 125
+      },
+      "platform": "api33"
+    },
+    {
+      "client": "bg",
+      "evr": {
+        "ci": [
+          0.12018486099119609,
+          0.2540400521318218
+        ],
+        "k": 22,
+        "n": 124
+      },
+      "group": "in epoch",
+      "lm": {
+        "ci": [
+          0,
+          0.030048615340677695
+        ],
+        "k": 0,
+        "n": 124
+      },
+      "platform": "api33"
+    },
+    {
+      "client": "fg",
+      "evr": {
+        "ci": [
+          0,
+          0.06017185214208986
+        ],
+        "k": 0,
+        "n": 60
+      },
+      "group": "epoch break",
+      "lm": {
+        "ci": [
+          0,
+          0.06017185214208986
+        ],
+        "k": 0,
+        "n": 60
+      },
+      "platform": "api33"
+    },
+    {
+      "client": "fg",
+      "evr": {
+        "ci": [
+          0,
+          0.11351339317396876
+        ],
+        "k": 0,
+        "n": 30
+      },
+      "group": "in epoch",
+      "lm": {
+        "ci": [
+          0,
+          0.11351339317396876
+        ],
+        "k": 0,
+        "n": 30
+      },
+      "platform": "api33"
+    },
+    {
+      "client": "bg",
+      "evr": {
+        "ci": [
+          1.3877787807814457e-17,
+          0.13797620467498017
+        ],
+        "k": 0,
+        "n": 24
+      },
+      "group": "epoch break",
+      "lm": {
+        "ci": [
+          1.3877787807814457e-17,
+          0.13797620467498017
+        ],
+        "k": 0,
+        "n": 24
+      },
+      "platform": "api35"
+    },
+    {
+      "client": "bg",
+      "evr": {
+        "ci": [
+          0.4670631683813174,
+          0.8202780967270225
+        ],
+        "k": 16,
+        "n": 24
+      },
+      "group": "in epoch",
+      "lm": {
+        "ci": [
+          1.3877787807814457e-17,
+          0.13797620467498017
+        ],
+        "k": 0,
+        "n": 24
+      },
+      "platform": "api35"
+    }
+  ],
+  "host": [
+    {
+      "arm": "refresh",
+      "case": "none",
+      "difference_ci_ms": [
+        0.0,
+        0.0
+      ],
+      "later_value_mismatch_trials": 0,
+      "mean_bytes": 14654,
+      "mean_difference_ms": 0.0,
+      "mean_fact_reads": 16,
+      "median_ms": 33.3240005,
+      "mismatch_interpretation": "quiescent_value_comparison",
+      "n": 30,
+      "serial": "emulator-5620"
+    },
+    {
+      "arm": "validate",
+      "case": "none",
+      "difference_ci_ms": [
+        -0.7121291999999999,
+        1.9823190666666666
+      ],
+      "later_value_mismatch_trials": 0,
+      "mean_bytes": 16965,
+      "mean_difference_ms": 0.5594623333333334,
+      "mean_fact_reads": 16,
+      "median_ms": 32.835458,
+      "mismatch_interpretation": "quiescent_value_comparison",
+      "n": 30,
+      "serial": "emulator-5620"
+    },
+    {
+      "arm": "memo",
+      "case": "none",
+      "difference_ci_ms": [
+        -1.2190294000000002,
+        1.9910983666666666
+      ],
+      "later_value_mismatch_trials": 0,
+      "mean_bytes": 14648,
+      "mean_difference_ms": 0.46438039999999997,
+      "mean_fact_reads": 16,
+      "median_ms": 32.8118335,
+      "mismatch_interpretation": "quiescent_value_comparison",
+      "n": 30,
+      "serial": "emulator-5620"
+    },
+    {
+      "arm": "relay",
+      "case": "none",
+      "difference_ci_ms": [
+        -35.440889166666665,
+        -30.65818073333333
+      ],
+      "later_value_mismatch_trials": 0,
+      "mean_bytes": 14648,
+      "mean_difference_ms": -32.64548633333333,
+      "mean_fact_reads": 0,
+      "median_ms": 1.7905,
+      "mismatch_interpretation": "quiescent_value_comparison",
+      "n": 30,
+      "serial": "emulator-5620"
+    },
+    {
+      "arm": "refresh",
+      "case": "one",
+      "difference_ci_ms": [
+        0.0,
+        0.0
+      ],
+      "later_value_mismatch_trials": 0,
+      "mean_bytes": 14654,
+      "mean_difference_ms": 0.0,
+      "mean_fact_reads": 16,
+      "median_ms": 31.863875,
+      "mismatch_interpretation": "quiescent_value_comparison",
+      "n": 30,
+      "serial": "emulator-5620"
+    },
+    {
+      "arm": "validate",
+      "case": "one",
+      "difference_ci_ms": [
+        -6.499786233333333,
+        0.9470637333333333
+      ],
+      "later_value_mismatch_trials": 0,
+      "mean_bytes": 16965,
+      "mean_difference_ms": -1.8633015,
+      "mean_fact_reads": 16,
+      "median_ms": 31.971729,
+      "mismatch_interpretation": "quiescent_value_comparison",
+      "n": 30,
+      "serial": "emulator-5620"
+    },
+    {
+      "arm": "memo",
+      "case": "one",
+      "difference_ci_ms": [
+        -3.9166804666666666,
+        1.1531345
+      ],
+      "later_value_mismatch_trials": 0,
+      "mean_bytes": 14648,
+      "mean_difference_ms": -0.8405180333333333,
+      "mean_fact_reads": 16,
+      "median_ms": 32.2471875,
+      "mismatch_interpretation": "quiescent_value_comparison",
+      "n": 30,
+      "serial": "emulator-5620"
+    },
+    {
+      "arm": "relay",
+      "case": "one",
+      "difference_ci_ms": [
+        -32.397332,
+        -25.220512466666666
+      ],
+      "later_value_mismatch_trials": 0,
+      "mean_bytes": 14648,
+      "mean_difference_ms": -28.12379303333333,
+      "mean_fact_reads": 3,
+      "median_ms": 7.226,
+      "mismatch_interpretation": "quiescent_value_comparison",
+      "n": 30,
+      "serial": "emulator-5620"
+    },
+    {
+      "arm": "refresh",
+      "case": "continuous",
+      "difference_ci_ms": [
+        0.0,
+        0.0
+      ],
+      "later_value_mismatch_trials": 30,
+      "mean_bytes": 14654,
+      "mean_difference_ms": 0.0,
+      "mean_fact_reads": 16,
+      "median_ms": 47.487625,
+      "mismatch_interpretation": "ambiguous",
+      "n": 30,
+      "serial": "emulator-5620"
+    },
+    {
+      "arm": "validate",
+      "case": "continuous",
+      "difference_ci_ms": [
+        -5.7440375,
+        4.2742610333333335
+      ],
+      "later_value_mismatch_trials": 30,
+      "mean_bytes": 16965,
+      "mean_difference_ms": -0.8082264000000002,
+      "mean_fact_reads": 16,
+      "median_ms": 47.123458,
+      "mismatch_interpretation": "ambiguous",
+      "n": 30,
+      "serial": "emulator-5620"
+    },
+    {
+      "arm": "memo",
+      "case": "continuous",
+      "difference_ci_ms": [
+        -6.0888555,
+        3.8506513
+      ],
+      "later_value_mismatch_trials": 30,
+      "mean_bytes": 14648,
+      "mean_difference_ms": -1.0835958333333333,
+      "mean_fact_reads": 16,
+      "median_ms": 46.907125,
+      "mismatch_interpretation": "ambiguous",
+      "n": 30,
+      "serial": "emulator-5620"
+    },
+    {
+      "arm": "relay",
+      "case": "continuous",
+      "difference_ci_ms": [
+        -45.52048046666667,
+        -38.19351803333333
+      ],
+      "later_value_mismatch_trials": 29,
+      "mean_bytes": 14648,
+      "mean_difference_ms": -41.709868033333336,
+      "mean_fact_reads": 2.3,
+      "median_ms": 7.7161875,
+      "mismatch_interpretation": "ambiguous",
+      "n": 30,
+      "serial": "emulator-5620"
+    },
+    {
+      "arm": "refresh",
+      "case": "none",
+      "difference_ci_ms": [
+        0.0,
+        0.0
+      ],
+      "later_value_mismatch_trials": 0,
+      "mean_bytes": 14276,
+      "mean_difference_ms": 0.0,
+      "mean_fact_reads": 16,
+      "median_ms": 30.6694165,
+      "mismatch_interpretation": "quiescent_value_comparison",
+      "n": 30,
+      "serial": "emulator-5622"
+    },
+    {
+      "arm": "validate",
+      "case": "none",
+      "difference_ci_ms": [
+        0.20703609999999997,
+        2.0228279000000002
+      ],
+      "later_value_mismatch_trials": 0,
+      "mean_bytes": 16587,
+      "mean_difference_ms": 1.0776042666666668,
+      "mean_fact_reads": 16,
+      "median_ms": 32.474166999999994,
+      "mismatch_interpretation": "quiescent_value_comparison",
+      "n": 30,
+      "serial": "emulator-5622"
+    },
+    {
+      "arm": "memo",
+      "case": "none",
+      "difference_ci_ms": [
+        -0.31969593333333335,
+        2.2388304666666667
+      ],
+      "later_value_mismatch_trials": 0,
+      "mean_bytes": 14270,
+      "mean_difference_ms": 0.8823541666666667,
+      "mean_fact_reads": 16,
+      "median_ms": 30.9637295,
+      "mismatch_interpretation": "quiescent_value_comparison",
+      "n": 30,
+      "serial": "emulator-5622"
+    },
+    {
+      "arm": "relay",
+      "case": "none",
+      "difference_ci_ms": [
+        -30.665136,
+        -28.417680566666668
+      ],
+      "later_value_mismatch_trials": 0,
+      "mean_bytes": 14270,
+      "mean_difference_ms": -29.484154133333334,
+      "mean_fact_reads": 0,
+      "median_ms": 2.3912915000000003,
+      "mismatch_interpretation": "quiescent_value_comparison",
+      "n": 30,
+      "serial": "emulator-5622"
+    },
+    {
+      "arm": "refresh",
+      "case": "one",
+      "difference_ci_ms": [
+        0.0,
+        0.0
+      ],
+      "later_value_mismatch_trials": 0,
+      "mean_bytes": 14276,
+      "mean_difference_ms": 0.0,
+      "mean_fact_reads": 16,
+      "median_ms": 31.055375,
+      "mismatch_interpretation": "quiescent_value_comparison",
+      "n": 30,
+      "serial": "emulator-5622"
+    },
+    {
+      "arm": "validate",
+      "case": "one",
+      "difference_ci_ms": [
+        -0.9821207666666667,
+        3.888058366666667
+      ],
+      "later_value_mismatch_trials": 0,
+      "mean_bytes": 16587,
+      "mean_difference_ms": 1.1362264,
+      "mean_fact_reads": 16,
+      "median_ms": 32.143354,
+      "mismatch_interpretation": "quiescent_value_comparison",
+      "n": 30,
+      "serial": "emulator-5622"
+    },
+    {
+      "arm": "memo",
+      "case": "one",
+      "difference_ci_ms": [
+        -4.181547166666666,
+        0.09886246666666672
+      ],
+      "later_value_mismatch_trials": 0,
+      "mean_bytes": 14270,
+      "mean_difference_ms": -1.7971167333333333,
+      "mean_fact_reads": 16,
+      "median_ms": 30.8051665,
+      "mismatch_interpretation": "quiescent_value_comparison",
+      "n": 30,
+      "serial": "emulator-5622"
+    },
+    {
+      "arm": "relay",
+      "case": "one",
+      "difference_ci_ms": [
+        -28.221520899999998,
+        -23.830415366666667
+      ],
+      "later_value_mismatch_trials": 0,
+      "mean_bytes": 14270,
+      "mean_difference_ms": -25.779836233333334,
+      "mean_fact_reads": 3,
+      "median_ms": 7.675229,
+      "mismatch_interpretation": "quiescent_value_comparison",
+      "n": 30,
+      "serial": "emulator-5622"
+    },
+    {
+      "arm": "refresh",
+      "case": "continuous",
+      "difference_ci_ms": [
+        0.0,
+        0.0
+      ],
+      "later_value_mismatch_trials": 30,
+      "mean_bytes": 14276,
+      "mean_difference_ms": 0.0,
+      "mean_fact_reads": 16,
+      "median_ms": 49.3431875,
+      "mismatch_interpretation": "ambiguous",
+      "n": 30,
+      "serial": "emulator-5622"
+    },
+    {
+      "arm": "validate",
+      "case": "continuous",
+      "difference_ci_ms": [
+        -5.253201399999999,
+        6.247815133333334
+      ],
+      "later_value_mismatch_trials": 30,
+      "mean_bytes": 16587,
+      "mean_difference_ms": 0.3113778333333336,
+      "mean_fact_reads": 16,
+      "median_ms": 48.686271,
+      "mismatch_interpretation": "ambiguous",
+      "n": 30,
+      "serial": "emulator-5622"
+    },
+    {
+      "arm": "memo",
+      "case": "continuous",
+      "difference_ci_ms": [
+        -6.848751366666667,
+        2.0810779333333334
+      ],
+      "later_value_mismatch_trials": 30,
+      "mean_bytes": 14270,
+      "mean_difference_ms": -2.253947033333333,
+      "mean_fact_reads": 16,
+      "median_ms": 52.564125000000004,
+      "mismatch_interpretation": "ambiguous",
+      "n": 30,
+      "serial": "emulator-5622"
+    },
+    {
+      "arm": "relay",
+      "case": "continuous",
+      "difference_ci_ms": [
+        -46.666983099999996,
+        -39.09604013333333
+      ],
+      "later_value_mismatch_trials": 25,
+      "mean_bytes": 14270,
+      "mean_difference_ms": -42.71834436666666,
+      "mean_fact_reads": 2.3,
+      "median_ms": 9.7349795,
+      "mismatch_interpretation": "ambiguous",
+      "n": 30,
+      "serial": "emulator-5622"
+    }
+  ],
+  "initial_reference_audited_trials": 400,
+  "notes": [
+    "One host and one AVD per Android version in revision runs.",
+    "Continuous-arm later-value differences are ambiguous, not confirmed stale uses.",
+    "Stock strict adapters are disabled; UNKNOWN is not a successful freshness certificate."
+  ],
+  "reference": {
+    "action_residual_trials": 40,
+    "historical_stale": 80,
+    "oracle_failures": 0,
+    "trials": 560,
+    "verdicts": {
+      "CHANGED": 240,
+      "FRESH": 200,
+      "UNKNOWN": 120
+    }
+  },
+  "seed": 20261115,
+  "stock": [
+    {
+      "ci": [
+        0,
+        0.16112515805281938
+      ],
+      "historical_stale_trials": 0,
+      "serial": "emulator-5620",
+      "source": "calendar",
+      "strict_unknown_trials": 20,
+      "trials": 20
+    },
+    {
+      "ci": [
+        0.43285427668523624,
+        0.818808175898918
+      ],
+      "historical_stale_trials": 13,
+      "serial": "emulator-5620",
+      "source": "calllog",
+      "strict_unknown_trials": 20,
+      "trials": 20
+    },
+    {
+      "ci": [
+        0.43285427668523624,
+        0.818808175898918
+      ],
+      "historical_stale_trials": 13,
+      "serial": "emulator-5620",
+      "source": "contacts",
+      "strict_unknown_trials": 20,
+      "trials": 20
+    },
+    {
+      "ci": [
+        0,
+        0.16112515805281938
+      ],
+      "historical_stale_trials": 0,
+      "serial": "emulator-5620",
+      "source": "files",
+      "strict_unknown_trials": 20,
+      "trials": 20
+    },
+    {
+      "ci": [
+        0.43285427668523624,
+        0.818808175898918
+      ],
+      "historical_stale_trials": 13,
+      "serial": "emulator-5620",
+      "source": "media",
+      "strict_unknown_trials": 20,
+      "trials": 20
+    },
+    {
+      "ci": [
+        0,
+        0.16112515805281938
+      ],
+      "historical_stale_trials": 0,
+      "serial": "emulator-5620",
+      "source": "settings",
+      "strict_unknown_trials": 20,
+      "trials": 20
+    },
+    {
+      "ci": [
+        0,
+        0.16112515805281938
+      ],
+      "historical_stale_trials": 0,
+      "serial": "emulator-5620",
+      "source": "sms",
+      "strict_unknown_trials": 20,
+      "trials": 20
+    },
+    {
+      "ci": [
+        0,
+        0.16112515805281938
+      ],
+      "historical_stale_trials": 0,
+      "serial": "emulator-5622",
+      "source": "calendar",
+      "strict_unknown_trials": 20,
+      "trials": 20
+    },
+    {
+      "ci": [
+        0.43285427668523624,
+        0.818808175898918
+      ],
+      "historical_stale_trials": 13,
+      "serial": "emulator-5622",
+      "source": "calllog",
+      "strict_unknown_trials": 20,
+      "trials": 20
+    },
+    {
+      "ci": [
+        0.43285427668523624,
+        0.818808175898918
+      ],
+      "historical_stale_trials": 13,
+      "serial": "emulator-5622",
+      "source": "contacts",
+      "strict_unknown_trials": 20,
+      "trials": 20
+    },
+    {
+      "ci": [
+        0,
+        0.16112515805281938
+      ],
+      "historical_stale_trials": 0,
+      "serial": "emulator-5622",
+      "source": "files",
+      "strict_unknown_trials": 20,
+      "trials": 20
+    },
+    {
+      "ci": [
+        0.43285427668523624,
+        0.818808175898918
+      ],
+      "historical_stale_trials": 13,
+      "serial": "emulator-5622",
+      "source": "media",
+      "strict_unknown_trials": 20,
+      "trials": 20
+    },
+    {
+      "ci": [
+        0,
+        0.16112515805281938
+      ],
+      "historical_stale_trials": 0,
+      "serial": "emulator-5622",
+      "source": "settings",
+      "strict_unknown_trials": 20,
+      "trials": 20
+    },
+    {
+      "ci": [
+        0,
+        0.16112515805281938
+      ],
+      "historical_stale_trials": 0,
+      "serial": "emulator-5622",
+      "source": "sms",
+      "strict_unknown_trials": 20,
+      "trials": 20
+    }
+  ],
+  "supplement": {
+    "cases": {
+      "clock_restore": 40,
+      "contacts_reset": 40,
+      "files_same_tick": 40,
+      "legacy": 40,
+      "missing": 40,
+      "permission": 40,
+      "sms_reuse": 40
+    },
+    "file_same_metadata_value_changes": 0,
+    "permission_errors_fail_closed": 40,
+    "sms_id_reuse": 40,
+    "successful_contacts_resets": 40,
+    "trials": 280,
+    "unknown": 280
+  },
+  "tick": {
+    "equal_tick_changed_trials": 0,
+    "pairs": 4000,
+    "trials": 40
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "measurement_trials_excluded": 0,
+  "retained_setup_failures": [
+    {
+      "path": "assist-build.log",
+      "reason": "relative build-script lookup failed before APK build; corrected in assist-build-fixed.log"
+    },
+    {
+      "path": "persist.log",
+      "reason": "adb root lost during boot; mutator output unreadable before measurement loop; wait-for-boot/root order fixed; valid cohort in persist-retry.log"
+    }
+  ],
+  "intermediate_build_logs": "retained; missing live-generated table during layout build is not a measurement result"
+}

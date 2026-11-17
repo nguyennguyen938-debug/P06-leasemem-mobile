@@ -1,0 +1,226 @@
+== E10 on 35 Mon Nov  9 01:01:48 +07 2026
+{"mode": "bg", "pkg": "org.leasemem.client", "serial": "emulator-5622", "sdk": "35", "seed": 1100, "state_home": {"pid": "3320", "curProcState": 19, "oom_cur": 925, "oom_score_adj": "925"}, "state_after": {"pid": "3320", "curProcState": 19, "oom_cur": 915, "oom_score_adj": "915"}, "frozen_after_10s": "1", "am_kill": {"pid_before": "3320", "pid_after": "", "killed": true}, "force_stop": {"pid_before": "6028", "pid_after": "", "output": "", "restarted_by_system": false}}
+latencies [35157, 35227, None, 35150, 35122, None]
+{"mode": "fg", "pkg": "org.leasemem.client", "serial": "emulator-5622", "sdk": "35", "seed": 1100, "state_home": {"pid": "6066", "curProcState": 4, "oom_cur": 200, "oom_score_adj": "200"}, "state_after": {"pid": "6066", "curProcState": 4, "oom_cur": 200, "oom_score_adj": "200"}, "frozen_after_10s": "0", "am_kill": {"pid_before": "6066", "pid_after": "6066", "killed": false}, "force_stop": {"pid_before": "6066", "pid_after": "", "output": "", "restarted_by_system": false}}
+latencies [10, 22, 26, 10, 15, 3]
+Serving...
+All files should be loaded. Notifying the device.
+Performing Incremental Install
+Success
+Install command complete in 186 ms
+org.leasemem.assist/org.leasemem.client.AssistVis
+org.leasemem.assist/org.leasemem.client.AssistVis
+org.leasemem.assist
+  mComponent=org.leasemem.assist/org.leasemem.client.AssistVis
+  Session service=org.leasemem.client.AssistVis$Session
+    name=org.leasemem.client.AssistVis
+    packageName=org.leasemem.assist
+      name=org.leasemem.client.LmApp
+      packageName=org.leasemem.assist
+      labelRes=0x0 nonLocalizedLabel=LeaseMemAssist icon=0x0 banner=0x0
+      className=org.leasemem.client.LmApp
+{"mode": "assist", "pkg": "org.leasemem.assist", "serial": "emulator-5622", "sdk": "35", "seed": 1101, "voiceinteraction": "  mComponent=org.leasemem.assist/org.leasemem.client.AssistVis\n  Session service=org.leasemem.client.AssistVis$Session\n    name=org.leasemem.client.AssistVis\n    packageName=org.leasemem.assist\n      name=org.leasemem.client.LmApp\n", "role": "org.leasemem.assist\n        name=android.app.role.ASSISTANT\n        fallback_enabled=true\n        holders=org.leasemem.assist\n", "state_home": {"pid": "6564", "curProcState": 5, "oom_cur": 100, "oom_score_adj": "100"}, "state_after": {"pid": "6564", "curProcState": 5, "oom_cur": 100, "oom_score_adj": "100"}, "frozen_after_10s": "0", "am_kill": {"pid_before": "6564", "pid_after": "6564", "killed": false}, "force_stop": {"pid_before": "6564", "pid_after": "7165", "output": "", "restarted_by_system": true}}
+latencies [35, 28, 13, 16, 12, 3]
+Success
+== E11 Mon Nov  9 01:14:47 +07 2026
+Traceback (most recent call last):
+  File "~/Workstation/MobiSys2027/papers/P06-leasemem-mobile/artifact/driver/e11_fgcost.py", line 59, in <module>
+    pw, uid = uid_power()
+              ~~~~~~~~~^^
+  File "~/Workstation/MobiSys2027/papers/P06-leasemem-mobile/artifact/driver/e11_fgcost.py", line 34, in uid_power
+    uid = re.search(r"userId=(\d+)", d.sh("dumpsys package %s" % PKG)).group(1)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'group'
+== switch to P06Avd2 Mon Nov  9 01:24:57 +07 2026
+OK: killing emulator, bye bye
+OK
+restarting adbd as root
+sdk 33
+Serving...
+All files should be loaded. Notifying the device.
+Performing Incremental Install
+Success
+Install command complete in 2029 ms
+== E3 band Mon Nov  9 01:25:41 +07 2026
+0 bnd 1 14.4 True
+1 bnd 1 -7.1 False
+2 bnd 1 6.5 True
+3 bnd 1 29.0 False
+4 bnd 1 -3.8 True
+5 bnd 1 30.4 False
+6 bnd 1 -4.5 True
+7 bnd 1 5.7 True
+8 bnd 1 25.3 False
+9 bnd 1 25.2 False
+10 bnd 1 -9.6 False
+11 bnd 1 26.8 False
+12 bnd 1 9.8 False
+13 bnd 1 19.0 False
+14 bnd 1 38.1 False
+15 bnd 1 -1.4 True
+16 bnd 1 -6.3 True
+17 bnd 1 15.8 False
+18 bnd 1 27.7 False
+19 bnd 1 32.2 False
+20 bnd 1 34.2 False
+21 bnd 1 19.1 False
+22 bnd 1 2.9 True
+23 bnd 1 14.6 False
+24 bnd 1 38.4 False
+25 bnd 1 22.7 False
+26 bnd 1 17.3 False
+27 bnd 1 11.8 False
+28 bnd 1 13.7 False
+29 bnd 1 33.1 False
+30 bnd 1 14.5 False
+31 bnd 1 -9.7 False
+32 bnd 1 35.3 False
+33 bnd 1 -4.2 True
+34 bnd 1 34.0 False
+35 bnd 1 39.4 False
+36 bnd 1 -9.0 False
+37 bnd 1 28.9 False
+38 bnd 1 0.8 True
+39 bnd 1 0.9 True
+40 bnd 1 17.6 False
+41 bnd 1 20.3 False
+42 bnd 1 38.6 False
+43 bnd 1 17.6 False
+44 bnd 1 33.2 False
+45 bnd 1 16.3 False
+46 bnd 1 34.4 False
+47 bnd 1 38.9 False
+48 bnd 1 -0.2 True
+49 bnd 1 26.0 False
+50 bnd 1 16.8 True
+51 bnd 1 -7.0 True
+52 bnd 1 -6.5 True
+53 bnd 1 7.6 False
+54 bnd 1 32.1 False
+55 bnd 1 21.0 False
+56 bnd 1 11.8 False
+57 bnd 1 12.2 False
+58 bnd 1 21.8 False
+59 bnd 1 16.1 False
+60 bnd 1 -7.7 True
+61 bnd 1 29.6 False
+62 bnd 1 6.2 True
+63 bnd 1 12.8 True
+64 bnd 1 7.5 True
+65 bnd 1 18.9 False
+66 bnd 1 28.0 False
+67 bnd 1 23.0 False
+68 bnd 1 21.7 False
+69 bnd 1 -9.6 True
+70 bnd 1 -5.9 True
+71 bnd 1 22.3 False
+72 bnd 1 35.9 False
+73 bnd 1 1.1 True
+74 bnd 1 32.1 False
+75 bnd 1 -5.6 True
+76 bnd 1 29.2 False
+77 bnd 1 21.9 False
+78 bnd 1 31.7 False
+79 bnd 1 36.1 False
+80 bnd 1 10.5 False
+81 bnd 1 18.9 False
+82 bnd 1 38.7 False
+83 bnd 1 15.8 False
+84 bnd 1 4.1 True
+85 bnd 1 34.1 False
+86 bnd 1 -7.9 False
+87 bnd 1 0.2 True
+88 bnd 1 35.6 False
+89 bnd 1 27.5 False
+90 bnd 1 24.7 False
+91 bnd 1 14.0 False
+92 bnd 1 29.8 False
+93 bnd 1 32.3 False
+94 bnd 1 34.7 False
+95 bnd 1 9.9 False
+96 bnd 1 -1.7 True
+97 bnd 1 -4.7 True
+98 bnd 1 4.8 True
+99 bnd 1 26.7 False
+100 bnd 1 5.4 True
+101 bnd 1 34.0 False
+102 bnd 1 35.9 False
+103 bnd 1 24.4 False
+104 bnd 1 27.6 False
+105 bnd 1 5.4 True
+106 bnd 1 4.4 True
+107 bnd 1 19.5 False
+108 bnd 1 2.1 True
+109 bnd 1 18.0 False
+110 bnd 1 -3.2 True
+111 bnd 1 1.1 True
+112 bnd 1 21.3 False
+113 bnd 1 26.0 False
+114 bnd 1 8.2 False
+115 bnd 1 35.5 False
+116 bnd 1 -4.3 True
+117 bnd 1 29.3 False
+118 bnd 1 -7.4 True
+119 bnd 1 2.7 True
+120 bnd 1 24.8 False
+121 bnd 1 4.9 True
+122 bnd 1 22.8 False
+123 bnd 1 8.6 True
+124 bnd 1 2.6 True
+125 bnd 1 9.4 True
+126 bnd 1 33.3 False
+127 bnd 1 5.2 True
+128 bnd 1 22.3 False
+129 bnd 1 36.0 False
+130 bnd 1 15.1 False
+131 bnd 1 -1.6 True
+132 bnd 1 10.4 True
+133 bnd 1 33.4 False
+134 bnd 1 7.1 True
+135 bnd 1 14.8 False
+136 bnd 1 27.0 False
+137 bnd 1 -2.3 True
+138 bnd 1 -8.0 True
+139 bnd 1 24.3 False
+140 bnd 1 -4.9 True
+141 bnd 1 18.6 True
+142 bnd 1 14.0 False
+143 bnd 1 7.6 True
+144 bnd 1 0.6 True
+145 bnd 1 32.5 False
+146 bnd 1 21.1 False
+147 bnd 1 27.0 False
+148 bnd 1 32.0 False
+149 bnd 1 -2.1 True
+== E12 Mon Nov  9 01:36:04 +07 2026
+level contacts 0 raw 48 img 24
+level contacts 100 raw 148 img 34
+level contacts 1000 raw 1048 img 44
+level contacts 5000 raw 5048 img 54
+level media 1000 raw 5048 img 1064
+Traceback (most recent call last):
+  File "~/Workstation/MobiSys2027/papers/P06-leasemem-mobile/artifact/driver/e12_scale.py", line 48, in <module>
+    d.cmd("OBSERVE", timeout=120)
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "~/Workstation/MobiSys2027/papers/P06-leasemem-mobile/artifact/driver/lmdrv.py", line 61, in cmd
+    self.sh("am broadcast -n %s/.Cmd --es cmd %s --es id %s %s" % (pkg, cmd, rid, extra))
+    ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "~/Workstation/MobiSys2027/papers/P06-leasemem-mobile/artifact/driver/lmdrv.py", line 31, in sh
+    r = subprocess.run([ADB, "-s", self.s, "shell", cmd], capture_output=True, text=True, timeout=timeout)
+  File "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/subprocess.py", line 671, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+                     ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/subprocess.py", line 1395, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+                     ~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/subprocess.py", line 2424, in _communicate
+    self._check_timeout(endtime, orig_timeout, stdout, stderr,
+    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+                        skip_check_and_raise=True)
+                        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.15/3.15.2/Frameworks/Python.framework/Versions/3.15/lib/python3.15/subprocess.py", line 1434, in _check_timeout
+    raise TimeoutExpired(
+    ...<2 lines>...
+            stderr=b''.join(stderr_seq) if stderr_seq else None)
+subprocess.TimeoutExpired: Command '['~/Workstation/MobiSys2027/papers/shared-android/sdk/platform-tools/adb', '-s', 'emulator-5622', 'shell', 'am broadcast -n org.leasemem.client/.Cmd --es cmd OBSERVE --es id 163879506_564 ']' timed out after 60 seconds
+POST_DONE_5622 Mon Nov 9 01:52:19 +07 2026

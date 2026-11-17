@@ -1,0 +1,3 @@
+usage: run.py [-h] [--n N] [--suffix SUFFIX]
+              serial {reference,stock,host,tick}
+run.py: error: argument --suffix: expected one argument

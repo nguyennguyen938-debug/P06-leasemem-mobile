@@ -1,0 +1,6 @@
+python3 scripts/analyze.py > results/derived/analyze_stdout.txt
+python3 scripts/render.py
+wrote 1479 macros
+cd ../manuscript && pdflatex -interaction=nonstopmode main >/dev/null && bibtex main >/dev/null && pdflatex -interaction=nonstopmode main >/dev/null && pdflatex -interaction=nonstopmode main >/dev/null; pdfinfo main.pdf | grep Pages
+I/O Error: Couldn't open file 'main.pdf': No such file or directory.
+make: *** [paper] Error 1

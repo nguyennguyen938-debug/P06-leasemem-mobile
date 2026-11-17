@@ -1,0 +1,902 @@
+[
+  {
+    "path": "artifact/results/raw/e10_deploy_33.jsonl",
+    "sha256": "b42d3543eddb69fe8e7c8c8ecf99e81360223bf8625852683032cb1ceaf2e280",
+    "bytes": 4767,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e10_deploy_35.jsonl",
+    "sha256": "9bc2f1ddfdb9a40f1ca0cad2aded35d5ce031232e65498260ef4f824f07d0e73",
+    "bytes": 2955,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e11_fgcost_33.jsonl",
+    "sha256": "59ada285a9308f9ac64fc50e2ad7996d93fcc8b86150203c34a9d5d1e04ce75b",
+    "bytes": 1064,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e11_fgcost_35.jsonl",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e12_scale.jsonl",
+    "sha256": "f63e8016125fb2e6fa86a56bf7b2f4af513a60102279e73cc878aeb75047ddec",
+    "bytes": 107641,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e13_host_33.jsonl",
+    "sha256": "4a660d1208298eee91db55a60e4832c83a36e35172b2b70d929c80b45832685a",
+    "bytes": 30078,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e1_coverage_bg.jsonl",
+    "sha256": "8cc54457f46f76a594502ad00a7a0c35299f043b0416d1d4c078c347a7be8dc7",
+    "bytes": 405558,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e1_coverage_fg.jsonl",
+    "sha256": "d5a37ed533ffec24a9618733940439d60f328b48ee8b4a9b223c02d2160ad891",
+    "bytes": 134261,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e1api35_bg.jsonl",
+    "sha256": "fe456ce1a845735f8eab26d294a042265a19d479d73b027ed3a5d63e3ba54b43",
+    "bytes": 175224,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_api35_freeze.jsonl",
+    "sha256": "719fffb3d8205f4b50b75f1c219ea6f46a93c9b4d040c13e8e5c3d510503ff34",
+    "bytes": 200827,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_api35_kill.jsonl",
+    "sha256": "e7aa15aab5803a3413ec53cc6885bddfadff2f384d15cf42bf12430296b001d5",
+    "bytes": 179201,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_api35_none.jsonl",
+    "sha256": "299fe86080a810422399ca28aaa172eb53617f4648ee29f506d1180edace9010",
+    "bytes": 194903,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_api35_unregister.jsonl",
+    "sha256": "c88f2132a056ab0ae68ade9abc095a6320f2931c3cd03bd58ffa609c910ebcfe",
+    "bytes": 185389,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_bg_bucket.jsonl",
+    "sha256": "3a7a850b0b2bc8bb62d24d708ec916f23cc1e0b734873d8dd806d0a1738cad39",
+    "bytes": 399952,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_bg_dozeidle.jsonl",
+    "sha256": "ef2879ac8f21893a980a487f4e566ae6f01705c0f0fd8032e070af2604bd22f9",
+    "bytes": 396293,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_bg_forcestop.jsonl",
+    "sha256": "a9d2b1d95b8f43107bcad88c38b6dcbda793f979e60d7688ceb603b3b32cae9a",
+    "bytes": 362722,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_bg_forcestop_part1.jsonl",
+    "sha256": "16059bc8aa5359dccbc716f8878dfe5af636b23fe9ade649792e971322cc5d85",
+    "bytes": 31453,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_bg_freeze.jsonl",
+    "sha256": "768c395ce09c17184ec4b4bd71e6003252692f1323b906660cecceabf8b5c873",
+    "bytes": 483106,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_bg_kill.jsonl",
+    "sha256": "c674d964b96c3f0758d5989489b82ad29291215679493a6ef148d23b8e59800f",
+    "bytes": 398342,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_bg_longdoze.jsonl",
+    "sha256": "a81d740069041ad854a647ca8b8cba74da781900ff820551158da402b433a90c",
+    "bytes": 87392,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_bg_longdoze2.jsonl",
+    "sha256": "4a9d28d609be41daa3256d20fd6050e6e73085619831abf5620b24ea05418e5a",
+    "bytes": 354604,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_bg_longdoze2_b.jsonl",
+    "sha256": "7fc5806cd599ee4662d43471a35cfcb11cc076726bc58dae935327ca5be8ba8a",
+    "bytes": 1651388,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_bg_longfreeze.jsonl",
+    "sha256": "24d6e774fd219a7c146b24e2a4ba858b341ab11327b4bead9b04d9942c0a7073",
+    "bytes": 92217,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_bg_none.jsonl",
+    "sha256": "7f7a5b164b53afd7fbace8590c9d1119a538e5518278dbb8c6778f39e4a4d9ce",
+    "bytes": 380421,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_bg_perm.jsonl",
+    "sha256": "300c7c73c1aadd886d1e5848bbbaefc8c104efd0e1679a3d9d232c882f3ccdd5",
+    "bytes": 403674,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_bg_reboot.jsonl",
+    "sha256": "453bb378b45c9485f20b93b8f0d3a4022d521ffd8475e8010370977ce2683c1a",
+    "bytes": 386487,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_bg_unregister.jsonl",
+    "sha256": "779d4adb91c63080cdec756427daa31f0fb7d300ddc080c0d44115a61a0d98a8",
+    "bytes": 385923,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_fg_dozeidle.jsonl",
+    "sha256": "0208afa4e370fdf4ded97cc87c1b0f1d74f14143eb7b3130abcb9ad66e66e828",
+    "bytes": 262736,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_fg_forcestop.jsonl",
+    "sha256": "a2f3abdc17aa585567202e0431bc32041f044643cb25a470b5a7610336111821",
+    "bytes": 243511,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_fg_none.jsonl",
+    "sha256": "fdbbe61e649c2b432c60d80ff45259cff2fd88e99f0c476785c0883cfc5b419c",
+    "bytes": 248561,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_fg_reboot.jsonl",
+    "sha256": "f68bb87b0b7bddfe08f1b2db7d3823040dc676cb48f4c70a81a9ed67fe8058f3",
+    "bytes": 265350,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_fg_sigkill.jsonl",
+    "sha256": "bec62070050f9fc853e3937d7006729f0cebdf94f4a30426cfa82a7670b16f94",
+    "bytes": 127655,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_fg_sigkill_part1.jsonl",
+    "sha256": "3e9ac09650033b37ab3ce04f49d2bdab47f6a0dcf92403b249d7fdce43af6e49",
+    "bytes": 111104,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e2v3_fg_unregister.jsonl",
+    "sha256": "c36c592f470f2a2dbf7e339d96c7604994913c2f6c9dae1f84c9ec389a72be8b",
+    "bytes": 239878,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e3v2_band.jsonl",
+    "sha256": "659c446e25c4f1abf95ab3864612b4b3fe6eb7073e8bbae81ea7fe124045c18b",
+    "bytes": 144216,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e3v2_boundary.jsonl",
+    "sha256": "6b0bbc771daac53b8bf162736d5d7820861f71218902674a52a4c5b52af1be95",
+    "bytes": 219553,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e4_gui.jsonl",
+    "sha256": "60c1dc67d7a01df20d8e6d8420f0b3213b6350b8b796244b44991b572ceaa433",
+    "bytes": 11338,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e6_pitfalls.jsonl",
+    "sha256": "1120ede4d9c59604c087680017c7f6724bd699363658fe5903df71ecda5a05fa",
+    "bytes": 34945,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e6v2_clock.jsonl",
+    "sha256": "a63fc8345bb9f1d41fb6c7c0ff597fe3185cc60470672bff5f246eade24af6f9",
+    "bytes": 22084,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e7_lmk.jsonl",
+    "sha256": "5f14f929cbca7cb61c088d8ea6f68a111d55008003aca2d004177915a60ffd3b",
+    "bytes": 3490,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e8_kill_p01.jsonl",
+    "sha256": "9391a61db8774815cb935549374a7ed25c4f347b3d3b83b0eb2cff6d8c2cd50d",
+    "bytes": 91404,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e8_kill_p03.jsonl",
+    "sha256": "30cda2025507a2ea4db6ffa086907c5ab776f7e4c57537a32539dfa4dda2fa9d",
+    "bytes": 156745,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e8_none_p03.jsonl",
+    "sha256": "65ac8d958454aa31e9fa19f7a78202d0d0a25d61f49afc4cd1934f6d0233115c",
+    "bytes": 93490,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e9_frozen_33.jsonl",
+    "sha256": "96de5ac47213747201f2e570a0f4af6d8a5ecbf264d81cc3832e763ce09ad2fd",
+    "bytes": 3654316,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/e9_frozen_35.jsonl",
+    "sha256": "74a3098657dce3b609ff6f06d6e68d8ba94c15935cb63ad0a2e9158b2f2a79a0",
+    "bytes": 4618065,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/excluded/e10_persist_before_perm_restart.jsonl",
+    "sha256": "ffee6d45251be680361e3e82711d951ab8140b4f926c9d48e5d4bb6a0cd3e59d",
+    "bytes": 893,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/results/raw/excluded/e2v3_bg_longdoze2_debounce2s.jsonl",
+    "sha256": "908815034a37f4c9f14dc30c0ce588560c77a360880d0cb02d271dab2afa6fc8",
+    "bytes": 709617,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/results/raw/round1/e2_doze.jsonl",
+    "sha256": "45688c76278c415c73056bbd8671ee8777db8585cd34436733d81b293982310a",
+    "bytes": 735474,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/round1/e2_forcestop.jsonl",
+    "sha256": "401cbdf8b94f790e494060ed03c45b407bed4e51e184f0e7459384adbec79a1d",
+    "bytes": 675327,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/round1/e2_freeze.jsonl",
+    "sha256": "cb9b3b9efce73e31e088a7af8e2282c846ff694ae3e92bc68d66ae9729482e8a",
+    "bytes": 658389,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/round1/e2_freeze_topup.jsonl",
+    "sha256": "4e29388b9d0a47c2231bb4be220e0eaa5be3b704f14630037cb9c7d307801b2d",
+    "bytes": 112290,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/round1/e2_kill.jsonl",
+    "sha256": "a8f08922fbf9c2b5bee607cdd9a49986ccd16a2540ceaf44c940ae248fe99a43",
+    "bytes": 656797,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/round1/e2_none.jsonl",
+    "sha256": "a5d8846c87d84278d7337d0ea16c58b97c53288c2972864e34cea084d45fc6fe",
+    "bytes": 680996,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/round1/e2_perm.jsonl",
+    "sha256": "46c5767ed190d9c6b45c0b7dd5d14b78f072f7c05c3d62ad42f3d01508ec4d4d",
+    "bytes": 731675,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/round1/e2_reboot.jsonl",
+    "sha256": "4fd4ef6791e6afdc0d10181d4dd24520247dd776dd433686b9ec351936b62508",
+    "bytes": 657535,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/round1/e2_unregister.jsonl",
+    "sha256": "0333c2040b1769edd2762c05925d03dffd90f2e78759e0230031795fa2b1eb03",
+    "bytes": 710471,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/results/raw/round1/e3_boundary.jsonl",
+    "sha256": "5ae51465c6236bda6d084b2f56b9362a0f260e4da440053b716097d90275067a",
+    "bytes": 199486,
+    "status": "historical input governed by scripts/analyze.py validity rules"
+  },
+  {
+    "path": "artifact/logs/discarded_cli_runs/e1_coverage_bg.jsonl",
+    "sha256": "f844ac3e688f1f2901752f10e60f3bd28f337c1bacd70cde527c78b6e04f5889",
+    "bytes": 29547,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/discarded_cli_runs/e2_freeze.jsonl",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/discarded_cli_runs/e2_freeze_v1_partial.jsonl",
+    "sha256": "ea1965bce67ff9a202e5d48c0441ca14fdbb6706dc69ff2773b0ec8d698ebf71",
+    "bytes": 51233,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/e1_bg.log",
+    "sha256": "5bd9f84c19e6dfa37edc07998825afee6801ba7b99166910ce4a1671d3d81e97",
+    "bytes": 12960,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/e2_5622.log",
+    "sha256": "f8b7629a2f9828853ed1ec44ac2b8e86ac83113e4ea745b77d0a45153813a2f4",
+    "bytes": 18966,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/e2v3_bg_none_INVALID_fgservice_left_running.jsonl",
+    "sha256": "16108b02631447b67b510e2918f34ec66f65762ef7131a7d35e96c7fe0d68a8d",
+    "bytes": 153682,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/e2v3_freeze_attempt_reboot_reverted_flag.jsonl",
+    "sha256": "10f90daf49bf48b90e2427c1c8586c7571d4cc1a30f40632076eca9c7afa48f2",
+    "bytes": 852,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/e4.log",
+    "sha256": "ccacf7a0588e541c066da0101d40a2a60477c29261b0dbe5ca5b9abe8b64f66f",
+    "bytes": 1855,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/e4_pilot_onboarding_blocked.jsonl",
+    "sha256": "607174153ebea6dc171c6cbb57a538894711e8afe5308ebbe126a09b36da9c8e",
+    "bytes": 3666,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/e4_superseded_loose_match.jsonl",
+    "sha256": "ae034a5af4ad72a0f3fc2b0c11630f890d05642a2d0ddd86ca8c8f519f93f6e4",
+    "bytes": 11326,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/e4b.log",
+    "sha256": "5ab3217f327bbd32824f9a482bfc63f8811e99869690ef67f6bb1238715edf45",
+    "bytes": 1863,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/e9_test.jsonl",
+    "sha256": "878e621808af4f6d2386724b69c07da3fddd7d6d96b5e5a6f01eac86a8f91988",
+    "bytes": 30386,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/emu5620.log",
+    "sha256": "5a99e0b16bb8469bfce084a578a0fd2252115fce7b755f37adfb098b9004d0b0",
+    "bytes": 9583,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/emu5620_r2.log",
+    "sha256": "3b82d13a551c3cf43ed2afe34bcb002fae7c3a6252c30198acb9923732ea003a",
+    "bytes": 8561,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/emu5620_r2b.log",
+    "sha256": "98d9e24b2bb66c052a41c082a4d8854c320ac4bc022b5769b32a5438d3249083",
+    "bytes": 10937,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/emu5620_r3.log",
+    "sha256": "706df20c74b3d76e7140820965817ab6c9b521a249078131e827ebca5b4c3d6c",
+    "bytes": 8412,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/emu5622.log",
+    "sha256": "7369e7e16cd39a30141c783008654b8562f8f5e790c4c9fbc68d045110505fe7",
+    "bytes": 19474,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/emu5622_api35.log",
+    "sha256": "9566acaef0c85c223bbedeaf9b2e1fd4ba3fa4fd413efc39452754b0884eee1f",
+    "bytes": 8479,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/emu5622_r2.log",
+    "sha256": "b7a552198bd77b8eec1cff4ba712168a41ce3c4e1da689906b5d45feeb9194f4",
+    "bytes": 12276,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/emu5622_r2b.log",
+    "sha256": "239e5b3219c99e3b5c15897cc64bb0407c8fc5b53046189206772b94fc117b5b",
+    "bytes": 14063,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/emu5622_r3.log",
+    "sha256": "a47f408557ad4e041e4ebc8e8642fdfb8462b6e809cacdc85fea603ab27ed50b",
+    "bytes": 11946,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/emu_5620_writable_r3.log",
+    "sha256": "17f94319a405bf35224b747bd8b63305637ca434335d8dc69d623a4f6d0bc4ac",
+    "bytes": 16117,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/emu_5622_avd2_r3.log",
+    "sha256": "1b11ebae05d9d27f627013c080291db9a92b12f69d58bbc9160e462a157089bc",
+    "bytes": 8458,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/ollama.log",
+    "sha256": "e7e7e7a5a28f4d3fc1d9a56ff3d20f7d4db4d59c3c78655f505381f93045ec92",
+    "bytes": 24230,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/ollama_r2c.log",
+    "sha256": "aa2bd92aa040b4b52b90525a8e03d357a274bf8ead86c78b4d44f28a34c94dcd",
+    "bytes": 3473101,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/onboard_5620.jsonl",
+    "sha256": "ec051c50395f1ef7137b234a3b72d66111ef143ecca33e9459ccca2e3e3f655e",
+    "bytes": 488,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/r3_longdoze2_5620.log",
+    "sha256": "931b77a1f3650c8fd62c91f760a54ae9571bb1934e693f1f69b59e8f0adae881",
+    "bytes": 115,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/r3_longdoze2_5622.log",
+    "sha256": "6ed0a00976e496ca08749e565788e91aa27f3063fee4ac2110f86be34209a95b",
+    "bytes": 293,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/run_5620.log",
+    "sha256": "85d3c5299d29cfed62deee1e111916b85526573dbaaf001cfdc2843f9d43fed8",
+    "bytes": 21996,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/run_5620_b.log",
+    "sha256": "ab439f285a6d245677cf5a96ab2b08fab0f7f0c9426a7ef1485ca19faf4c9d4b",
+    "bytes": 164,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/run_5622_b.log",
+    "sha256": "bf267fa77458800660145dc8a2aeae137331e7988538813a2f10360d461183e3",
+    "bytes": 10277,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/run_5622_c.log",
+    "sha256": "82c1f70e2cb6f3a1a36f5a5664a137006ea98769137662c119fcc797bd0a3b14",
+    "bytes": 760,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/run_r2_5620.log",
+    "sha256": "705a33261be9c9e08492cad001ab2d015b45cc6ab23e7885dba2d541dd8e5779",
+    "bytes": 2671,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/run_r2_5620_b.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/run_r2_5622.log",
+    "sha256": "070de589197b49d314148da20b4794d328ad762a9104d7f417569efffec69131",
+    "bytes": 2225,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/run_r2_api35.log",
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "bytes": 0,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/run_r2c_5620.log",
+    "sha256": "0b89e24aa5e9b884b93165fbc2b0336098ac57e5a5ddd935b36e477288f79593",
+    "bytes": 8295,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/run_r2d_5622.log",
+    "sha256": "18e92134ac7df30dc134d1b2c4a6bf83f9d5a2476bbc228588d27d79b6cbebf1",
+    "bytes": 7367,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/run_r3_frozen_5620.log",
+    "sha256": "21c43d5d59b844ad9c75c0ec67cb59a1178ebde5756bb1d23d6eb5fe4e472529",
+    "bytes": 695,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/run_r3_frozen_5622.log",
+    "sha256": "e7ac7fd39108e23840b9c2aa3b7a0e22ff31f7bb1659d5b84a8d777cd90dc6b4",
+    "bytes": 692,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/run_r3_host_5620.log",
+    "sha256": "8b4067ee2dfc7ad3ab05e2c6e18457ce7387386690733918e230dde47c9f6de5",
+    "bytes": 3564,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/run_r3_post_5620.log",
+    "sha256": "12b8eb16affc97acd3a88c7fb5577cdffaaea70779308785594e4ad5d874b5fe",
+    "bytes": 3080,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/run_r3_post_5622.log",
+    "sha256": "81202bdeaf0ccd8d2d1fc6acb63c98bf054f26d0ceb02442788a19a8ee6ad75c",
+    "bytes": 8859,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/logs/v3_test.jsonl",
+    "sha256": "96bb8e0567e42aba24882b5ab4923c72366fa05bd64232cca9dc76fe2eff080d",
+    "bytes": 45926,
+    "status": "historical diagnostic/excluded; retained"
+  },
+  {
+    "path": "artifact/results/revision-20261115/build-10pt-cut.log",
+    "sha256": "9972d5b6470808af10b2708716ec35dfd290aaabda74ca1bab50168de3683620",
+    "bytes": 709,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/build-10pt-cut2.log",
+    "sha256": "9972d5b6470808af10b2708716ec35dfd290aaabda74ca1bab50168de3683620",
+    "bytes": 709,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/build-10pt.log",
+    "sha256": "deab0cd88542abe47e051205d8b608e1c8f5b21e6759705ffebc5559aa3332b5",
+    "bytes": 709,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/build-final.log",
+    "sha256": "673c950d7e0908f70fa86486b3b2424bba6a2965b4a5765be7f1323476aba221",
+    "bytes": 793,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/build-initial-retry.log",
+    "sha256": "48ae261c037e1e6fabe9ed243ad495fab0cf89d201bd86bcd27e1687adb3505b",
+    "bytes": 715,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/build-initial.log",
+    "sha256": "cba784d3cb6eba747dea11ccc9d992860a333fba46321c29546dce3ff5a9c739",
+    "bytes": 436,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/build-qa-fixes.log",
+    "sha256": "933889ac7b561a2725c676aa278d99c386e22d7d053151dc813c0f06e0a744ec",
+    "bytes": 793,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/build-results.log",
+    "sha256": "673c950d7e0908f70fa86486b3b2424bba6a2965b4a5765be7f1323476aba221",
+    "bytes": 793,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/deploy-emulator-5620.jsonl",
+    "sha256": "0dcf7ce56faf99ca1f6e3a0bffa5061a0210d63a37ef366fdf815f08580b9e25",
+    "bytes": 31280561,
+    "status": "revision raw campaign"
+  },
+  {
+    "path": "artifact/results/revision-20261115/deploy-emulator-5622.jsonl",
+    "sha256": "b724c39ab365822c7c255237ab68cfe22a9fafd690fd03c3d88bac4297598d44",
+    "bytes": 24268741,
+    "status": "revision raw campaign"
+  },
+  {
+    "path": "artifact/results/revision-20261115/deploy33.log",
+    "sha256": "9d163d00536c598f8141c30c7a2db4a32d00d7e2943c63480a95f49418c180a3",
+    "bytes": 560,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/deploy35.log",
+    "sha256": "9d163d00536c598f8141c30c7a2db4a32d00d7e2943c63480a95f49418c180a3",
+    "bytes": 560,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/determinism-final.log",
+    "sha256": "6d25cf1732bc1a31b41d83f9df0f484c54a569761f9628b80c24c957e31bf7d7",
+    "bytes": 57,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/determinism.log",
+    "sha256": "6d25cf1732bc1a31b41d83f9df0f484c54a569761f9628b80c24c957e31bf7d7",
+    "bytes": 57,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/emulator33.log",
+    "sha256": "52fd790ee4dfd671d5fb88fe84b14ea4c651e424690233ee66af355fba20242a",
+    "bytes": 8330,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/emulator35.log",
+    "sha256": "79126bc284b61272254fc9aa8c2a69e0d0d41ce95dbbebeb520663873f8c3da2",
+    "bytes": 8336,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/fgs35.log",
+    "sha256": "af6c4d927656a44f9b6174511c851032a33fa8ea87fae377bbe24b876ac7ac72",
+    "bytes": 51,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/freezer-repeat33.log",
+    "sha256": "9252a5cebbfc2d12b9f8f79f7165cbc2c8417056bf82f316e89d12e3b97531f9",
+    "bytes": 50,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/freezer-repeat35.log",
+    "sha256": "9252a5cebbfc2d12b9f8f79f7165cbc2c8417056bf82f316e89d12e3b97531f9",
+    "bytes": 50,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/freezer-restarted-emulator-5620.jsonl",
+    "sha256": "94177b2038f7670a77d2d3f9497e6b9228d4ee5c5db7423452ed1bc64f3c7e4a",
+    "bytes": 11381368,
+    "status": "revision raw campaign"
+  },
+  {
+    "path": "artifact/results/revision-20261115/freezer-restarted-emulator-5622.jsonl",
+    "sha256": "32fb88164bf6fa7703c3375a3f468668a6cf83e195df074e037307e2c1f8f693",
+    "bytes": 9127770,
+    "status": "revision raw campaign"
+  },
+  {
+    "path": "artifact/results/revision-20261115/host-emulator-5620.jsonl",
+    "sha256": "66b4aba14df5922ebd43423145644aa709c65fd94d16a04ee013368de9baa32e",
+    "bytes": 12417277,
+    "status": "revision raw campaign"
+  },
+  {
+    "path": "artifact/results/revision-20261115/host-emulator-5622.jsonl",
+    "sha256": "9a0de3aa6d467a23692715b50fa482257340204cd106cf6749a1cb16d29938c6",
+    "bytes": 12111715,
+    "status": "revision raw campaign"
+  },
+  {
+    "path": "artifact/results/revision-20261115/host33.log",
+    "sha256": "1b8ead349c8386cc9ac1afebf204b3adc4aad8c96c11a5941d5ce5fe936448cb",
+    "bytes": 1110,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/host35.log",
+    "sha256": "1b8ead349c8386cc9ac1afebf204b3adc4aad8c96c11a5941d5ce5fe936448cb",
+    "bytes": 1110,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/reference-emulator-5620-final.jsonl",
+    "sha256": "dcaaded683eaacba7c93b54be5c779eb773b08b8223e7ebdbf59ca567ddf2fba",
+    "bytes": 697009,
+    "status": "revision raw campaign"
+  },
+  {
+    "path": "artifact/results/revision-20261115/reference-emulator-5620.jsonl",
+    "sha256": "26915c397cc8d9c4c163fc792fc9f3338fedb7dcd09250940655180faa196fb4",
+    "bytes": 461410,
+    "status": "initial reference cohort; superseded for headline counts by final process-isolation regression; retained and separately audited"
+  },
+  {
+    "path": "artifact/results/revision-20261115/reference-emulator-5622-final.jsonl",
+    "sha256": "a01a19d18c3757eb87f3bf0633e5f1740e7a1736e2506bf6265ec658847c99d4",
+    "bytes": 697017,
+    "status": "revision raw campaign"
+  },
+  {
+    "path": "artifact/results/revision-20261115/reference-emulator-5622.jsonl",
+    "sha256": "9632984fa08873c9d410ba31e92714e8557a978367b2502a51aab73bcbb8148e",
+    "bytes": 461408,
+    "status": "initial reference cohort; superseded for headline counts by final process-isolation regression; retained and separately audited"
+  },
+  {
+    "path": "artifact/results/revision-20261115/reference-final33-retry.log",
+    "sha256": "4ae5becbe34981328e39d0125725d7420eff4bf3e4f8b97ea04185416e0ce91a",
+    "bytes": 3800,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/reference-final33.log",
+    "sha256": "4ffec9cb435fc8100ab987285d46dec11156b67fd81cccc28c81192c660fbf10",
+    "bytes": 150,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/reference-final35-retry.log",
+    "sha256": "4ae5becbe34981328e39d0125725d7420eff4bf3e4f8b97ea04185416e0ce91a",
+    "bytes": 3800,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/reference-final35.log",
+    "sha256": "4ffec9cb435fc8100ab987285d46dec11156b67fd81cccc28c81192c660fbf10",
+    "bytes": 150,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/stock-emulator-5620.jsonl",
+    "sha256": "0efb87a4c4d7418b0c5958a5dcca91bb245079f8af703e7a78e5cf11f8684952",
+    "bytes": 2305644,
+    "status": "revision raw campaign"
+  },
+  {
+    "path": "artifact/results/revision-20261115/stock-emulator-5622.jsonl",
+    "sha256": "f9414a4d89ef6a49bfad3a486b79b1213bf37e345e462dc824ed9fc8edfb2864",
+    "bytes": 2223740,
+    "status": "revision raw campaign"
+  },
+  {
+    "path": "artifact/results/revision-20261115/stock33.log",
+    "sha256": "6f56945709e85c5a1cdb75d2b068649bf0d233ce32c3b0d8de8e586971474ab8",
+    "bytes": 1790,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/stock35.log",
+    "sha256": "6f56945709e85c5a1cdb75d2b068649bf0d233ce32c3b0d8de8e586971474ab8",
+    "bytes": 1790,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/supplement-emulator-5620.jsonl",
+    "sha256": "45e9fd7313df4d1361a5fa95ebfc1ad7c8a037daf978888935f5f3295867adf9",
+    "bytes": 1231321,
+    "status": "initial supplemental harness; permission cleanup/relaunch defects, replaced by separately named final cohort; retained"
+  },
+  {
+    "path": "artifact/results/revision-20261115/supplement-emulator-5622.jsonl",
+    "sha256": "52eb47dc5a8df863abbe70b84232496cbe77769f5b83e7708a3ff6cacba851fe",
+    "bytes": 1282917,
+    "status": "initial supplemental harness; permission cleanup/relaunch defects, replaced by separately named final cohort; retained"
+  },
+  {
+    "path": "artifact/results/revision-20261115/supplement-final-emulator-5620.jsonl",
+    "sha256": "018a4851956e13ec2092bb0e54d98442cef42a7ecd77e3ca6506f855de9a3f22",
+    "bytes": 356080,
+    "status": "revision raw campaign"
+  },
+  {
+    "path": "artifact/results/revision-20261115/supplement-final-emulator-5622.jsonl",
+    "sha256": "0f1a87fc06f27dfed6344707af68e6a217e9d71de346affd1709f1b3be8937ed",
+    "bytes": 373951,
+    "status": "revision raw campaign"
+  },
+  {
+    "path": "artifact/results/revision-20261115/supplement-final33.log",
+    "sha256": "8441ac72b235422f3a6cb80e318f8ea29bc1a9954ba28dfbfe896b171e1b4619",
+    "bytes": 2390,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/supplement-final35.log",
+    "sha256": "8441ac72b235422f3a6cb80e318f8ea29bc1a9954ba28dfbfe896b171e1b4619",
+    "bytes": 2390,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/supplement33.log",
+    "sha256": "bcbed5da20cd25170d510b13bd35f01c74ce8e998573484644dcdb54124eecf1",
+    "bytes": 11639,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/supplement35.log",
+    "sha256": "2d68ec99b626cc8a77f809b783b3fd0dd30be8ed89dea15cf3ad601b39649d49",
+    "bytes": 12110,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/tick-emulator-5620.jsonl",
+    "sha256": "dde203d37ec16b077662d738f7c20cdecc0f0c7adaa95e2e50891b4d9ee49cb9",
+    "bytes": 225161,
+    "status": "revision raw campaign"
+  },
+  {
+    "path": "artifact/results/revision-20261115/tick-emulator-5622.jsonl",
+    "sha256": "cf1b1a9af044a31e5ebc0d1cbbbedf117b888a9191842d2aa570e5eb728f6f83",
+    "bytes": 225158,
+    "status": "revision raw campaign"
+  },
+  {
+    "path": "artifact/results/revision-20261115/tick33.log",
+    "sha256": "908f2a2cb85f133dfbc75bc6a93fc9079aef94a99caf006eac89b625222c7887",
+    "bytes": 310,
+    "status": "revision build/runtime diagnostic"
+  },
+  {
+    "path": "artifact/results/revision-20261115/tick35.log",
+    "sha256": "908f2a2cb85f133dfbc75bc6a93fc9079aef94a99caf006eac89b625222c7887",
+    "bytes": 310,
+    "status": "revision build/runtime diagnostic"
+  }
+]

@@ -1,0 +1,6 @@
+{"rep": 0, "mode": "bg", "window_s": 241.9, "mutations": 12, "pid_same": true, "cpu_ticks": 30, "pss_kb": 19602, "est_power_mah": null, "uid": "10174", "oom_score_adj": "945"}
+{"rep": 0, "mode": "fg", "window_s": 241.7, "mutations": 12, "pid_same": true, "cpu_ticks": 21, "pss_kb": 29470, "est_power_mah": 2.44e-06, "uid": "10174", "oom_score_adj": "200"}
+{"rep": 0, "mode": "bg", "window_s": 241.6, "mutations": 12, "pid_same": true, "cpu_ticks": 17, "pss_kb": 25051, "est_power_mah": null, "uid": "10174", "oom_score_adj": "925"}
+{"rep": 0, "mode": "fg", "window_s": 241.9, "mutations": 12, "pid_same": true, "cpu_ticks": 23, "pss_kb": 29989, "est_power_mah": 2.56e-06, "uid": "10174", "oom_score_adj": "200"}
+{"rep": 1, "mode": "fg", "window_s": 241.2, "mutations": 12, "pid_same": true, "cpu_ticks": 13, "pss_kb": 25533, "est_power_mah": null, "uid": "10174", "oom_score_adj": "200"}
+{"rep": 1, "mode": "bg", "window_s": 242.1, "mutations": 12, "pid_same": true, "cpu_ticks": 28, "pss_kb": 24989, "est_power_mah": null, "uid": "10174", "oom_score_adj": "945"}

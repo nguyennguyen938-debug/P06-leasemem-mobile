@@ -1,0 +1,10 @@
+ M manuscript/figures/fig1-overview.tex
+ M manuscript/main.pdf
+ M review.md
+?? artifact/results/revision-20261115/
+?? manuscript/figures/fig1-overview-v0.tex
+?? manuscript/figures/fig1.pdf
+?? manuscript/figures/fig1.svg
+?? manuscript/figures/src/
+?? others/fig1-cartoon.pdf
+?? others/fig1-cartoon.png

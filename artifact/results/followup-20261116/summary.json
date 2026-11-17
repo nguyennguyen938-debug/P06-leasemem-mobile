@@ -1,0 +1,501 @@
+{
+  "deployment": [
+    {
+      "serial": "emulator-5620",
+      "mode": "assistant",
+      "attempted": 20,
+      "valid": 20,
+      "excluded": 0,
+      "frozen": 0,
+      "bound": 20,
+      "before_thaw": 20,
+      "after_thaw": 20,
+      "delay_ms": {
+        "n": 20,
+        "median": 5.0,
+        "min": 4,
+        "max": 10
+      },
+      "delays_ms": [
+        6,
+        10,
+        8,
+        5,
+        5,
+        4,
+        9,
+        5,
+        4,
+        7,
+        4,
+        10,
+        5,
+        5,
+        5,
+        5,
+        10,
+        8,
+        4,
+        4
+      ],
+      "oom_adj": {
+        "100": 20
+      }
+    },
+    {
+      "serial": "emulator-5620",
+      "mode": "bg_freezer",
+      "attempted": 20,
+      "valid": 20,
+      "excluded": 0,
+      "frozen": 20,
+      "bound": 0,
+      "before_thaw": 0,
+      "after_thaw": 20,
+      "delay_ms": {
+        "n": 0,
+        "median": null,
+        "min": null,
+        "max": null
+      },
+      "delays_ms": [],
+      "oom_adj": {
+        "905": 18,
+        "915": 2
+      }
+    },
+    {
+      "serial": "emulator-5620",
+      "mode": "bg_unfrozen",
+      "attempted": 20,
+      "valid": 20,
+      "excluded": 0,
+      "frozen": 0,
+      "bound": 0,
+      "before_thaw": 20,
+      "after_thaw": 20,
+      "delay_ms": {
+        "n": 20,
+        "median": 10012.5,
+        "min": 10007,
+        "max": 10037
+      },
+      "delays_ms": [
+        10037,
+        10009,
+        10013,
+        10008,
+        10013,
+        10014,
+        10010,
+        10008,
+        10012,
+        10017,
+        10015,
+        10010,
+        10007,
+        10015,
+        10013,
+        10014,
+        10008,
+        10010,
+        10008,
+        10018
+      ],
+      "oom_adj": {
+        "905": 18,
+        "915": 2
+      }
+    },
+    {
+      "serial": "emulator-5620",
+      "mode": "fg",
+      "attempted": 20,
+      "valid": 20,
+      "excluded": 0,
+      "frozen": 0,
+      "bound": 0,
+      "before_thaw": 20,
+      "after_thaw": 20,
+      "delay_ms": {
+        "n": 20,
+        "median": 7.5,
+        "min": 5,
+        "max": 11
+      },
+      "delays_ms": [
+        9,
+        8,
+        7,
+        8,
+        8,
+        9,
+        7,
+        7,
+        9,
+        7,
+        8,
+        7,
+        11,
+        8,
+        6,
+        8,
+        6,
+        6,
+        6,
+        5
+      ],
+      "oom_adj": {
+        "50": 20
+      }
+    },
+    {
+      "serial": "emulator-5620",
+      "mode": "persist",
+      "attempted": 20,
+      "valid": 20,
+      "excluded": 0,
+      "frozen": 0,
+      "bound": 0,
+      "before_thaw": 20,
+      "after_thaw": 20,
+      "delay_ms": {
+        "n": 20,
+        "median": 22.0,
+        "min": 12,
+        "max": 63
+      },
+      "delays_ms": [
+        37,
+        25,
+        12,
+        32,
+        31,
+        39,
+        18,
+        17,
+        27,
+        14,
+        22,
+        17,
+        54,
+        15,
+        21,
+        22,
+        13,
+        13,
+        63,
+        29
+      ],
+      "oom_adj": {
+        "-800": 20
+      }
+    },
+    {
+      "serial": "emulator-5622",
+      "mode": "assistant",
+      "attempted": 20,
+      "valid": 20,
+      "excluded": 0,
+      "frozen": 0,
+      "bound": 20,
+      "before_thaw": 20,
+      "after_thaw": 20,
+      "delay_ms": {
+        "n": 20,
+        "median": 5.5,
+        "min": 4,
+        "max": 10
+      },
+      "delays_ms": [
+        6,
+        6,
+        4,
+        5,
+        5,
+        5,
+        5,
+        5,
+        6,
+        5,
+        10,
+        6,
+        5,
+        5,
+        9,
+        9,
+        6,
+        5,
+        6,
+        6
+      ],
+      "oom_adj": {
+        "100": 20
+      }
+    },
+    {
+      "serial": "emulator-5622",
+      "mode": "bg_freezer",
+      "attempted": 20,
+      "valid": 20,
+      "excluded": 0,
+      "frozen": 20,
+      "bound": 0,
+      "before_thaw": 0,
+      "after_thaw": 20,
+      "delay_ms": {
+        "n": 0,
+        "median": null,
+        "min": null,
+        "max": null
+      },
+      "delays_ms": [],
+      "oom_adj": {
+        "905": 20
+      }
+    },
+    {
+      "serial": "emulator-5622",
+      "mode": "bg_unfrozen",
+      "attempted": 20,
+      "valid": 20,
+      "excluded": 0,
+      "frozen": 0,
+      "bound": 0,
+      "before_thaw": 20,
+      "after_thaw": 20,
+      "delay_ms": {
+        "n": 20,
+        "median": 10008.0,
+        "min": 10006,
+        "max": 10027
+      },
+      "delays_ms": [
+        10027,
+        10009,
+        10008,
+        10008,
+        10016,
+        10008,
+        10007,
+        10007,
+        10008,
+        10009,
+        10011,
+        10008,
+        10011,
+        10006,
+        10007,
+        10010,
+        10009,
+        10006,
+        10009,
+        10008
+      ],
+      "oom_adj": {
+        "905": 20
+      }
+    },
+    {
+      "serial": "emulator-5622",
+      "mode": "fg",
+      "attempted": 20,
+      "valid": 20,
+      "excluded": 0,
+      "frozen": 0,
+      "bound": 0,
+      "before_thaw": 20,
+      "after_thaw": 20,
+      "delay_ms": {
+        "n": 20,
+        "median": 6.5,
+        "min": 5,
+        "max": 10
+      },
+      "delays_ms": [
+        8,
+        10,
+        6,
+        5,
+        7,
+        6,
+        7,
+        9,
+        5,
+        7,
+        10,
+        6,
+        6,
+        6,
+        7,
+        8,
+        7,
+        5,
+        6,
+        5
+      ],
+      "oom_adj": {
+        "50": 20
+      }
+    }
+  ],
+  "hold_sensitivity": [
+    {
+      "hold_uniform_0_to_s": 4,
+      "decision_offset_s": 2,
+      "assumed_delay_s": 10,
+      "probability_not_delivered": 1
+    },
+    {
+      "hold_uniform_0_to_s": 10,
+      "decision_offset_s": 2,
+      "assumed_delay_s": 10,
+      "probability_not_delivered": 0.8
+    },
+    {
+      "hold_uniform_0_to_s": 30,
+      "decision_offset_s": 2,
+      "assumed_delay_s": 10,
+      "probability_not_delivered": 0.26666666666666666
+    },
+    {
+      "hold_uniform_0_to_s": 60,
+      "decision_offset_s": 2,
+      "assumed_delay_s": 10,
+      "probability_not_delivered": 0.13333333333333333
+    }
+  ],
+  "agent": {
+    "oracle_verified_trials": 144,
+    "attempted": 144,
+    "errors": [],
+    "groups": [
+      {
+        "model": "llama3.2:3b",
+        "arm": "evidence",
+        "n": 72,
+        "stale_actions": 0,
+        "wrong_inputs": 0,
+        "task_success": 72,
+        "reused": 0,
+        "changed_input_trials": 24,
+        "wall_s": {
+          "n": 72,
+          "median": 0.9747904170362744,
+          "min": 0.567958333005663,
+          "max": 1.5345484580029733
+        },
+        "per_condition": {
+          "force-stop/0.1": 24,
+          "force-stop/0.3": 24,
+          "none/0.3": 24
+        }
+      },
+      {
+        "model": "llama3.2:3b",
+        "arm": "memo",
+        "n": 72,
+        "stale_actions": 0,
+        "wrong_inputs": 0,
+        "task_success": 72,
+        "reused": 48,
+        "changed_input_trials": 24,
+        "wall_s": {
+          "n": 72,
+          "median": 0.2900142500002403,
+          "min": 0.09732400003122166,
+          "max": 1.51355837500887
+        },
+        "per_condition": {
+          "force-stop/0.1": 24,
+          "force-stop/0.3": 24,
+          "none/0.3": 24
+        }
+      },
+      {
+        "model": "llama3.2:3b",
+        "arm": "refresh",
+        "n": 72,
+        "stale_actions": 0,
+        "wrong_inputs": 0,
+        "task_success": 72,
+        "reused": 0,
+        "changed_input_trials": 24,
+        "wall_s": {
+          "n": 72,
+          "median": 0.8887742914957926,
+          "min": 0.5678914589807391,
+          "max": 1.5876122919726186
+        },
+        "per_condition": {
+          "force-stop/0.1": 24,
+          "force-stop/0.3": 24,
+          "none/0.3": 24
+        }
+      },
+      {
+        "model": "qwen2.5:7b",
+        "arm": "evidence",
+        "n": 72,
+        "stale_actions": 0,
+        "wrong_inputs": 0,
+        "task_success": 72,
+        "reused": 0,
+        "changed_input_trials": 21,
+        "wall_s": {
+          "n": 72,
+          "median": 2.245346416486427,
+          "min": 1.1976843330194242,
+          "max": 4.112988665990997
+        },
+        "per_condition": {
+          "force-stop/0.1": 24,
+          "force-stop/0.3": 24,
+          "none/0.3": 24
+        }
+      },
+      {
+        "model": "qwen2.5:7b",
+        "arm": "memo",
+        "n": 72,
+        "stale_actions": 0,
+        "wrong_inputs": 0,
+        "task_success": 72,
+        "reused": 51,
+        "changed_input_trials": 21,
+        "wall_s": {
+          "n": 72,
+          "median": 0.2896062915388029,
+          "min": 0.10564154101302847,
+          "max": 3.878201374958735
+        },
+        "per_condition": {
+          "force-stop/0.1": 24,
+          "force-stop/0.3": 24,
+          "none/0.3": 24
+        }
+      },
+      {
+        "model": "qwen2.5:7b",
+        "arm": "refresh",
+        "n": 72,
+        "stale_actions": 0,
+        "wrong_inputs": 0,
+        "task_success": 72,
+        "reused": 0,
+        "changed_input_trials": 21,
+        "wall_s": {
+          "n": 72,
+          "median": 2.290324770496227,
+          "min": 1.406120124971494,
+          "max": 3.915550959005486
+        },
+        "per_condition": {
+          "force-stop/0.1": 24,
+          "force-stop/0.3": 24,
+          "none/0.3": 24
+        }
+      }
+    ]
+  }
+}

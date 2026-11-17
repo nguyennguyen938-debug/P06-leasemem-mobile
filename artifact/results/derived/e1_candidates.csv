@@ -1,0 +1,53 @@
+tag,source,key,label,main,insert_k,insert_n,insert_down,insert_err,update_k,update_n,update_down,update_err,delete_k,delete_n,delete_down,delete_err,none_k,none_n,none_down,none_err
+e1,contacts,contacts.max_last_updated,max last-updated ts,1,25,25,0,0,36,36,0,0,5,24,5,0,0,20,0,0
+e1,contacts,contacts.max_deleted_ts,max deleted-contact ts,1,0,25,0,0,0,36,0,0,24,24,0,0,0,20,0,0
+e1,contacts,contacts.sum_raw_version,sum RawContacts \texttt{VERSION},1,25,25,0,0,36,36,0,0,24,24,24,0,0,20,0,0
+e1,contacts,contacts.max_raw_version,max RawContacts \texttt{VERSION},0,0,25,0,0,36,36,0,0,0,24,0,0,0,20,0,0
+e1,contacts,contacts.count,row count,0,25,25,0,0,0,36,0,0,24,24,24,0,0,20,0,0
+e1,contacts,contacts.max_id,max \texttt{\_id},0,25,25,0,0,0,36,0,0,11,24,11,0,0,20,0,0
+e1,calllog,calllog.max_last_modified,max \texttt{LAST\_MODIFIED},1,33,33,0,0,30,30,0,0,22,22,22,0,0,20,0,0
+e1,calllog,calllog.max_id,max \texttt{\_id},1,33,33,0,0,0,30,0,0,22,22,22,0,0,20,0,0
+e1,calllog,calllog.max_date,max \texttt{date},0,33,33,0,0,0,30,0,0,22,22,22,0,0,20,0,0
+e1,calllog,calllog.count,row count,0,0,33,0,33,0,30,0,30,0,22,0,22,0,20,0,20
+e1,sms,sms.max_id,max \texttt{\_id},1,29,29,0,0,0,24,0,0,27,29,27,0,0,23,0,0
+e1,sms,sms.max_date,max \texttt{date},1,29,29,0,0,0,24,0,0,27,29,27,0,0,23,0,0
+e1,sms,sms.count,row count,1,29,29,0,0,0,24,0,0,29,29,29,0,0,23,0,0
+e1,sms,sms.sum_read,sum \texttt{read},0,0,29,0,0,0,24,0,0,0,29,0,0,0,23,0,0
+e1,media,media.generation,\texttt{getGeneration},1,29,29,0,0,23,23,0,0,27,27,0,0,16,26,0,0
+e1,media,media.max_gen_modified,max \texttt{generation\_modified},1,29,29,0,0,23,23,0,0,13,27,13,0,0,26,0,0
+e1,media,media.max_id,max \texttt{\_id},0,29,29,0,0,0,23,0,0,27,27,27,0,0,26,0,0
+e1,media,media.count,row count,0,0,29,0,29,0,23,0,23,0,27,0,27,0,26,0,26
+e1,calendar,calendar.max_id,max \texttt{\_id},1,21,21,0,0,0,37,0,0,0,16,0,0,0,31,0,0
+e1,calendar,calendar.sum_dirty,sum \texttt{dirty},1,21,21,0,0,0,37,0,0,16,16,16,0,0,31,0,0
+e1,calendar,calendar.count_deleted,sum \texttt{deleted},0,0,21,0,0,0,37,0,0,0,16,0,0,0,31,0,0
+e1,calendar,calendar.count,row count (rejected: ERR),0,0,21,0,21,0,37,0,37,0,16,0,16,0,31,0,31
+e1,files,files.dir_mtime,directory mtime,1,17,17,0,0,0,34,0,0,27,27,0,0,0,27,0,0
+e1,files,files.max_file_mtime,max file mtime,1,17,17,0,0,34,34,0,0,1,27,1,0,0,27,0,0
+e1,files,files.media_count,MediaStore rows (rejected: ERR),0,0,17,0,17,0,34,0,34,0,27,0,27,0,27,0,27
+e1,files,files.media_max_gen,MediaStore max generation (rejected: ERR),0,0,17,0,0,0,34,0,0,0,27,0,0,0,27,0,0
+e1api35,contacts,contacts.max_last_updated,max last-updated ts,1,8,8,0,0,6,6,0,0,2,7,2,0,0,9,0,0
+e1api35,contacts,contacts.max_deleted_ts,max deleted-contact ts,1,0,8,0,0,0,6,0,0,7,7,0,0,0,9,0,0
+e1api35,contacts,contacts.sum_raw_version,sum RawContacts \texttt{VERSION},1,8,8,0,0,6,6,0,0,7,7,7,0,0,9,0,0
+e1api35,contacts,contacts.max_raw_version,max RawContacts \texttt{VERSION},0,0,8,0,0,6,6,0,0,0,7,0,0,0,9,0,0
+e1api35,contacts,contacts.count,row count,0,8,8,0,0,0,6,0,0,7,7,7,0,0,9,0,0
+e1api35,contacts,contacts.max_id,max \texttt{\_id},0,8,8,0,0,0,6,0,0,2,7,2,0,0,9,0,0
+e1api35,calllog,calllog.max_last_modified,max \texttt{LAST\_MODIFIED},1,9,9,0,0,7,7,0,0,5,5,5,0,0,9,0,0
+e1api35,calllog,calllog.max_id,max \texttt{\_id},1,9,9,0,0,0,7,0,0,5,5,5,0,0,9,0,0
+e1api35,calllog,calllog.max_date,max \texttt{date},0,9,9,0,0,0,7,0,0,5,5,5,0,0,9,0,0
+e1api35,calllog,calllog.count,row count,0,0,9,0,9,0,7,0,7,0,5,0,5,0,9,0,9
+e1api35,sms,sms.max_id,max \texttt{\_id},1,10,10,0,0,0,6,0,0,10,11,10,0,0,3,0,0
+e1api35,sms,sms.max_date,max \texttt{date},1,10,10,0,0,0,6,0,0,8,11,8,0,0,3,0,0
+e1api35,sms,sms.count,row count,1,10,10,0,0,0,6,0,0,11,11,11,0,0,3,0,0
+e1api35,sms,sms.sum_read,sum \texttt{read},0,0,10,0,0,0,6,0,0,3,11,3,0,0,3,0,0
+e1api35,media,media.generation,\texttt{getGeneration},1,7,7,0,0,9,9,0,0,7,7,0,0,3,7,0,0
+e1api35,media,media.max_gen_modified,max \texttt{generation\_modified},1,7,7,0,0,9,9,0,0,3,7,3,0,0,7,0,0
+e1api35,media,media.max_id,max \texttt{\_id},0,7,7,0,0,0,9,0,0,6,7,6,0,0,7,0,0
+e1api35,media,media.count,row count,0,0,7,0,7,0,9,0,9,0,7,0,7,0,7,0,7
+e1api35,calendar,calendar.max_id,max \texttt{\_id},1,9,9,0,0,0,7,0,0,0,8,0,0,0,6,0,0
+e1api35,calendar,calendar.sum_dirty,sum \texttt{dirty},1,9,9,0,0,0,7,0,0,8,8,8,0,0,6,0,0
+e1api35,calendar,calendar.count_deleted,sum \texttt{deleted},0,0,9,0,0,0,7,0,0,0,8,0,0,0,6,0,0
+e1api35,calendar,calendar.count,row count (rejected: ERR),0,0,9,0,9,0,7,0,7,0,8,0,8,0,6,0,6
+e1api35,files,files.dir_mtime,directory mtime,1,4,4,0,0,0,9,0,0,6,6,0,0,0,11,0,0
+e1api35,files,files.max_file_mtime,max file mtime,1,4,4,0,0,9,9,0,0,2,6,2,0,0,11,0,0
+e1api35,files,files.media_count,MediaStore rows (rejected: ERR),0,0,4,0,4,0,9,0,9,0,6,0,6,0,11,0,11
+e1api35,files,files.media_max_gen,MediaStore max generation (rejected: ERR),0,0,4,0,0,0,9,0,0,0,6,0,0,0,11,0,0

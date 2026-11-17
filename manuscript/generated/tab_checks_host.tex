@@ -1,0 +1,14 @@
+\begin{table*}[t]
+\centering\mtab
+\caption{Matched host helper: median latency in milliseconds and paired mean differences versus refresh with trial-bootstrap 95\% CIs (30 trials per row). The input-read arm equals refresh by construction and is omitted. Continuous writes overlap arm execution.}
+\label{tab:checks-host}
+\begin{tabular}{llrrrrr}\toprule
+\mhead API & Writes & Refresh & Validate & Relay & Validate $- $ refresh [CI] & Relay $- $ refresh [CI]\\\midrule
+33 & none & 33.3 & 32.8 & 1.8 & 0.6 [-0.7, 2.0] & -32.6 [-35.4, -30.7]\\
+33 & one & 31.9 & 32.0 & 7.2 & -1.9 [-6.5, 0.9] & -28.1 [-32.4, -25.2]\\
+33 & continuous & 47.5 & 47.1 & 7.7 & -0.8 [-5.7, 4.3] & -41.7 [-45.5, -38.2]\\
+35 & none & 30.7 & 32.5 & 2.4 & 1.1 [0.2, 2.0] & -29.5 [-30.7, -28.4]\\
+35 & one & 31.1 & 32.1 & 7.7 & 1.1 [-1.0, 3.9] & -25.8 [-28.2, -23.8]\\
+35 & continuous & 49.3 & 48.7 & 9.7 & 0.3 [-5.3, 6.2] & -42.7 [-46.7, -39.1]\\
+\bottomrule\end{tabular}
+\end{table*}

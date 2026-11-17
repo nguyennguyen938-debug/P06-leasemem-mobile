@@ -1,0 +1,78 @@
+\section{Evaluation}
+\label{sec:eval}
+
+\subsection{Optimistic Campaign: Setup}
+\label{sec:eval-setup}
+
+\paragraph{Platforms.} Android~13: two persistent AVDs (Pixel~6, 3\,GB RAM, \texttt{android-33} \texttt{google\_apis} arm64, build \path{TE1A.240213.009}). Android~15: a third AVD (\texttt{android-35} \texttt{google\_apis} arm64, rev.~9). Emulator 37.2.13, headless, Apple-silicon host; experiment processes ran under \texttt{caffeinate -i}. The 2\,s freezer debounce used for the short freezer gap must be set live with DeviceConfig sync disabled: a reboot reverts it, and sync later overwrites it (\S\ref{sec:eval-validity}).
+
+\paragraph{Workload.} Sixteen provider/file facts and three derived facts cover contacts, SMS, calls, media, calendars, settings and files (Table~\ref{tab:facts}, appendix). A separate app inserts, edits or deletes records.
+
+\paragraph{Gap protocol.} Each trial observes after setup, injects and verifies a gap, mutates sources with probability 0.5, and decides at +2 and +14 seconds after a 0--30 second hold. Process-ending gaps relaunch the client. Longer freezer and verified-Doze campaigns retain their own configuration checks. The optimistic sample contains \ETwoBg background and \ETwoFg FGS trials on Android~13 and \ETwoApi on Android~15; exact schedules and exclusions are in the appendix.
+
+\paragraph{Implementation scope.} The source and lifecycle measurements below describe the retained optimistic client, including its non-atomic anchoring and weak timestamp adapters. Their zero-miss results concern the staged post-observation schedules and are not measurements of the conservative client. Evidence experiments are reported separately in \S\ref{sec:checks}.
+
+\paragraph{Policies.} Event-only (persisted source-level flags); restart-aware event-only (refresh everything after an epoch break); Tether-style (dependency propagation from delivered events, without durable source stamps); +OS trigger (event-only plus the JobScheduler trigger); \stamp; \stamp-TS; \stamp-epoch; global refresh; for derived facts, input memoization. All in-app policies are evaluated on the same decision, before the decision-time comparison read. The trigger is evaluated from its log.
+
+\paragraph{Metrics and statistics.} A fact use is \emph{changed} if the remembered value differs from the provider value read at decision time. A policy \emph{misses} a changed use it does not refresh, which is a stale critical decision. Per-use rates count derived facts, which are deterministic functions of base facts. Table~\ref{tab:trial} therefore also gives trial-level rates (trials with at least one stale decision), the unit of independent replication. Proportions carry Wilson 95\% intervals and medians bootstrap intervals (2{,}000 resamples, fixed seed). Most cells are deterministic (0\% or 100\%), so tests are reported only where outcomes vary, on trials (Table~\ref{tab:sig}).
+
+\subsection{RQ1: Which designs avoid stale decisions?}
+\label{sec:eval-rq1}
+
+\input{generated/tab_summary}
+\input{generated/fig_age}
+
+Table~\ref{tab:summary} groups the gaps by the class of \S\ref{sec:meas-gaps}; per-gap rows are in Table~\ref{tab:policy} and trial-level rates in the main-body trial summary and Table~\ref{tab:trial} (appendix).
+
+\paragraph{Lost observer coverage makes persisted flags unsafe.} Across kill, force-stop, revocation, unregistration and reboot (background client, late decision), event-only missed \DeathEvK of \DeathChanged changed uses (\DeathEv). A dead or detached listener never hears the change, and our event-only memory trusts its persisted flags after a restart. The restart-aware variant missed \DeathEvrK: it refreshes every fact after an epoch break, \MeanEvrRefDeath of 16 per decision against \stamp's \MeanLmRefDeath. The OS trigger fires through a kill but is cancelled by force-stop and cannot outlive a reboot. \stamp missed \DeathLmK. In the FGS reboot gap event-only missed only part of the changes, because half of each trial's changes were made before the reboot, and the FGS client heard those at once; the background client's deferral outlasted the time to the reboot.
+
+\paragraph{Delivery delay matters within an epoch.} Restart-aware then equals event-only, and both are only as good as the notifications. Figure~\ref{fig:age} plots misses against the age of the change at the decision. On Android~13 a background event-driven memory missed \AgeALtK of \AgeALtN changes younger than 10\,s and \AgeAGeK of \AgeAGeN older ones, with or without Doze, the bucket or the freezer. On Android~15 it missed \AgeBLtK of \AgeBLtN younger changes and still \AgeBGeK of \AgeBGeN older ones, up to \AgeMaxMissB\,s old, with freezer state a potential contributor to the measured delay. With the FGS client the step disappears: in the in-epoch FGS conditions (no gap, Doze) event-only missed \FgInEarlyEvK of \FgInEarlyChanged changed uses at the early decision. In the in-epoch background conditions at the early decision, restart-aware missed \SuspEvrK of \SuspChanged (in \SuspEvrTK of \SuspTrials trials), \stamp-epoch \SuspLmeK and \stamp \SuspLmK. In the long freezer and Doze gaps event-only missed \LongLateEvK of \LongLateChanged changed uses at the late decision and \LongEarlyEvK at the early one, all in the freezer gap, where held callbacks arrived after the thawed process had decided.
+
+\paragraph{\stamp and the FGS client.} \stamp missed \AllLmK of \AllChanged changed uses at the late decision and \AllEarlyLmK at the early one, across all background conditions on Android~13 including the long gaps (trial-level Wilson upper endpoint \AllLmTHi\% at 95\%, conditional on this sampling protocol). It missed \FgAnyLmK of \FgAnyChanged in the FGS conditions and \ApiAnyLmK of \ApiAnyChanged on Android~15 (both decisions). \stamp-TS behaved the same because no clock moved (\S\ref{sec:eval-pitfalls}). Restart-aware event-only with an FGS client also missed \FgAnyEvrK of \FgAnyChanged: it had the same observed zero-miss result in these schedules. This does not guarantee freshness before asynchronous callback delivery; \S\ref{sec:eval-cost} prices it.
+
+\paragraph{Hold-distribution sensitivity.} For one quiescent write, an unfrozen process, a deterministic callback delay $D$ and a decision at $H+2$ seconds, silence persists with probability $P(H<D-2)$. With $D=10$ and $H\sim U[0,h]$, this is $\min(1,8/h)$: 100\%, 80\%, 27\% and 13\% for $h=4,10,30,60$ seconds. At +14 seconds it is zero under these assumptions. This analytic sensitivity explains why the chosen hold distribution changes event-only rates; it excludes freezing, lost coverage, setup callbacks and concurrent writes, and is not a field-frequency estimate.
+
+\subsection{RQ2: What do the strategies cost?}
+\label{sec:eval-cost}
+\input{generated/tab_cost}
+
+
+
+\paragraph{Provider-readable facts: \stamp is slower than refreshing.} Median provider time per late decision was \CostLm\,ms (95\% CI [\CostLmLo, \CostLmHi]) for \stamp, \CostGl\,ms ([\CostGlLo, \CostGlHi]) for global refresh and \CostEvr\,ms for restart-aware event-only. \stamp was slower than global refresh in \CostSlowerPct of \CostN decisions. It refreshed \MeanLmRef of 16 base facts per decision against \MeanGlRef. For the \MeanNSup facts with evidence it refreshed \MeanLmRefSup against \MeanChgSup that actually changed (Table~\ref{tab:persource}). Each provider refresh costs a few milliseconds, validating a source costs more, and optimistic membership re-queries cost as much as refreshes. The conservative protocol has additional obligations (Proposition~\ref{prop:cost}). \textbf{For these inexpensive provider queries, direct refresh is the measured default before critical use.}
+
+\paragraph{Cost components.} Direct refresh issues current-value queries; \stamp adds source probes, version-map or membership scans, and fallback reads. For Contacts, a single-fact refresh costs 1.9\,ms versus 7.0\,ms for a source check; at 5,000 contacts both strategies scan growing maps. On a host, separate shell launches dominate the unbatched comparison. Table~\ref{tab:checks-host} instead matches transport and residency. The appendix supplies the scale and shell-launch breakdowns.
+
+\paragraph{Scale.} The optimistic scale experiment reaches about 5,000 raw contacts and 10,000 images. Both version-map checks and refresh costs grow; Table~\ref{tab:scale} and the detailed analysis are in the appendix.
+
+\input{generated/tab_e8}
+
+\paragraph{Derived facts: input memoization wins the cost comparison.} The 10-fact Qwen2.5-7B workload in Table~\ref{tab:e8} sums individually timed model calls plus provider reads; it does not measure complete task latency. After a kill with source-change probability 0.3, refreshing and re-deriving every output costs \EightGlKillHi\,s, \stamp costs \EightLmKillHi\,s, and current-input memoization costs \EightMemoKillHi\,s. Evidence-less inputs force unnecessary re-derivations under \stamp. Only event-only misses staged changes. Section~\ref{sec:agent-tasks} separately measures resumed tasks through their Android file effects.
+
+\paragraph{FGS and unbatched host costs.} Emulator CPU/PSS and BatteryStats estimates appear in Table~\ref{tab:fgcost}; they do not measure physical energy. The API-33-targeting client does not establish current-target deployability~\cite{android_fgstypes,android_fgstimeout}. The unbatched host comparison used separate adb commands per query (Table~\ref{tab:host}); its apparent validation advantage is reassessed with matched batching in \S\ref{sec:checks}.
+
+\subsection{RQ3: Is re-validation at the action boundary enough?}
+\label{sec:eval-boundary}
+
+\input{generated/tab_boundary}
+
+E3 schedules the boundary check at an absolute device time. The mutator edits Dana's number at an offset drawn over the whole planning window and, in a second batch, only in a band of $-10$ to $+40$\,ms around the check (\EThreeTrials trials). The action's effect is an outgoing call-log row carrying the number used. Validating only at observation produced a stale effect whenever the change landed before the action (\BndObsBeforeAction). With boundary re-validation, changes completed before the check were caught (\BndBndBeforeCheck stale), and changes that started after the effect could not matter (\BndBndAfterEffect). Changes overlapping the check or the check-to-effect interval produced \BndBndOverlapsCheckOrResidual stale effects. The exposure is concentrated at the start of the check: changes that started within 10\,ms of it, either side, produced stale effects in \BinEarlyK of \BinEarlyN trials, and changes that started 10--60\,ms after it in \BinLateK of \BinLateN (Table~\ref{tab:boundary}). The interval from the start of the boundary check to the end of the effect had a median of \CteMs\,ms (max \CteMax\,ms), and it grows with the size of the Contacts database (Table~\ref{tab:scale}). Re-validation narrows the exposure from the planning delay to tens of milliseconds, but it cannot remove the exposure without a conditional commit.
+
+\subsection{RQ4: When does durable evidence lie?}
+\label{sec:eval-pitfalls}
+
+\emph{SMS identifiers are reused.} Deleting the newest SMS and inserting another reused the deleted \texttt{\_id} in \SmsReuseK of \SmsReuseN trials (\texttt{INTEGER PRIMARY KEY} without \texttt{AUTOINCREMENT}).
+\emph{File mtimes are coarse.} A second append within a second left mtime unchanged in \MtimeSameK of \MtimeN trials, hence the racy guard.
+\emph{Wall-clock stamps need a monotone clock.} We set the clock back one hour, edited Dana's number, and restored the clock either before the decision (transient) or after it (persistent). The timestamp adapter's guard caught every persistent set-back (\ClockTsPersistentGuard of \ClockTsPersistentN), but \stamp-TS accepted the stale number in \ClockTsTransientStale of \ClockTsTransientN transient trials of a first run and in \ClockVtwoTsTransientStale of \ClockVerTransientN of a second. The clock-free \texttt{VERSION} adapter detected the edit in \ClockVerTransientDet of \ClockVerTransientN transient and \ClockVerPersistentDet of \ClockVerPersistentN persistent trials. This is why \stamp validates Contacts against row versions. This does not establish a reset-safe Contacts certificate, and neither the call-log clock guard nor the file racy-tick guard rules out every equal-stamp write.
+
+\paragraph{Validity.} Exclusions cover harness errors, incorrect frozen/FGS/Doze state and host-sleep spans; excluded data are retained. The nine accidental-FGS trials and the invalid initial Doze/persistent runs are documented in the appendix and artifact. Every campaign identifies its measured policy and APK.
+
+\input{sections/07-checks}
+\subsection{Resumed LLM Tasks Through Android Effects}
+\label{sec:agent-tasks}
+\input{generated/tab_agent_tasks}
+A bounded tool-using agent creates contact cards, photo-sharing drafts and meeting drafts from phone-provider inputs. A shared prefix records the inputs and model-generated action, injects a force-stop or no gap, and independently updates Contacts, MediaStore and Calendar with the schedule probability. Each model/schedule has 24 paired trials, rotating three tasks. Refresh reads current inputs and regenerates; memoization reads the same inputs and reuses an equal-input output; strict evidence returns \Unknown on these stock adapters and falls back to regeneration. Arm order is randomized; pairing stays within each model. Local Qwen2.5-7B and Llama-3.2-3B use temperature zero and a fixed seed.
+
+Table~\ref{tab:agent-tasks} measures each resumed execution from input acquisition through model invocation or reuse, Android draft-file writing and readback. This is elapsed suffix latency, not a sum of model-call estimates; shared setup, gap and cached-output creation are outside that timer. The oracle checks exact structured inputs and task identity, plus a nonempty draft, against quiescent provider reads. A stale action submits the pre-gap inputs after they changed; other incorrect inputs and parse failures are separately retained. These are constrained draft tasks, not AndroidWorld completion or a natural-language quality evaluation. No message is transmitted, and no stock evidence certificate is credited for fallback refresh.
+
+
+Every model/policy arm completes all \TaskN structured goals with zero observed stale actions (Wilson 95\% upper endpoint \TaskZeroBound\%, conditional on this trial mix). Memoization's median resumed latency is \TaskQwenMemo\,s for Qwen and \TaskLlamaMemo\,s for Llama, versus refresh medians \TaskQwenRefresh and \TaskLlamaRefresh\,s. Evidence-based reuse obtains no strict stock certificates; its fallback costs \TaskQwenEvidence and \TaskLlamaEvidence\,s. The measured saving comes from comparing current inputs, not from certifying stock-provider stamps.

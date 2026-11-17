@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="org.leasemem.assist">
+  <uses-sdk android:minSdkVersion="30" android:targetSdkVersion="35"/>
+  <uses-permission android:name="android.permission.READ_CONTACTS"/>
+  <uses-permission android:name="android.permission.READ_CALL_LOG"/>
+  <uses-permission android:name="android.permission.READ_SMS"/>
+  <uses-permission android:name="android.permission.READ_CALENDAR"/>
+  <uses-permission android:name="android.permission.READ_MEDIA_IMAGES"/>
+  <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+  <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
+  <uses-permission android:name="android.permission.WRITE_CALL_LOG"/>
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+  <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
+  <application android:name="org.leasemem.client.LmApp" android:label="LeaseMemAssist" android:debuggable="true"
+      android:theme="@android:style/Theme.Material.Light" android:allowBackup="false">
+    <activity android:name="org.leasemem.client.Main" android:exported="true" android:excludeFromRecents="true">
+      <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
+      <intent-filter><action android:name="android.intent.action.ASSIST"/><category android:name="android.intent.category.DEFAULT"/></intent-filter>
+    </activity>
+    <receiver android:name="org.leasemem.client.Cmd" android:exported="true"/>
+    <service android:name="org.leasemem.client.FgService" android:exported="true"/>
+    <service android:name="org.leasemem.client.AssistVis" android:permission="android.permission.BIND_VOICE_INTERACTION" android:exported="true">
+      <meta-data android:name="android.voice_interaction" android:resource="@xml/interaction_service"/>
+      <intent-filter><action android:name="android.service.voice.VoiceInteractionService"/></intent-filter>
+    </service>
+    <service android:name="org.leasemem.client.AssistVis$Session" android:permission="android.permission.BIND_VOICE_INTERACTION" android:exported="true"/>
+    <service android:name="org.leasemem.client.AssistVis$Recognizer" android:exported="true">
+      <intent-filter><action android:name="android.speech.RecognitionService"/></intent-filter>
+    </service>
+  </application>
+</manifest>

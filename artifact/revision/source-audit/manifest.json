@@ -1,0 +1,42 @@
+{
+  "android-13.0.0_r1-contacts.java": {
+    "url": "https://android.googlesource.com/platform/packages/providers/ContactsProvider/+/android-13.0.0_r1/src/com/android/providers/contacts/ContactsDatabaseHelper.java?format=TEXT",
+    "sha256": "cf70e1f126042ae5aab2fb913de9c6b797a0b0cfe60e0fcce826315bd54cfe30",
+    "status": "retrieved"
+  },
+  "android-13.0.0_r1-calllog.java": {
+    "url": "https://android.googlesource.com/platform/packages/providers/ContactsProvider/+/android-13.0.0_r1/src/com/android/providers/contacts/CallLogProvider.java?format=TEXT",
+    "sha256": "97358c21ee807510f89c50bc23f4d3b4d7eee910ea7e64bf9aa5aee84a8fa366",
+    "status": "retrieved"
+  },
+  "android-13.0.0_r1-media_db.java": {
+    "url": "https://android.googlesource.com/platform/packages/providers/MediaProvider/+/android-13.0.0_r1/src/com/android/providers/media/DatabaseHelper.java?format=TEXT",
+    "sha256": "87297815b0dc27a7230a6af6b4fb1bd5832371f81b03aee2130b905c150deb71",
+    "status": "retrieved"
+  },
+  "android-13.0.0_r1-media_provider.java": {
+    "url": "https://android.googlesource.com/platform/packages/providers/MediaProvider/+/android-13.0.0_r1/src/com/android/providers/media/MediaProvider.java?format=TEXT",
+    "sha256": "e37f5ae691b316f2202e72b401071cc05dc114efb6adbf67568c400a90588d45",
+    "status": "retrieved"
+  },
+  "android-15.0.0_r1-contacts.java": {
+    "url": "https://android.googlesource.com/platform/packages/providers/ContactsProvider/+/android-15.0.0_r1/src/com/android/providers/contacts/ContactsDatabaseHelper.java?format=TEXT",
+    "sha256": "3b4dc592bd0cc9615d23e093fb3307f0f04fab345c3ee77bd3172329167f006d",
+    "status": "retrieved"
+  },
+  "android-15.0.0_r1-calllog.java": {
+    "url": "https://android.googlesource.com/platform/packages/providers/ContactsProvider/+/android-15.0.0_r1/src/com/android/providers/contacts/CallLogProvider.java?format=TEXT",
+    "sha256": "6552f61030d8b97556548991bc231294948fee929265e415f14d8cc124f1abc7",
+    "status": "retrieved"
+  },
+  "android-15.0.0_r1-media_db.java": {
+    "url": "https://android.googlesource.com/platform/packages/providers/MediaProvider/+/android-15.0.0_r1/src/com/android/providers/media/DatabaseHelper.java?format=TEXT",
+    "sha256": "16cbac42ca1dc766216620da82128ff1cad0d20bda7e08b738793077e0d95c13",
+    "status": "retrieved"
+  },
+  "android-15.0.0_r1-media_provider.java": {
+    "url": "https://android.googlesource.com/platform/packages/providers/MediaProvider/+/android-15.0.0_r1/src/com/android/providers/media/MediaProvider.java?format=TEXT",
+    "sha256": "194bf47422b3493a380018a76a76129dc68b4671dc7e4ec8a92634c9a912e735",
+    "status": "retrieved"
+  }
+}

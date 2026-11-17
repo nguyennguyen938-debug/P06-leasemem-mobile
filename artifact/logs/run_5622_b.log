@@ -1,0 +1,127 @@
+batch A done Sun Nov  8 04:24:31 +07 2026
+trial reboot 0 [('files', 'insert'), ('calllog', 'delete'), ('settings', 'update')]
+trial reboot 1 [('media', 'update'), ('calendar', 'update'), ('sms', 'update')]
+trial reboot 2 [('settings', 'update')]
+trial reboot 3 [('settings', 'update'), ('files', 'insert'), ('media', 'delete'), ('calendar', 'insert'), ('sms', 'update')]
+trial reboot 4 [('sms', 'insert'), ('contacts', 'insert'), ('media', 'insert'), ('calendar', 'delete')]
+trial reboot 5 [('calendar', 'update'), ('settings', 'update'), ('files', 'delete')]
+trial reboot 6 [('sms', 'update'), ('calendar', 'insert')]
+trial reboot 7 [('calendar', 'insert'), ('settings', 'update'), ('media', 'update'), ('files', 'delete'), ('sms', 'insert'), ('calllog', 'update')]
+trial reboot 8 [('contacts', 'insert')]
+trial reboot 9 [('settings', 'update'), ('files', 'insert'), ('calendar', 'delete')]
+trial reboot 10 [('contacts', 'insert'), ('calendar', 'delete'), ('files', 'update')]
+trial reboot 11 [('settings', 'update'), ('media', 'update'), ('contacts', 'insert'), ('files', 'insert')]
+trial reboot 12 [('sms', 'delete'), ('calendar', 'insert'), ('files', 'delete'), ('contacts', 'delete'), ('calllog', 'delete')]
+trial reboot 13 [('sms', 'update'), ('settings', 'update'), ('files', 'update'), ('calendar', 'update')]
+trial reboot 14 [('calendar', 'update'), ('media', 'insert'), ('settings', 'update')]
+trial reboot 15 [('files', 'delete')]
+trial reboot 16 [('contacts', 'insert'), ('files', 'delete'), ('settings', 'update'), ('calendar', 'delete')]
+trial reboot 17 [('files', 'update'), ('settings', 'update')]
+trial reboot 18 [('calllog', 'insert'), ('media', 'insert'), ('calendar', 'delete'), ('sms', 'insert'), ('contacts', 'delete'), ('settings', 'update')]
+trial reboot 19 [('sms', 'delete'), ('files', 'delete'), ('calendar', 'update'), ('calllog', 'update')]
+trial reboot 20 [('media', 'insert'), ('sms', 'insert'), ('contacts', 'update'), ('files', 'update'), ('calendar', 'delete')]
+trial reboot 21 [('media', 'update'), ('calllog', 'update'), ('files', 'update'), ('calendar', 'update')]
+trial reboot 22 [('settings', 'update'), ('media', 'update'), ('calllog', 'delete'), ('files', 'insert')]
+trial reboot 23 [('media', 'update'), ('files', 'delete'), ('contacts', 'update'), ('calendar', 'delete')]
+trial reboot 24 [('calllog', 'insert'), ('contacts', 'insert')]
+trial reboot 25 [('contacts', 'update'), ('sms', 'delete'), ('media', 'update'), ('settings', 'update'), ('files', 'update')]
+trial reboot 26 [('calllog', 'insert'), ('sms', 'update'), ('files', 'update'), ('settings', 'update')]
+trial reboot 27 [('media', 'insert'), ('settings', 'update')]
+trial reboot 28 [('calendar', 'insert'), ('media', 'delete'), ('settings', 'update'), ('contacts', 'delete'), ('sms', 'update')]
+trial reboot 29 [('calendar', 'insert'), ('calllog', 'update'), ('settings', 'update'), ('contacts', 'delete')]
+trial reboot 30 [('media', 'delete'), ('sms', 'delete'), ('files', 'insert'), ('settings', 'update')]
+trial reboot 31 [('calendar', 'update'), ('files', 'update'), ('calllog', 'insert'), ('media', 'update'), ('contacts', 'update'), ('sms', 'update')]
+trial reboot 32 [('sms', 'update'), ('calllog', 'insert'), ('media', 'delete'), ('settings', 'update'), ('contacts', 'update')]
+trial reboot 33 [('media', 'update'), ('contacts', 'insert')]
+trial reboot 34 [('calendar', 'update'), ('settings', 'update'), ('calllog', 'insert')]
+trial reboot 35 [('sms', 'insert'), ('settings', 'update'), ('files', 'insert')]
+trial reboot 36 [('settings', 'update'), ('files', 'delete'), ('media', 'update'), ('contacts', 'update'), ('calllog', 'delete')]
+trial reboot 37 [('sms', 'insert'), ('files', 'delete'), ('calendar', 'insert'), ('media', 'insert')]
+trial reboot 38 [('settings', 'update'), ('files', 'insert'), ('calllog', 'insert'), ('media', 'update'), ('calendar', 'update')]
+trial reboot 39 [('calllog', 'delete'), ('calendar', 'insert'), ('files', 'insert')]
+trial reboot 40 [('calendar', 'insert'), ('sms', 'delete'), ('files', 'insert'), ('calllog', 'update')]
+trial reboot 41 []
+trial reboot 42 [('calllog', 'update')]
+trial reboot 43 [('calendar', 'update'), ('sms', 'update'), ('calllog', 'delete'), ('files', 'insert')]
+trial reboot 44 []
+trial reboot 45 [('sms', 'insert'), ('media', 'update'), ('calendar', 'delete'), ('settings', 'update')]
+trial reboot 46 [('calllog', 'insert'), ('sms', 'update')]
+trial reboot 47 [('files', 'insert'), ('calllog', 'update')]
+trial reboot 48 [('calendar', 'insert'), ('files', 'insert'), ('settings', 'update')]
+trial reboot 49 [('calendar', 'delete'), ('calllog', 'delete'), ('sms', 'update'), ('settings', 'update')]
+trial 0 [('contacts', 'update'), ('sms', 'update'), ('calllog', 'insert'), ('media', 'insert'), ('calendar', 'insert'), ('settings', 'update'), ('files', 'delete')]
+trial 1 [('contacts', 'none'), ('sms', 'insert'), ('calllog', 'delete'), ('media', 'delete'), ('calendar', 'update'), ('settings', 'none'), ('files', 'none')]
+trial 2 [('contacts', 'none'), ('sms', 'insert'), ('calllog', 'delete'), ('media', 'insert'), ('calendar', 'update'), ('settings', 'update'), ('files', 'delete')]
+trial 3 [('contacts', 'insert'), ('sms', 'none'), ('calllog', 'insert'), ('media', 'none'), ('calendar', 'delete'), ('settings', 'update'), ('files', 'update')]
+trial 4 [('contacts', 'insert'), ('sms', 'delete'), ('calllog', 'delete'), ('media', 'insert'), ('calendar', 'update'), ('settings', 'update'), ('files', 'update')]
+trial 5 [('contacts', 'none'), ('sms', 'insert'), ('calllog', 'update'), ('media', 'delete'), ('calendar', 'update'), ('settings', 'update'), ('files', 'insert')]
+trial 6 [('contacts', 'delete'), ('sms', 'delete'), ('calllog', 'delete'), ('media', 'insert'), ('calendar', 'insert'), ('settings', 'none'), ('files', 'update')]
+trial 7 [('contacts', 'update'), ('sms', 'update'), ('calllog', 'none'), ('media', 'delete'), ('calendar', 'none'), ('settings', 'update'), ('files', 'update')]
+trial 8 [('contacts', 'delete'), ('sms', 'none'), ('calllog', 'delete'), ('media', 'update'), ('calendar', 'insert'), ('settings', 'none'), ('files', 'update')]
+trial 9 [('contacts', 'delete'), ('sms', 'delete'), ('calllog', 'insert'), ('media', 'insert'), ('calendar', 'update'), ('settings', 'update'), ('files', 'update')]
+trial 10 [('contacts', 'update'), ('sms', 'delete'), ('calllog', 'insert'), ('media', 'none'), ('calendar', 'none'), ('settings', 'none'), ('files', 'delete')]
+trial 11 [('contacts', 'delete'), ('sms', 'insert'), ('calllog', 'none'), ('media', 'none'), ('calendar', 'update'), ('settings', 'none'), ('files', 'delete')]
+trial 12 [('contacts', 'delete'), ('sms', 'update'), ('calllog', 'update'), ('media', 'delete'), ('calendar', 'insert'), ('settings', 'none'), ('files', 'delete')]
+trial 13 [('contacts', 'update'), ('sms', 'update'), ('calllog', 'insert'), ('media', 'none'), ('calendar', 'insert'), ('settings', 'none'), ('files', 'delete')]
+trial 14 [('contacts', 'update'), ('sms', 'insert'), ('calllog', 'update'), ('media', 'none'), ('calendar', 'update'), ('settings', 'update'), ('files', 'delete')]
+trial 15 [('contacts', 'update'), ('sms', 'none'), ('calllog', 'update'), ('media', 'update'), ('calendar', 'insert'), ('settings', 'none'), ('files', 'update')]
+trial 16 [('contacts', 'insert'), ('sms', 'insert'), ('calllog', 'insert'), ('media', 'none'), ('calendar', 'none'), ('settings', 'update'), ('files', 'none')]
+trial 17 [('contacts', 'update'), ('sms', 'update'), ('calllog', 'insert'), ('media', 'insert'), ('calendar', 'none'), ('settings', 'none'), ('files', 'update')]
+trial 18 [('contacts', 'update'), ('sms', 'delete'), ('calllog', 'delete'), ('media', 'delete'), ('calendar', 'none'), ('settings', 'update'), ('files', 'update')]
+trial 19 [('contacts', 'insert'), ('sms', 'delete'), ('calllog', 'insert'), ('media', 'insert'), ('calendar', 'none'), ('settings', 'update'), ('files', 'insert')]
+trial 20 [('contacts', 'update'), ('sms', 'delete'), ('calllog', 'insert'), ('media', 'none'), ('calendar', 'none'), ('settings', 'none'), ('files', 'delete')]
+trial 21 [('contacts', 'none'), ('sms', 'update'), ('calllog', 'delete'), ('media', 'insert'), ('calendar', 'insert'), ('settings', 'update'), ('files', 'insert')]
+trial 22 [('contacts', 'none'), ('sms', 'insert'), ('calllog', 'update'), ('media', 'none'), ('calendar', 'none'), ('settings', 'none'), ('files', 'update')]
+trial 23 [('contacts', 'update'), ('sms', 'none'), ('calllog', 'insert'), ('media', 'delete'), ('calendar', 'update'), ('settings', 'update'), ('files', 'update')]
+trial 24 [('contacts', 'delete'), ('sms', 'delete'), ('calllog', 'update'), ('media', 'update'), ('calendar', 'delete'), ('settings', 'update'), ('files', 'update')]
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+transient FRESH wm_equal True
+persistent UNKNOWN clock True
+BATCH5622B_DONE Sun Nov 8 05:25:33 +07 2026

@@ -1,0 +1,2 @@
+cd ../manuscript && pdflatex -halt-on-error -interaction=nonstopmode main >/dev/null && bibtex main >/dev/null && pdflatex -halt-on-error -interaction=nonstopmode main >/dev/null && pdflatex -halt-on-error -interaction=nonstopmode main >/dev/null && pdfinfo main.pdf | grep Pages
+Pages:           21

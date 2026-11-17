@@ -1,0 +1,5 @@
+source,insert_k,insert_n,update_k,update_n,delete_k,delete_n,none_k,none_n
+contacts,25,25,36,36,24,24,0,20
+calllog,33,33,30,30,22,22,0,20
+media,29,29,23,23,27,27,16,26
+files,17,17,34,34,27,27,0,27

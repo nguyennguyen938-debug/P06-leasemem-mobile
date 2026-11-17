@@ -1,0 +1,14 @@
+[
+  {
+    "serial": "emulator-5620",
+    "n": 10,
+    "errors": 0,
+    "frozen_trials": 10
+  },
+  {
+    "serial": "emulator-5622",
+    "n": 10,
+    "errors": 0,
+    "frozen_trials": 10
+  }
+]

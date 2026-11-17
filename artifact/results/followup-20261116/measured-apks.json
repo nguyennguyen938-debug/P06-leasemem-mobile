@@ -1,0 +1,8 @@
+{
+  "client/build/LeaseMemClient-v4.apk": "44ba19f4ed219a6ef81f9e3f5caa29e3635523c5197ff7cf8fe109201ced4fcd",
+  "mut/build/LeaseMemMut.apk": "9ce8d248426fb67e1b8acc6e9b98fd8aaa59b7dfeac9cda912314e072b6f5316",
+  "assist/build/LeaseMemAssist.apk": "1513ab086ecf711bbd53cbdad6856218f9558f822fd3641d46d4a1a9dcccddff",
+  "persist/build/LeaseMemPersist.apk": "ca9638e226a6b0f86448fddcdbc461465abd81288bbd1cd9f17283f6d70558d5",
+  "fgs35/build/FGS35-typed.apk": "2673318d88a049a6890aad9883f51ab4ffc0d604d7543151b9f0c1f2ffbbf3e2",
+  "fgs35/build/FGS35-missing.apk": "55f0d67de938abb28b8a1aa343eb103f66396e73d8945d9b7557e08cfa397b63"
+}

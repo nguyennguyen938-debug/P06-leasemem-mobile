@@ -1,0 +1,13 @@
+{
+  "artifact/app/client/src/org/leasemem/client/LmApp.java": "c76b1c9fe8885c71409ddf8d8cc457f43fab1154268bdaaa28a4667cee782086",
+  "artifact/app/client/src/org/leasemem/client/Revision.java": "aca7f4ffe18b52fe7cc8dd3ba09150d4cc4ea30b00b885e57d14b9d3ebded1c2",
+  "artifact/app/client/src/org/leasemem/client/AssistVis.java": "2bbc54b1ef272c5b03aebe031358005c72d56e6c31864cce8084c525889ca8d3",
+  "artifact/app/client/src/org/leasemem/client/FgService.java": "333facaaccab93b71e00862ceed74e885ebd3bc4cc7f1fa17119f2f807364534",
+  "artifact/app/client/src/org/leasemem/client/ReferenceProvider.java": "3d671ddbe87c328e5eb88ba36a7713d692343eb38a08a20da62549dcc7870d91",
+  "artifact/app/client/src/org/leasemem/client/Main.java": "6a45460405c062e8bcc908a0bc518a3df96546688116da8648ae2cc2b73a75ea",
+  "artifact/app/client/src/org/leasemem/client/Cmd.java": "14572a0c794ae5a007cae810fe16ceb4a47a4890fa8693ff81196c79918a1b37",
+  "artifact/revision/run.py": "f4b7f53c2c98f23335a9e1bc934c0c73f03869af05e6a5d30d0ac318b06c132e",
+  "artifact/revision/fetch_sources.py": "a7a01e42645e741cebc8d36c57ff74ad80d288f23d422a64d8ca90921031325a",
+  "artifact/revision/implement.py": "db8eabc1ce9023b5791d413fa9c2aba98dcb4e70abbe37ce96bd230b010f6e89",
+  "artifact/app/client/AndroidManifest.xml": "ca2754169bbb4d89a4c722e25367f515368dac156b27f0b4a50534eaee928754"
+}

@@ -1,0 +1,38 @@
+== E10 on 33 Mon Nov  9 01:01:19 +07 2026
+{"mode": "bg", "pkg": "org.leasemem.client", "serial": "emulator-5620", "sdk": "33", "seed": 1000, "state_home": {"pid": "14909", "curProcState": 19, "oom_cur": 915, "oom_score_adj": "915"}, "state_after": {"pid": "14909", "curProcState": 19, "oom_cur": 915, "oom_score_adj": "915"}, "frozen_after_10s": "1", "am_kill": {"pid_before": "14909", "pid_after": "", "killed": true}, "force_stop": {"pid_before": "10873", "pid_after": "", "output": "", "restarted_by_system": false}}
+latencies [35203, 35179, 35137, 35184, 35119, 35088]
+{"mode": "fg", "pkg": "org.leasemem.client", "serial": "emulator-5620", "sdk": "33", "seed": 1000, "state_home": {"pid": "11129", "curProcState": 4, "oom_cur": 200, "oom_score_adj": "200"}, "state_after": {"pid": "11129", "curProcState": 4, "oom_cur": 200, "oom_score_adj": "200"}, "frozen_after_10s": "0", "am_kill": {"pid_before": "11129", "pid_after": "11129", "killed": false}, "force_stop": {"pid_before": "11129", "pid_after": "", "output": "", "restarted_by_system": false}}
+latencies [10, 10, 20, 12, 11, 1]
+Serving...
+All files should be loaded. Notifying the device.
+Performing Incremental Install
+Success
+Install command complete in 130 ms
+org.leasemem.assist/org.leasemem.client.AssistVis
+org.leasemem.assist/org.leasemem.client.AssistVis
+Unknown command: get-role-holders
+  mComponent=org.leasemem.assist/org.leasemem.client.AssistVis
+  Session service=org.leasemem.client.AssistVis$Session
+    name=org.leasemem.client.AssistVis
+    packageName=org.leasemem.assist
+      name=org.leasemem.client.LmApp
+      packageName=org.leasemem.assist
+      labelRes=0x0 nonLocalizedLabel=LeaseMemAssist icon=0x0 banner=0x0
+      className=org.leasemem.client.LmApp
+{"mode": "assist", "pkg": "org.leasemem.assist", "serial": "emulator-5620", "sdk": "33", "seed": 1001, "voiceinteraction": "  mComponent=org.leasemem.assist/org.leasemem.client.AssistVis\n  Session service=org.leasemem.client.AssistVis$Session\n    name=org.leasemem.client.AssistVis\n    packageName=org.leasemem.assist\n      name=org.leasemem.client.LmApp\n", "role": "Unknown command: get-role-holders\n        name=android.app.role.ASSISTANT\n        holders=org.leasemem.assist\n      }\n", "state_home": {"pid": "11654", "curProcState": 5, "oom_cur": 100, "oom_score_adj": "100"}, "state_after": {"pid": "11654", "curProcState": 5, "oom_cur": 100, "oom_score_adj": "100"}, "frozen_after_10s": "0", "am_kill": {"pid_before": "11654", "pid_after": "11654", "killed": false}, "force_stop": {"pid_before": "11654", "pid_after": "", "output": "", "restarted_by_system": false}}
+latencies [17, 43, 17, 27, 11, 2]
+Success
+== longdoze2 Mon Nov  9 01:14:17 +07 2026
+Stopping service: Intent { cmp=org.leasemem.client/.FgService }
+Service not stopped: was not running.
+trial longdoze2 bg 0 4
+trial longdoze2 bg 1 3
+trial longdoze2 bg 2 4
+trial longdoze2 bg 3 3
+trial longdoze2 bg 4 5
+trial longdoze2 bg 5 2
+trial longdoze2 bg 6 3
+trial longdoze2 bg 7 3
+trial longdoze2 bg 8 5
+trial longdoze2 bg 9 3
+POST_DONE_5620 Mon Nov 9 02:53:24 +07 2026

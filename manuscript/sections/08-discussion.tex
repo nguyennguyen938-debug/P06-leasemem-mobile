@@ -1,0 +1,22 @@
+\section{Discussion and Limitations}
+\label{sec:discussion}
+The evidence map supports the deployment-specific choices in Table~\ref{tab:guidance}. Fast notification delivery reduces invalidation delay but supplies no synchronous freshness guarantee.
+
+\begin{table}[t]
+\centering\mtab
+\caption{Conditional strategy guidance. Every read retains a later action-boundary race.}
+\label{tab:guidance}
+\begin{tabular}{p{2.1cm}p{5.8cm}}\toprule
+\mhead Source & Appropriate strategy and condition \\\midrule
+Cheap provider facts & Batch current-value queries; retain read intervals.\\
+LLM-derived facts & Read current inputs; memoize equal-input outputs.\\
+Bound service/FGS & Treat notifications as hints; handle epoch breaks.\\
+Host controller & Match batching, helper residency and privileges.\\
+Cooperative provider & Use transactional snapshots and managed writes/reset.\\
+Weak/absent evidence & Return \Unknown; refresh, re-observe or stop.\\\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{External validity.} All runtime evidence comes from emulators on one host, with scripted mutations. Physical/OEM replication, energy measurements and field overlap rates remain open. The summed-call model and measured draft tasks have different workloads; structured draft goals do not assess language quality or open-ended planning. The cooperative provider is a reference, not a platform patch. Unsupported stock contracts remain disabled, and selected query inspection is not population coverage. Ambiguous temporal overlaps are not counted as successes.
+
+\paragraph{Platform opportunities.} Useful APIs would return values and sequence counters atomically, expose reset-safe epochs and complete changes including deletions, and support conditional effects. Public counters alone would not repair an inconsistent observation. Such APIs could make reuse worthwhile for expensive sources, but the present measurements do not establish a general performance advantage.

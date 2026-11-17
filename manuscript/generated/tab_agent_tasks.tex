@@ -1,0 +1,16 @@
+\begin{table}[t]
+\centering\mtab
+\caption{Resumed Android draft tasks: stale actions, exact structured-goal success and measured wall latency through file write/readback (seconds; median and range). Each model has 24 paired trials per force-stop/0.1, force-stop/0.3 and no-gap/0.3 schedule, with three tasks rotated. Memoization reuses model outputs only after reading equal current inputs.}
+\label{tab:agent-tasks}
+\begin{tabular}{lrrrrrr}\toprule
+\mhead Policy & $n$ & Stale & Success & Median & Range & Reuses\\\midrule
+\mgroup{7}{llama3.2 3b}
+evidence & 72 & 0 & 72/72 & 0.97 & [0.57, 1.53] & 0\\
+memo & 72 & 0 & 72/72 & 0.29 & [0.10, 1.51] & 48\\
+refresh & 72 & 0 & 72/72 & 0.89 & [0.57, 1.59] & 0\\
+\mgroup{7}{qwen2.5 7b}
+evidence & 72 & 0 & 72/72 & 2.25 & [1.20, 4.11] & 0\\
+memo & 72 & 0 & 72/72 & 0.29 & [0.11, 3.88] & 51\\
+refresh & 72 & 0 & 72/72 & 2.29 & [1.41, 3.92] & 0\\
+\bottomrule\end{tabular}
+\end{table}

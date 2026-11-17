@@ -1,0 +1,16 @@
+{
+ "watermark": 19,
+ "api-only": 23,
+ "gui-only": 74,
+ "n_tasks": 116,
+ "aw_commit": "55ddaf5edc6f6c25673aed343907d5b9dca66f84",
+ "mapping": "app-level",
+ "any_watermark": 28,
+ "reads_state": {
+  "watermark": 12,
+  "api-only": 6,
+  "gui-only": 53,
+  "n_tasks": 71,
+  "any_watermark": 19
+ }
+}

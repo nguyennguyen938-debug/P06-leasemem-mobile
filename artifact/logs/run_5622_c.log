@@ -1,0 +1,9 @@
+trial freeze 0 [('calendar', 'update'), ('contacts', 'delete'), ('calllog', 'delete')]
+trial freeze 1 [('settings', 'update'), ('contacts', 'update'), ('media', 'update')]
+trial freeze 2 [('contacts', 'insert'), ('settings', 'update'), ('sms', 'insert'), ('files', 'delete')]
+trial freeze 3 [('sms', 'insert'), ('files', 'update'), ('calllog', 'insert'), ('calendar', 'insert')]
+trial freeze 4 [('settings', 'update'), ('sms', 'insert')]
+trial freeze 5 [('files', 'update'), ('settings', 'update'), ('calendar', 'delete')]
+trial freeze 6 [('settings', 'update'), ('calendar', 'insert'), ('calllog', 'update'), ('media', 'insert')]
+trial freeze 7 [('calendar', 'update'), ('media', 'insert'), ('contacts', 'delete')]
+BATCH5622C_DONE Sun Nov 8 05:33:12 +07 2026

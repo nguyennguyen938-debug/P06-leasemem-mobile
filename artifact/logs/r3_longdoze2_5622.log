@@ -1,0 +1,9 @@
+  freeze_debounce_timeout=600000
+Stopping service: Intent { cmp=org.leasemem.client/.FgService }
+Service not stopped: was not running.
+trial longdoze2 bg 0 3
+trial longdoze2 bg 1 4
+trial longdoze2 bg 2 3
+trial longdoze2 bg 3 5
+trial longdoze2 bg 4 5
+DOZE_DONE_5622 Mon Nov 9 04:41:59 +07 2026

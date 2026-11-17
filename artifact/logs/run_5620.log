@@ -1,0 +1,462 @@
+E1 done Sun Nov  8 03:17:55 +07 2026
+Success
+0 s.latest bnd 1 False
+1 c.dana bnd 0 False
+2 c.dana obs 1 True
+3 s.latest obs 0 False
+4 s.latest bnd 1 False
+5 c.dana bnd 1 False
+6 s.latest obs 1 True
+7 s.latest obs 1 True
+8 c.dana obs 0 False
+9 s.latest obs 0 False
+10 s.latest bnd 0 False
+11 c.dana bnd 1 False
+12 s.latest obs 1 True
+13 s.latest obs 1 True
+14 s.latest bnd 0 False
+15 s.latest bnd 1 False
+16 c.dana bnd 1 False
+17 c.dana bnd 0 False
+18 c.dana bnd 1 False
+19 s.latest obs 1 True
+20 s.latest obs 0 False
+21 s.latest bnd 1 False
+22 s.latest obs 1 True
+23 c.dana bnd 0 False
+24 s.latest obs 0 False
+25 s.latest obs 1 True
+26 s.latest bnd 1 False
+27 s.latest obs 1 True
+28 s.latest bnd 0 False
+29 c.dana bnd 0 False
+30 s.latest obs 1 True
+31 c.dana obs 1 True
+32 s.latest obs 1 True
+33 c.dana bnd 1 False
+34 c.dana obs 1 True
+35 c.dana bnd 1 False
+36 s.latest obs 0 False
+37 c.dana obs 1 True
+38 s.latest obs 1 True
+39 c.dana bnd 1 False
+40 s.latest bnd 0 False
+41 c.dana obs 1 True
+42 c.dana bnd 0 False
+43 c.dana obs 1 True
+44 c.dana obs 1 True
+45 c.dana bnd 1 False
+46 c.dana obs 1 True
+47 s.latest bnd 1 False
+48 c.dana bnd 1 False
+49 c.dana bnd 1 False
+50 s.latest bnd 1 False
+51 c.dana bnd 1 False
+52 c.dana obs 1 True
+53 s.latest obs 1 True
+54 c.dana obs 0 False
+55 s.latest obs 1 True
+56 c.dana obs 1 True
+57 s.latest obs 1 True
+58 c.dana bnd 0 False
+59 c.dana bnd 1 False
+60 s.latest bnd 0 False
+61 c.dana bnd 1 False
+62 s.latest bnd 1 False
+63 c.dana bnd 0 False
+64 c.dana bnd 1 False
+65 s.latest bnd 0 False
+66 s.latest obs 0 False
+67 s.latest bnd 1 False
+68 s.latest obs 0 False
+69 s.latest bnd 1 False
+70 s.latest bnd 1 False
+71 c.dana bnd 1 False
+72 c.dana bnd 1 False
+73 s.latest bnd 0 False
+74 s.latest bnd 1 False
+75 s.latest bnd 1 False
+76 c.dana obs 0 False
+77 s.latest bnd 1 False
+78 c.dana obs 1 True
+79 c.dana bnd 0 False
+80 s.latest bnd 1 False
+81 s.latest obs 1 True
+82 s.latest bnd 1 False
+83 s.latest bnd 1 False
+84 s.latest obs 0 False
+85 c.dana bnd 1 False
+86 s.latest obs 0 False
+87 s.latest obs 1 True
+88 c.dana bnd 1 False
+89 c.dana obs 0 False
+90 s.latest obs 0 False
+91 s.latest obs 1 True
+92 s.latest bnd 0 False
+93 c.dana obs 0 False
+94 c.dana bnd 1 False
+95 s.latest obs 0 False
+96 s.latest bnd 1 False
+97 c.dana bnd 1 False
+98 s.latest bnd 0 False
+99 c.dana bnd 1 False
+100 s.latest obs 0 False
+101 s.latest obs 1 True
+102 c.dana bnd 1 False
+103 c.dana obs 1 True
+104 s.latest obs 0 False
+105 s.latest bnd 0 False
+106 s.latest obs 0 False
+107 c.dana obs 1 True
+108 c.dana obs 1 True
+109 s.latest obs 1 True
+110 c.dana obs 1 True
+111 s.latest bnd 0 False
+112 s.latest obs 1 True
+113 s.latest bnd 1 False
+114 c.dana obs 1 True
+115 c.dana bnd 1 False
+116 s.latest obs 0 False
+117 c.dana obs 0 False
+118 s.latest bnd 1 False
+119 c.dana bnd 0 False
+120 c.dana bnd 1 False
+121 c.dana obs 0 False
+122 c.dana obs 1 True
+123 s.latest bnd 1 False
+124 s.latest bnd 0 False
+125 c.dana bnd 1 False
+126 s.latest obs 1 True
+127 c.dana obs 1 True
+128 s.latest obs 1 True
+129 c.dana obs 1 True
+130 c.dana obs 1 True
+131 s.latest obs 0 False
+132 c.dana bnd 0 False
+133 s.latest obs 1 True
+134 c.dana obs 0 False
+135 s.latest bnd 0 False
+136 c.dana bnd 1 False
+137 s.latest bnd 1 False
+138 c.dana obs 1 True
+139 c.dana obs 0 False
+140 s.latest obs 1 True
+141 s.latest bnd 1 False
+142 c.dana bnd 1 False
+143 s.latest bnd 0 False
+144 s.latest bnd 1 False
+145 s.latest bnd 1 False
+146 s.latest bnd 0 False
+147 s.latest bnd 1 False
+148 s.latest obs 1 True
+149 c.dana bnd 1 False
+150 s.latest obs 1 True
+151 c.dana obs 1 True
+152 s.latest obs 1 True
+153 s.latest obs 1 True
+154 s.latest bnd 1 False
+155 s.latest obs 1 True
+156 s.latest obs 0 False
+157 c.dana obs 0 False
+158 c.dana obs 1 True
+159 s.latest obs 1 True
+160 c.dana bnd 0 False
+161 c.dana obs 1 True
+162 s.latest bnd 1 False
+163 c.dana bnd 0 False
+164 s.latest bnd 0 False
+165 s.latest obs 0 False
+166 s.latest obs 1 True
+167 c.dana obs 0 False
+168 c.dana bnd 0 False
+169 s.latest obs 1 True
+170 c.dana obs 1 True
+171 s.latest bnd 0 False
+172 s.latest bnd 0 False
+173 s.latest obs 0 False
+174 s.latest bnd 1 False
+175 c.dana bnd 0 False
+176 s.latest bnd 1 False
+177 s.latest bnd 1 False
+178 s.latest obs 1 True
+179 c.dana bnd 1 False
+180 s.latest bnd 1 False
+181 s.latest bnd 1 False
+182 s.latest bnd 1 False
+183 c.dana bnd 0 False
+184 c.dana obs 0 False
+185 c.dana bnd 0 False
+186 s.latest bnd 1 False
+187 c.dana obs 0 False
+188 c.dana obs 1 True
+189 c.dana obs 1 True
+190 c.dana bnd 0 False
+191 c.dana bnd 1 False
+192 s.latest obs 1 True
+193 s.latest obs 1 True
+194 c.dana bnd 0 False
+195 s.latest obs 1 True
+196 c.dana bnd 1 False
+197 c.dana bnd 0 False
+198 s.latest obs 1 True
+199 c.dana obs 1 True
+200 c.dana bnd 0 False
+201 s.latest bnd 1 False
+202 c.dana bnd 1 False
+203 c.dana obs 1 True
+204 c.dana bnd 0 False
+205 c.dana bnd 1 False
+206 c.dana bnd 1 False
+207 c.dana obs 1 True
+208 c.dana obs 0 False
+209 s.latest bnd 1 False
+210 s.latest bnd 1 False
+211 s.latest obs 1 True
+212 s.latest obs 0 False
+213 c.dana obs 0 False
+214 s.latest bnd 1 False
+215 c.dana obs 1 True
+216 s.latest obs 1 True
+217 c.dana bnd 1 False
+218 c.dana obs 1 True
+219 c.dana obs 1 True
+220 c.dana bnd 1 False
+221 c.dana obs 1 True
+222 c.dana bnd 0 False
+223 c.dana obs 1 True
+224 c.dana bnd 0 False
+225 s.latest obs 1 True
+226 c.dana obs 1 True
+227 c.dana bnd 1 False
+228 c.dana obs 0 False
+229 c.dana obs 0 False
+230 s.latest bnd 1 False
+231 c.dana obs 0 False
+232 s.latest bnd 1 False
+233 c.dana obs 0 False
+234 c.dana obs 1 True
+235 c.dana bnd 1 False
+236 c.dana obs 1 True
+237 s.latest obs 1 True
+238 c.dana obs 1 True
+239 s.latest bnd 1 False
+240 s.latest bnd 1 False
+241 s.latest bnd 1 False
+242 s.latest bnd 0 False
+243 c.dana obs 1 True
+244 s.latest bnd 1 False
+245 c.dana obs 1 True
+246 c.dana obs 1 True
+247 c.dana obs 0 False
+248 c.dana bnd 1 False
+249 c.dana bnd 0 False
+250 s.latest bnd 1 False
+251 c.dana obs 1 True
+252 s.latest obs 1 True
+253 s.latest bnd 1 False
+254 c.dana bnd 1 False
+255 c.dana obs 0 False
+256 s.latest obs 1 True
+257 c.dana bnd 1 False
+258 s.latest obs 1 True
+259 s.latest obs 0 False
+260 c.dana obs 0 False
+261 s.latest bnd 0 False
+262 s.latest bnd 0 False
+263 s.latest obs 1 True
+264 s.latest bnd 0 False
+265 s.latest bnd 1 False
+266 c.dana bnd 1 False
+267 s.latest obs 1 True
+268 c.dana obs 0 False
+269 s.latest bnd 0 False
+270 c.dana obs 1 True
+271 c.dana obs 1 True
+272 c.dana bnd 1 False
+273 s.latest bnd 1 False
+274 c.dana bnd 1 False
+275 c.dana bnd 1 False
+276 s.latest obs 0 False
+277 c.dana obs 1 True
+278 c.dana bnd 1 False
+279 s.latest obs 0 False
+280 s.latest bnd 1 False
+281 c.dana obs 1 True
+282 s.latest obs 1 True
+283 c.dana bnd 0 False
+284 s.latest obs 1 True
+285 c.dana obs 1 True
+286 c.dana obs 1 True
+287 c.dana bnd 1 False
+288 c.dana bnd 1 False
+289 s.latest obs 0 False
+290 c.dana obs 1 True
+291 s.latest bnd 0 False
+292 s.latest obs 1 True
+293 s.latest obs 1 True
+294 s.latest obs 0 False
+295 c.dana bnd 1 False
+296 s.latest bnd 0 False
+297 c.dana obs 0 False
+298 c.dana bnd 1 False
+299 c.dana obs 0 False
+trial doze 0 [('calendar', 'delete'), ('sms', 'insert'), ('contacts', 'insert'), ('media', 'insert')]
+trial doze 1 [('media', 'insert'), ('files', 'insert'), ('calendar', 'update'), ('sms', 'update')]
+trial doze 2 [('calendar', 'delete'), ('calllog', 'insert'), ('sms', 'delete'), ('files', 'insert')]
+trial doze 3 [('media', 'insert'), ('sms', 'delete'), ('calllog', 'update')]
+trial doze 4 [('contacts', 'insert'), ('calllog', 'update'), ('sms', 'insert'), ('calendar', 'update')]
+trial doze 5 [('calllog', 'update'), ('calendar', 'update')]
+trial doze 6 [('settings', 'update'), ('contacts', 'update'), ('calllog', 'delete'), ('media', 'insert')]
+trial doze 7 [('calllog', 'delete'), ('media', 'insert')]
+trial doze 8 [('calendar', 'insert'), ('media', 'insert')]
+trial doze 9 [('calendar', 'insert'), ('files', 'delete'), ('settings', 'update')]
+trial doze 10 [('contacts', 'delete'), ('media', 'insert'), ('calendar', 'delete'), ('sms', 'update')]
+trial doze 11 [('files', 'delete'), ('settings', 'update'), ('contacts', 'delete'), ('media', 'delete')]
+trial doze 12 [('files', 'delete'), ('settings', 'update'), ('calllog', 'delete')]
+trial doze 13 [('files', 'insert'), ('calllog', 'insert'), ('contacts', 'insert'), ('media', 'insert'), ('sms', 'update')]
+trial doze 14 [('calllog', 'update'), ('media', 'insert'), ('files', 'delete'), ('settings', 'update'), ('sms', 'delete')]
+trial doze 15 [('contacts', 'delete'), ('sms', 'update'), ('settings', 'update'), ('calendar', 'insert'), ('calllog', 'update'), ('files', 'delete')]
+trial doze 16 [('calendar', 'insert'), ('sms', 'update'), ('contacts', 'delete')]
+trial doze 17 [('calllog', 'insert'), ('contacts', 'update'), ('media', 'delete'), ('sms', 'update')]
+trial doze 18 [('files', 'delete'), ('media', 'delete'), ('contacts', 'update'), ('sms', 'delete'), ('settings', 'update'), ('calendar', 'insert')]
+trial doze 19 [('sms', 'update'), ('calllog', 'update'), ('files', 'update')]
+trial doze 20 []
+trial doze 21 [('calllog', 'update'), ('media', 'delete'), ('settings', 'update'), ('calendar', 'update')]
+trial doze 22 [('calendar', 'delete'), ('calllog', 'insert'), ('sms', 'update'), ('contacts', 'delete')]
+trial doze 23 [('calendar', 'insert'), ('contacts', 'insert'), ('sms', 'update')]
+trial doze 24 [('contacts', 'update'), ('files', 'insert'), ('media', 'delete'), ('calendar', 'update'), ('calllog', 'update'), ('sms', 'insert')]
+trial doze 25 [('calendar', 'insert'), ('calllog', 'delete'), ('files', 'update'), ('contacts', 'update'), ('sms', 'update')]
+trial doze 26 [('settings', 'update'), ('media', 'delete'), ('files', 'delete'), ('contacts', 'insert'), ('calllog', 'update'), ('calendar', 'update')]
+trial doze 27 [('contacts', 'insert'), ('sms', 'update'), ('calendar', 'insert')]
+trial doze 28 [('sms', 'update'), ('files', 'insert'), ('media', 'update')]
+trial doze 29 [('media', 'delete'), ('files', 'insert')]
+trial doze 30 [('files', 'insert'), ('calllog', 'update'), ('contacts', 'insert'), ('sms', 'insert')]
+trial doze 31 [('calllog', 'delete'), ('sms', 'insert'), ('contacts', 'update'), ('calendar', 'insert'), ('files', 'delete'), ('settings', 'update')]
+trial doze 32 [('calllog', 'insert'), ('settings', 'update'), ('calendar', 'delete'), ('sms', 'update')]
+trial doze 33 [('files', 'delete'), ('media', 'delete'), ('settings', 'update'), ('calendar', 'delete')]
+trial doze 34 [('sms', 'delete'), ('files', 'delete'), ('settings', 'update')]
+trial doze 35 [('calendar', 'delete'), ('media', 'delete')]
+trial doze 36 [('sms', 'delete'), ('calendar', 'delete'), ('files', 'delete')]
+trial doze 37 [('settings', 'update'), ('sms', 'insert')]
+trial doze 38 [('sms', 'update'), ('files', 'delete')]
+trial doze 39 [('contacts', 'delete'), ('calllog', 'update'), ('settings', 'update'), ('files', 'update')]
+trial doze 40 [('sms', 'delete'), ('contacts', 'delete'), ('files', 'insert'), ('calllog', 'insert'), ('settings', 'update')]
+trial doze 41 [('settings', 'update')]
+trial doze 42 [('calendar', 'insert'), ('files', 'delete')]
+trial doze 43 [('media', 'update'), ('sms', 'delete'), ('contacts', 'update')]
+trial doze 44 [('media', 'insert'), ('files', 'insert'), ('contacts', 'update')]
+trial doze 45 [('calendar', 'delete'), ('sms', 'update'), ('contacts', 'update'), ('calllog', 'delete'), ('files', 'insert')]
+trial doze 46 [('files', 'update'), ('media', 'delete'), ('calllog', 'insert'), ('contacts', 'delete'), ('settings', 'update')]
+trial doze 47 [('media', 'insert'), ('calendar', 'update'), ('calllog', 'update'), ('files', 'update')]
+trial doze 48 [('sms', 'update'), ('media', 'insert'), ('settings', 'update'), ('files', 'update'), ('contacts', 'update')]
+trial doze 49 [('sms', 'insert'), ('media', 'update'), ('contacts', 'delete'), ('calendar', 'update'), ('calllog', 'insert')]
+trial unregister 0 [('calendar', 'delete'), ('media', 'insert')]
+trial unregister 1 [('calllog', 'insert'), ('files', 'update'), ('media', 'update'), ('settings', 'update'), ('sms', 'delete')]
+trial unregister 2 [('files', 'delete')]
+trial unregister 3 [('sms', 'update'), ('settings', 'update'), ('calllog', 'insert')]
+trial unregister 4 [('calendar', 'update'), ('settings', 'update'), ('contacts', 'insert'), ('media', 'insert')]
+trial unregister 5 [('calllog', 'update'), ('calendar', 'update'), ('contacts', 'delete')]
+trial unregister 6 [('calendar', 'update'), ('sms', 'insert'), ('media', 'update')]
+trial unregister 7 [('calllog', 'delete'), ('files', 'insert'), ('contacts', 'update'), ('settings', 'update')]
+trial unregister 8 [('sms', 'delete'), ('media', 'insert'), ('calllog', 'delete')]
+trial unregister 9 [('calendar', 'delete'), ('contacts', 'insert'), ('settings', 'update'), ('files', 'update'), ('media', 'update')]
+trial unregister 10 [('media', 'delete'), ('sms', 'insert'), ('calllog', 'delete'), ('contacts', 'update')]
+trial unregister 11 [('sms', 'insert'), ('calllog', 'delete'), ('contacts', 'insert'), ('calendar', 'delete')]
+trial unregister 12 [('settings', 'update'), ('sms', 'delete'), ('calendar', 'delete'), ('media', 'insert')]
+trial unregister 13 [('sms', 'insert'), ('calllog', 'update'), ('contacts', 'insert'), ('media', 'insert')]
+trial unregister 14 [('calendar', 'update'), ('media', 'delete'), ('settings', 'update')]
+trial unregister 15 [('calllog', 'update'), ('settings', 'update'), ('sms', 'delete'), ('contacts', 'insert')]
+trial unregister 16 [('files', 'delete'), ('calllog', 'insert'), ('settings', 'update')]
+trial unregister 17 [('sms', 'update'), ('contacts', 'update'), ('files', 'insert'), ('settings', 'update'), ('calllog', 'delete'), ('calendar', 'delete')]
+trial unregister 18 [('calendar', 'update'), ('sms', 'delete'), ('files', 'insert')]
+trial unregister 19 [('calendar', 'update'), ('sms', 'update'), ('contacts', 'delete')]
+trial unregister 20 [('settings', 'update'), ('calendar', 'insert'), ('sms', 'update')]
+trial unregister 21 [('files', 'delete'), ('sms', 'insert'), ('contacts', 'update'), ('calllog', 'update')]
+trial unregister 22 [('sms', 'update'), ('settings', 'update'), ('media', 'delete')]
+trial unregister 23 [('calllog', 'delete'), ('contacts', 'insert'), ('media', 'update')]
+trial unregister 24 [('calendar', 'update'), ('sms', 'insert'), ('contacts', 'update')]
+trial unregister 25 [('contacts', 'insert'), ('calllog', 'insert'), ('files', 'delete'), ('sms', 'insert'), ('settings', 'update')]
+trial unregister 26 [('settings', 'update'), ('files', 'delete'), ('calllog', 'delete'), ('media', 'insert')]
+trial unregister 27 [('files', 'update'), ('settings', 'update'), ('sms', 'update'), ('media', 'delete')]
+trial unregister 28 [('calendar', 'update'), ('settings', 'update'), ('files', 'delete'), ('contacts', 'delete'), ('calllog', 'delete')]
+trial unregister 29 [('calllog', 'insert'), ('files', 'update'), ('media', 'update'), ('calendar', 'delete'), ('contacts', 'delete')]
+trial unregister 30 [('files', 'update'), ('sms', 'delete'), ('calllog', 'insert')]
+trial unregister 31 [('calllog', 'update'), ('settings', 'update'), ('media', 'delete'), ('sms', 'delete')]
+trial unregister 32 [('calllog', 'update'), ('files', 'delete')]
+trial unregister 33 [('files', 'insert'), ('settings', 'update'), ('media', 'insert')]
+trial unregister 34 [('sms', 'delete'), ('files', 'update'), ('media', 'delete'), ('calllog', 'delete'), ('settings', 'update')]
+trial unregister 35 [('sms', 'delete'), ('calllog', 'insert')]
+trial unregister 36 [('media', 'delete'), ('calendar', 'update'), ('settings', 'update'), ('calllog', 'update')]
+trial unregister 37 [('calendar', 'insert'), ('calllog', 'insert'), ('sms', 'insert')]
+trial unregister 38 [('settings', 'update'), ('files', 'insert'), ('sms', 'delete')]
+trial unregister 39 [('contacts', 'insert'), ('sms', 'insert'), ('files', 'update'), ('settings', 'update'), ('media', 'update'), ('calllog', 'update')]
+trial unregister 40 [('calendar', 'update'), ('calllog', 'delete'), ('files', 'update'), ('media', 'insert')]
+trial unregister 41 [('sms', 'delete'), ('calllog', 'insert'), ('contacts', 'delete'), ('settings', 'update'), ('media', 'update')]
+trial unregister 42 [('files', 'update'), ('contacts', 'update'), ('calllog', 'update'), ('settings', 'update')]
+trial unregister 43 [('calendar', 'delete'), ('calllog', 'update'), ('settings', 'update'), ('contacts', 'insert')]
+trial unregister 44 [('media', 'update'), ('settings', 'update'), ('sms', 'update')]
+trial unregister 45 [('calllog', 'insert'), ('sms', 'insert'), ('calendar', 'update'), ('media', 'insert')]
+trial unregister 46 [('calllog', 'delete'), ('settings', 'update'), ('media', 'delete')]
+trial unregister 47 [('calendar', 'insert'), ('settings', 'update'), ('files', 'insert')]
+trial unregister 48 [('calendar', 'delete'), ('files', 'delete'), ('sms', 'update')]
+trial unregister 49 [('media', 'insert'), ('sms', 'update')]
+trial perm 0 [('calendar', 'delete'), ('sms', 'insert'), ('contacts', 'insert'), ('media', 'insert')]
+trial perm 1 [('media', 'insert'), ('files', 'insert'), ('calendar', 'update'), ('sms', 'update')]
+trial perm 2 [('calendar', 'delete'), ('calllog', 'insert'), ('sms', 'delete'), ('files', 'insert')]
+trial perm 3 [('media', 'insert'), ('sms', 'delete'), ('calllog', 'update')]
+trial perm 4 [('contacts', 'insert'), ('calllog', 'update'), ('sms', 'insert'), ('calendar', 'update')]
+trial perm 5 [('calllog', 'update'), ('calendar', 'update')]
+trial perm 6 [('settings', 'update'), ('contacts', 'update'), ('calllog', 'delete'), ('media', 'insert')]
+trial perm 7 [('calllog', 'delete'), ('media', 'insert')]
+trial perm 8 [('calendar', 'insert'), ('media', 'insert')]
+trial perm 9 [('calendar', 'insert'), ('files', 'delete'), ('settings', 'update')]
+trial perm 10 [('contacts', 'delete'), ('media', 'insert'), ('calendar', 'delete'), ('sms', 'update')]
+trial perm 11 [('files', 'delete'), ('settings', 'update'), ('contacts', 'delete'), ('media', 'delete')]
+trial perm 12 [('files', 'delete'), ('settings', 'update'), ('calllog', 'delete')]
+trial perm 13 [('files', 'insert'), ('calllog', 'insert'), ('contacts', 'insert'), ('media', 'insert'), ('sms', 'update')]
+trial perm 14 [('calllog', 'update'), ('media', 'insert'), ('files', 'delete'), ('settings', 'update'), ('sms', 'delete')]
+trial perm 15 [('contacts', 'delete'), ('sms', 'update'), ('settings', 'update'), ('calendar', 'insert'), ('calllog', 'update'), ('files', 'delete')]
+trial perm 16 [('calendar', 'insert'), ('sms', 'update'), ('contacts', 'delete')]
+trial perm 17 [('calllog', 'insert'), ('contacts', 'update'), ('media', 'delete'), ('sms', 'update')]
+trial perm 18 [('files', 'delete'), ('media', 'delete'), ('contacts', 'update'), ('sms', 'delete'), ('settings', 'update'), ('calendar', 'insert')]
+trial perm 19 [('sms', 'update'), ('calllog', 'update'), ('files', 'update')]
+trial perm 20 []
+trial perm 21 [('calllog', 'update'), ('media', 'delete'), ('settings', 'update'), ('calendar', 'update')]
+trial perm 22 [('calendar', 'delete'), ('calllog', 'insert'), ('sms', 'update'), ('contacts', 'delete')]
+trial perm 23 [('calendar', 'insert'), ('contacts', 'insert'), ('sms', 'update')]
+trial perm 24 [('contacts', 'update'), ('files', 'insert'), ('media', 'delete'), ('calendar', 'update'), ('calllog', 'update'), ('sms', 'insert')]
+trial perm 25 [('calendar', 'insert'), ('calllog', 'delete'), ('files', 'update'), ('contacts', 'update'), ('sms', 'update')]
+trial perm 26 [('settings', 'update'), ('media', 'delete'), ('files', 'delete'), ('contacts', 'insert'), ('calllog', 'update'), ('calendar', 'update')]
+trial perm 27 [('contacts', 'insert'), ('sms', 'update'), ('calendar', 'insert')]
+trial perm 28 [('sms', 'update'), ('files', 'insert'), ('media', 'update')]
+trial perm 29 [('media', 'delete'), ('files', 'insert')]
+trial perm 30 [('files', 'insert'), ('calllog', 'update'), ('contacts', 'insert'), ('sms', 'insert')]
+trial perm 31 [('calllog', 'delete'), ('sms', 'insert'), ('contacts', 'update'), ('calendar', 'insert'), ('files', 'delete'), ('settings', 'update')]
+trial perm 32 [('calllog', 'insert'), ('settings', 'update'), ('calendar', 'delete'), ('sms', 'update')]
+trial perm 33 [('files', 'delete'), ('media', 'delete'), ('settings', 'update'), ('calendar', 'delete')]
+trial perm 34 [('sms', 'delete'), ('files', 'delete'), ('settings', 'update')]
+trial perm 35 [('calendar', 'delete'), ('media', 'delete')]
+trial perm 36 [('sms', 'delete'), ('calendar', 'delete'), ('files', 'delete')]
+trial perm 37 [('settings', 'update'), ('sms', 'insert')]
+trial perm 38 [('sms', 'update'), ('files', 'delete')]
+trial perm 39 [('contacts', 'delete'), ('calllog', 'update'), ('settings', 'update'), ('files', 'update')]
+trial perm 40 [('sms', 'delete'), ('contacts', 'delete'), ('files', 'insert'), ('calllog', 'insert'), ('settings', 'update')]
+trial perm 41 [('settings', 'update')]
+trial perm 42 [('calendar', 'insert'), ('files', 'delete')]
+trial perm 43 [('media', 'update'), ('sms', 'delete'), ('contacts', 'update')]
+trial perm 44 [('media', 'insert'), ('files', 'insert'), ('contacts', 'update')]
+trial perm 45 [('calendar', 'delete'), ('sms', 'update'), ('contacts', 'update'), ('calllog', 'delete'), ('files', 'insert')]
+trial perm 46 [('files', 'update'), ('media', 'delete'), ('calllog', 'insert'), ('contacts', 'delete'), ('settings', 'update')]
+trial perm 47 [('media', 'insert'), ('calendar', 'update'), ('calllog', 'update'), ('files', 'update')]
+trial perm 48 [('sms', 'update'), ('media', 'insert'), ('settings', 'update'), ('files', 'update'), ('contacts', 'update')]
+trial perm 49 [('sms', 'insert'), ('media', 'update'), ('contacts', 'delete'), ('calendar', 'update'), ('calllog', 'insert')]
+0 sms 0 True 4.6
+1 calendar 1 False 21.989
+2 sms 0 True 3.418
+3 calllog 1 False 20.453
+4 calllog 0 False 20.584
+5 calllog 1 False 21.228
+6 sms 0 True 3.882
+7 contacts 0 True 5.217
+driver/run_5620.sh: line 12: 29454 Terminated: 15          python3 driver/e4_gui_cost.py $S 10 601 results/raw/e4_gui.jsonl
+BATCH5620_DONE Sun Nov 8 05:00:05 +07 2026

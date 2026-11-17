@@ -1,0 +1,8 @@
+seed 20261108
+H1  event-only misses changes made while absent / undelivered                        miss=0.605                         HOLDS
+H2  LeaseMem with monotone change-revealing watermark misses none                    miss=0.000                         HOLDS
+H3  LeaseMem refreshes less than global refresh                                      refresh lm=0.238 gl=1.000          HOLDS
+H4  deferred delivery makes event-only stale even without a gap (early > late)       early=0.236 late=0.000             HOLDS
+H5  soundness depends on A2: a non-revealing watermark misses changes                miss=0.473                         HOLDS
+H6  validation without boundary re-check is stale ~1-exp(-lambda d)                  obs=0.139 theory=0.139 bnd=0.0001  HOLDS
+H7  TTL trades misses for refreshes (no TTL gives both low)                          ttl30 miss=0.229 refresh=0.591     HOLDS

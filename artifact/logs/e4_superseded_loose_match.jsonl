@@ -1,0 +1,80 @@
+{"i": 0, "target": "calendar", "cold": 0, "tapped": false, "ok": true, "secs": 3.3, "launch_s": 1.016, "dumps": 1, "val": "LM standup@1798835940000"}
+{"i": 1, "target": "sms", "cold": 0, "tapped": false, "ok": true, "secs": 2.615, "launch_s": 0.088, "dumps": 1, "val": "new 88671179"}
+{"i": 2, "target": "calllog", "cold": 0, "tapped": true, "ok": true, "secs": 4.576, "launch_s": 0.072, "dumps": 2, "val": "+16660004"}
+{"i": 3, "target": "contacts", "cold": 1, "tapped": false, "ok": true, "secs": 3.448, "launch_s": 1.193, "dumps": 1, "val": "+155588641178"}
+{"i": 4, "target": "calendar", "cold": 1, "tapped": false, "ok": true, "secs": 3.436, "launch_s": 1.153, "dumps": 1, "val": "LM standup@1798835940000"}
+{"i": 5, "target": "contacts", "cold": 1, "tapped": false, "ok": true, "secs": 3.585, "launch_s": 1.329, "dumps": 1, "val": "+155588641178"}
+{"i": 6, "target": "calendar", "cold": 1, "tapped": false, "ok": true, "secs": 3.437, "launch_s": 1.148, "dumps": 1, "val": "LM standup@1798835940000"}
+{"i": 7, "target": "calllog", "cold": 1, "tapped": false, "ok": true, "secs": 2.517, "launch_s": 0.468, "dumps": 1, "val": "+16660004"}
+{"i": 8, "target": "calllog", "cold": 1, "tapped": false, "ok": true, "secs": 2.855, "launch_s": 0.707, "dumps": 1, "val": "+16660004"}
+{"i": 9, "target": "sms", "cold": 0, "tapped": false, "ok": true, "secs": 2.629, "launch_s": 0.252, "dumps": 1, "val": "new 88671179"}
+{"i": 10, "target": "sms", "cold": 1, "tapped": false, "ok": true, "secs": 3.613, "launch_s": 0.447, "dumps": 1, "val": "new 88671179"}
+{"i": 11, "target": "sms", "cold": 1, "tapped": false, "ok": true, "secs": 3.285, "launch_s": 0.277, "dumps": 1, "val": "new 88671179"}
+{"i": 12, "target": "calendar", "cold": 1, "tapped": false, "ok": true, "secs": 3.627, "launch_s": 1.349, "dumps": 1, "val": "LM standup@1798835940000"}
+{"i": 13, "target": "sms", "cold": 1, "tapped": false, "ok": true, "secs": 3.409, "launch_s": 0.385, "dumps": 1, "val": "new 88671179"}
+{"i": 14, "target": "sms", "cold": 0, "tapped": false, "ok": true, "secs": 3.015, "launch_s": 0.125, "dumps": 1, "val": "new 88671179"}
+{"i": 15, "target": "sms", "cold": 1, "tapped": false, "ok": true, "secs": 3.183, "launch_s": 0.245, "dumps": 1, "val": "new 88671179"}
+{"i": 16, "target": "contacts", "cold": 0, "tapped": false, "ok": true, "secs": 3.241, "launch_s": 0.985, "dumps": 1, "val": "+155588641178"}
+{"i": 17, "target": "calllog", "cold": 1, "tapped": false, "ok": true, "secs": 2.574, "launch_s": 0.507, "dumps": 1, "val": "+16660004"}
+{"i": 18, "target": "calendar", "cold": 1, "tapped": false, "ok": true, "secs": 3.646, "launch_s": 1.379, "dumps": 1, "val": "LM standup@1798835940000"}
+{"i": 19, "target": "calendar", "cold": 0, "tapped": false, "ok": true, "secs": 3.368, "launch_s": 1.095, "dumps": 1, "val": "LM standup@1798835940000"}
+{"i": 20, "target": "calendar", "cold": 0, "tapped": false, "ok": true, "secs": 3.341, "launch_s": 1.067, "dumps": 1, "val": "LM standup@1798835940000"}
+{"i": 21, "target": "calendar", "cold": 0, "tapped": false, "ok": true, "secs": 3.32, "launch_s": 1.022, "dumps": 1, "val": "LM standup@1798835940000"}
+{"i": 22, "target": "contacts", "cold": 1, "tapped": false, "ok": true, "secs": 3.52, "launch_s": 1.189, "dumps": 1, "val": "+155588641178"}
+{"i": 23, "target": "contacts", "cold": 0, "tapped": false, "ok": true, "secs": 3.084, "launch_s": 1.032, "dumps": 1, "val": "+155588641178"}
+{"i": 24, "target": "calllog", "cold": 1, "tapped": false, "ok": true, "secs": 2.533, "launch_s": 0.49, "dumps": 1, "val": "+16660004"}
+{"i": 25, "target": "calllog", "cold": 0, "tapped": false, "ok": true, "secs": 2.193, "launch_s": 0.127, "dumps": 1, "val": "+16660004"}
+{"i": 26, "target": "sms", "cold": 0, "tapped": false, "ok": true, "secs": 2.499, "launch_s": 0.109, "dumps": 1, "val": "new 88671179"}
+{"i": 27, "target": "sms", "cold": 0, "tapped": false, "ok": true, "secs": 3.044, "launch_s": 0.094, "dumps": 1, "val": "new 88671179"}
+{"i": 28, "target": "contacts", "cold": 0, "tapped": false, "ok": true, "secs": 3.357, "launch_s": 1.064, "dumps": 1, "val": "+155588641178"}
+{"i": 29, "target": "calendar", "cold": 1, "tapped": false, "ok": true, "secs": 3.454, "launch_s": 1.173, "dumps": 1, "val": "LM standup@1798835940000"}
+{"i": 30, "target": "calllog", "cold": 1, "tapped": false, "ok": true, "secs": 2.47, "launch_s": 0.465, "dumps": 1, "val": "+16660004"}
+{"i": 31, "target": "contacts", "cold": 1, "tapped": false, "ok": true, "secs": 3.521, "launch_s": 1.258, "dumps": 1, "val": "+155588641178"}
+{"i": 32, "target": "calllog", "cold": 0, "tapped": false, "ok": true, "secs": 2.071, "launch_s": 0.07, "dumps": 1, "val": "+16660004"}
+{"i": 33, "target": "calllog", "cold": 0, "tapped": false, "ok": true, "secs": 2.104, "launch_s": 0.067, "dumps": 1, "val": "+16660004"}
+{"i": 34, "target": "calendar", "cold": 0, "tapped": false, "ok": true, "secs": 3.353, "launch_s": 1.028, "dumps": 1, "val": "LM standup@1798835940000"}
+{"i": 35, "target": "sms", "cold": 0, "tapped": false, "ok": true, "secs": 2.283, "launch_s": 0.065, "dumps": 1, "val": "new 88671179"}
+{"i": 36, "target": "calllog", "cold": 1, "tapped": false, "ok": true, "secs": 2.506, "launch_s": 0.495, "dumps": 1, "val": "+16660004"}
+{"i": 37, "target": "sms", "cold": 1, "tapped": false, "ok": true, "secs": 3.828, "launch_s": 0.373, "dumps": 1, "val": "new 88671179"}
+{"i": 38, "target": "contacts", "cold": 0, "tapped": false, "ok": true, "secs": 3.85, "launch_s": 1.222, "dumps": 1, "val": "+155588641178"}
+{"i": 39, "target": "calendar", "cold": 0, "tapped": false, "ok": true, "secs": 3.27, "launch_s": 1.007, "dumps": 1, "val": "LM standup@1798835940000"}
+{"i": 40, "target": "contacts", "cold": 1, "tapped": false, "ok": true, "secs": 4.299, "launch_s": 1.54, "dumps": 1, "val": "+155588641178"}
+{"i": 41, "target": "calendar", "cold": 0, "tapped": false, "ok": true, "secs": 3.32, "launch_s": 1.069, "dumps": 1, "val": "LM standup@1798835940000"}
+{"i": 42, "target": "calllog", "cold": 0, "tapped": false, "ok": true, "secs": 2.149, "launch_s": 0.074, "dumps": 1, "val": "+16660004"}
+{"i": 43, "target": "calendar", "cold": 0, "tapped": false, "ok": true, "secs": 3.344, "launch_s": 1.039, "dumps": 1, "val": "LM standup@1798835940000"}
+{"i": 44, "target": "calllog", "cold": 0, "tapped": false, "ok": true, "secs": 2.316, "launch_s": 0.12, "dumps": 1, "val": "+16660004"}
+{"i": 45, "target": "sms", "cold": 0, "tapped": false, "ok": true, "secs": 2.382, "launch_s": 0.078, "dumps": 1, "val": "new 88671179"}
+{"i": 46, "target": "calllog", "cold": 1, "tapped": false, "ok": true, "secs": 2.73, "launch_s": 0.62, "dumps": 1, "val": "+16660004"}
+{"i": 47, "target": "contacts", "cold": 1, "tapped": false, "ok": true, "secs": 4.061, "launch_s": 1.511, "dumps": 1, "val": "+155588641178"}
+{"i": 48, "target": "contacts", "cold": 0, "tapped": false, "ok": true, "secs": 3.076, "launch_s": 0.977, "dumps": 1, "val": "+155588641178"}
+{"i": 49, "target": "sms", "cold": 0, "tapped": false, "ok": true, "secs": 2.49, "launch_s": 0.08, "dumps": 1, "val": "new 88671179"}
+{"i": 50, "target": "calllog", "cold": 0, "tapped": false, "ok": true, "secs": 2.32, "launch_s": 0.149, "dumps": 1, "val": "+16660004"}
+{"i": 51, "target": "calendar", "cold": 0, "tapped": false, "ok": true, "secs": 3.548, "launch_s": 1.211, "dumps": 1, "val": "LM standup@1798835940000"}
+{"i": 52, "target": "contacts", "cold": 1, "tapped": false, "ok": true, "secs": 4.166, "launch_s": 1.519, "dumps": 1, "val": "+155588641178"}
+{"i": 53, "target": "sms", "cold": 0, "tapped": false, "ok": true, "secs": 2.595, "launch_s": 0.087, "dumps": 1, "val": "new 88671179"}
+{"i": 54, "target": "contacts", "cold": 1, "tapped": false, "ok": true, "secs": 3.875, "launch_s": 1.421, "dumps": 1, "val": "+155588641178"}
+{"i": 55, "target": "calllog", "cold": 1, "tapped": false, "ok": true, "secs": 3.057, "launch_s": 0.889, "dumps": 1, "val": "+16660004"}
+{"i": 56, "target": "calllog", "cold": 1, "tapped": false, "ok": true, "secs": 2.66, "launch_s": 0.618, "dumps": 1, "val": "+16660004"}
+{"i": 57, "target": "sms", "cold": 1, "tapped": false, "ok": true, "secs": 3.324, "launch_s": 0.316, "dumps": 1, "val": "new 88671179"}
+{"i": 58, "target": "calllog", "cold": 0, "tapped": false, "ok": true, "secs": 2.104, "launch_s": 0.079, "dumps": 1, "val": "+16660004"}
+{"i": 59, "target": "calendar", "cold": 0, "tapped": false, "ok": true, "secs": 3.407, "launch_s": 1.101, "dumps": 1, "val": "LM standup@1798835940000"}
+{"i": 60, "target": "contacts", "cold": 1, "tapped": false, "ok": true, "secs": 3.819, "launch_s": 1.343, "dumps": 1, "val": "+155588641178"}
+{"i": 61, "target": "contacts", "cold": 0, "tapped": false, "ok": true, "secs": 3.281, "launch_s": 1.109, "dumps": 1, "val": "+155588641178"}
+{"i": 62, "target": "contacts", "cold": 0, "tapped": false, "ok": true, "secs": 3.116, "launch_s": 1.0, "dumps": 1, "val": "+155588641178"}
+{"i": 63, "target": "calllog", "cold": 0, "tapped": false, "ok": true, "secs": 2.35, "launch_s": 0.174, "dumps": 1, "val": "+16660004"}
+{"i": 64, "target": "contacts", "cold": 0, "tapped": false, "ok": true, "secs": 3.202, "launch_s": 1.134, "dumps": 1, "val": "+155588641178"}
+{"i": 65, "target": "sms", "cold": 1, "tapped": false, "ok": true, "secs": 3.239, "launch_s": 0.299, "dumps": 1, "val": "new 88671179"}
+{"i": 66, "target": "contacts", "cold": 0, "tapped": false, "ok": true, "secs": 3.213, "launch_s": 1.005, "dumps": 1, "val": "+155588641178"}
+{"i": 67, "target": "contacts", "cold": 1, "tapped": false, "ok": true, "secs": 3.564, "launch_s": 1.182, "dumps": 1, "val": "+155588641178"}
+{"i": 68, "target": "calendar", "cold": 1, "tapped": false, "ok": true, "secs": 3.532, "launch_s": 1.268, "dumps": 1, "val": "LM standup@1798835940000"}
+{"i": 69, "target": "calendar", "cold": 1, "tapped": false, "ok": true, "secs": 3.488, "launch_s": 1.157, "dumps": 1, "val": "LM standup@1798835940000"}
+{"i": 70, "target": "calendar", "cold": 1, "tapped": false, "ok": true, "secs": 3.476, "launch_s": 1.181, "dumps": 1, "val": "LM standup@1798835940000"}
+{"i": 71, "target": "calendar", "cold": 1, "tapped": false, "ok": true, "secs": 3.475, "launch_s": 1.185, "dumps": 1, "val": "LM standup@1798835940000"}
+{"i": 72, "target": "contacts", "cold": 0, "tapped": false, "ok": true, "secs": 3.359, "launch_s": 1.018, "dumps": 1, "val": "+155588641178"}
+{"i": 73, "target": "calendar", "cold": 1, "tapped": false, "ok": true, "secs": 3.452, "launch_s": 1.158, "dumps": 1, "val": "LM standup@1798835940000"}
+{"i": 74, "target": "sms", "cold": 1, "tapped": false, "ok": true, "secs": 3.32, "launch_s": 0.285, "dumps": 1, "val": "new 88671179"}
+{"i": 75, "target": "calllog", "cold": 0, "tapped": false, "ok": true, "secs": 2.362, "launch_s": 0.173, "dumps": 1, "val": "+16660004"}
+{"i": 76, "target": "sms", "cold": 1, "tapped": false, "ok": true, "secs": 3.104, "launch_s": 0.179, "dumps": 1, "val": "new 88671179"}
+{"i": 77, "target": "sms", "cold": 0, "tapped": false, "ok": true, "secs": 2.402, "launch_s": 0.303, "dumps": 1, "val": "new 88671179"}
+{"i": 78, "target": "calllog", "cold": 1, "tapped": false, "ok": true, "secs": 2.593, "launch_s": 0.538, "dumps": 1, "val": "+16660004"}
+{"i": 79, "target": "sms", "cold": 1, "tapped": false, "ok": true, "secs": 3.21, "launch_s": 0.259, "dumps": 1, "val": "new 88671179"}

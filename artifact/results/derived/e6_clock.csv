@@ -1,0 +1,3 @@
+variant,n,wm_unchanged,guard,lm_fresh,stale_accepted
+transient,25,25,0,25,25
+persistent,25,25,25,0,0

@@ -1,0 +1,29 @@
+== emulator-5620
+note_736279.md
+note_96033.md
+todo.md
+       3
+Row: 0 _id=1000000019, _display_name=shelltest.md, is_pending=1
+Row: 1 _id=1000000025, _display_name=todo.md, is_pending=1
+Row: 2 _id=1000000026, _display_name=note_96033.md, is_pending=1
+Row: 3 _id=1000000078, _display_name=note_736279.md, is_pending=1
+== emulator-5622
+note_81661117.md
+note_81791132.md
+note_82050172.md
+note_82265009.md
+note_82522041.md
+       7
+Row: 0 _id=1000000023, _display_name=todo.md, is_pending=1
+Row: 1 _id=1000000042, _display_name=note_81661117.md, is_pending=1
+Row: 2 _id=1000000046, _display_name=note_81791132.md, is_pending=1
+Row: 3 _id=1000000048, _display_name=note_82050172.md, is_pending=1
+Row: 4 _id=1000000053, _display_name=note_82265009.md, is_pending=1
+before: Row: 0 _id=1000000025, _display_name=todo.md, is_pending=1, generation_modified=26, _size=NULL, date_modified=NULL
+{'t_pre': 1794082842624, 'did': 'append', 't_post': 1794082842625, 'ok': True}
+after append 0: Row: 0 _id=1000000025, _display_name=todo.md, is_pending=1, generation_modified=26, _size=NULL, date_modified=NULL
+{'t_pre': 1794082845666, 'did': 'append', 't_post': 1794082845667, 'ok': True}
+after append 1: Row: 0 _id=1000000025, _display_name=todo.md, is_pending=1, generation_modified=26, _size=NULL, date_modified=NULL
+{'t_pre': 1794082848713, 'did': 'append', 't_post': 1794082848714, 'ok': True}
+after append 2: Row: 0 _id=1000000025, _display_name=todo.md, is_pending=1, generation_modified=26, _size=NULL, date_modified=NULL
+ls -l: -rw-rw---- 1 u0_a158 media_rw 444 2026-11-08 03:20 /sdcard/Documents/lm/todo.md

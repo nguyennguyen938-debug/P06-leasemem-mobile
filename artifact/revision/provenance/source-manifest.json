@@ -1,0 +1,11 @@
+{
+  "task_evals/single/files.py": "b763d38477cb88419b9c0153af8d78fea0b5468509f2868c44fb1765080f22a7",
+  "task_evals/single/markor.py": "183d3763e34ede196c0df795235ab3aa79d434d744da54aefb82bfd753a93340",
+  "task_evals/single/sms.py": "1510f9677cf3d959062ffdc43bb74d735b56b726dba35d739525417ad17cc2d9",
+  "task_evals/single/expense.py": "cc57bd82831a17b427ea93eb4db559f6886cc1df402c0eac4bcb72064d7f3f81",
+  "task_evals/common_validators/file_validators.py": "ce7137e22fe94d25a6ebdf1fdd8bf0cf327ed20907af48a2f2ee34ca6b13bf20",
+  "task_evals/common_validators/sms_validators.py": "a2a6bdeecfedb401ced31d35e2485f1db5b1066112047a31f59e0540d9beb9a7",
+  "task_evals/common_validators/sqlite_validators.py": "7b932acd2e19f1d4f43cea1badf26ace2ed3363258ae26850d1b09889bfa9d78",
+  "task_evals/utils/sqlite_utils.py": "56280b32e6aaf7d561bf2e4681a2cc1a6ad930d911105593d17d093678bf1cd0",
+  "utils/file_utils.py": "5bd04ccdafba65f4b909c8bb9fca166e5eba92dc2e64c83f80729941dfab2d1d"
+}

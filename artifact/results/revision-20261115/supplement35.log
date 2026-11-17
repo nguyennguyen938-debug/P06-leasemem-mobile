@@ -1,0 +1,140 @@
+0 legacy ok
+0 missing ok
+0 permission java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+0 clock_restore ok
+0 files_same_tick ok
+0 sms_reuse ok
+0 contacts_reset java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+1 legacy ok
+1 missing ok
+1 permission java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+1 clock_restore ok
+1 files_same_tick ok
+1 sms_reuse ok
+1 contacts_reset java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+2 legacy ok
+2 missing ok
+2 permission java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+2 clock_restore ok
+2 files_same_tick ok
+2 sms_reuse ok
+2 contacts_reset java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+3 legacy ok
+3 missing ok
+3 permission java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+3 clock_restore ok
+3 files_same_tick ok
+3 sms_reuse ok
+3 contacts_reset java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+4 legacy ok
+4 missing ok
+4 permission java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+4 clock_restore ok
+4 files_same_tick ok
+4 sms_reuse ok
+4 contacts_reset java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+5 legacy ok
+5 missing ok
+5 permission java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+5 clock_restore ok
+5 files_same_tick ok
+5 sms_reuse ok
+5 contacts_reset java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+6 legacy ok
+6 missing ok
+6 permission java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+6 clock_restore ok
+6 files_same_tick ok
+6 sms_reuse ok
+6 contacts_reset java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+7 legacy ok
+7 missing ok
+7 permission java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+7 clock_restore ok
+7 files_same_tick ok
+7 sms_reuse ok
+7 contacts_reset java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+8 legacy ok
+8 missing ok
+8 permission java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+8 clock_restore ok
+8 files_same_tick ok
+8 sms_reuse ok
+8 contacts_reset java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+9 legacy ok
+9 missing ok
+9 permission java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+9 clock_restore ok
+9 files_same_tick ok
+9 sms_reuse ok
+9 contacts_reset java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+10 legacy ok
+10 missing ok
+10 permission java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+10 clock_restore ok
+10 files_same_tick ok
+10 sms_reuse ok
+10 contacts_reset java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+11 legacy ok
+11 missing ok
+11 permission java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+11 clock_restore ok
+11 files_same_tick ok
+11 sms_reuse ok
+11 contacts_reset java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+12 legacy ok
+12 missing ok
+12 permission java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+12 clock_restore ok
+12 files_same_tick ok
+12 sms_reuse ok
+12 contacts_reset java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+13 legacy ok
+13 missing ok
+13 permission java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+13 clock_restore ok
+13 files_same_tick ok
+13 sms_reuse ok
+13 contacts_reset java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+14 legacy ok
+14 missing ok
+14 permission java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+14 clock_restore ok
+14 files_same_tick ok
+14 sms_reuse ok
+14 contacts_reset java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+15 legacy ok
+15 missing ok
+15 permission java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+15 clock_restore ok
+15 files_same_tick ok
+15 sms_reuse ok
+15 contacts_reset java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+16 legacy ok
+16 missing ok
+16 permission java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+16 clock_restore ok
+16 files_same_tick ok
+16 sms_reuse ok
+16 contacts_reset java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+17 legacy ok
+17 missing ok
+17 permission java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+17 clock_restore ok
+17 files_same_tick ok
+17 sms_reuse ok
+17 contacts_reset java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+18 legacy ok
+18 missing ok
+18 permission java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+18 clock_restore ok
+18 files_same_tick ok
+18 sms_reuse ok
+18 contacts_reset java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+19 legacy ok
+19 missing ok
+19 permission java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()
+19 clock_restore ok
+19 files_same_tick ok
+19 sms_reuse ok
+19 contacts_reset java.lang.SecurityException: Permission Denial: reading com.android.providers.contacts.ContactsProvider2 uri content://com.android.contacts/raw_contacts from pid=15479, uid=10207 requires android.permission.READ_CONTACTS, or grantUriPermission()

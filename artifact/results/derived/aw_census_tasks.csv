@@ -1,0 +1,117 @@
+task,apps,stores,classes,task_class,any_watermark,reads_state
+AudioRecorderRecordAudio,audio recorder,App-specific dir (Android/data),gui-only,gui-only,0,0
+AudioRecorderRecordAudioWithFileName,audio recorder,App-specific dir (Android/data),gui-only,gui-only,0,0
+BrowserDraw,chrome,Web/app state,gui-only,gui-only,0,0
+BrowserMaze,chrome,Web/app state,gui-only,gui-only,0,0
+BrowserMultiply,chrome,Web/app state,gui-only,gui-only,0,0
+CameraTakePhoto,camera,MediaStore (DCIM),watermark,watermark,1,0
+CameraTakeVideo,camera,MediaStore (DCIM),watermark,watermark,1,0
+ClockStopWatchPausedVerify,clock,Transient UI state,gui-only,gui-only,0,0
+ClockStopWatchRunning,clock,Transient UI state,gui-only,gui-only,0,0
+ClockTimerEntry,clock,Transient UI state,gui-only,gui-only,0,0
+ContactsAddContact,contacts,ContactsContract,watermark,watermark,1,0
+ContactsNewContactDraft,contacts,ContactsContract,watermark,watermark,1,0
+ExpenseAddMultiple,pro expense,App-private SQLite,gui-only,gui-only,0,0
+ExpenseAddMultipleFromGallery,pro expense+simple gallery pro,App-private SQLite+MediaStore (Pictures),gui-only+watermark,gui-only,1,1
+ExpenseAddMultipleFromMarkor,pro expense+markor,App-private SQLite+Shared files (Documents/Markor),gui-only+watermark,gui-only,1,1
+ExpenseAddSingle,pro expense,App-private SQLite,gui-only,gui-only,0,0
+ExpenseDeleteDuplicates,pro expense,App-private SQLite,gui-only,gui-only,0,1
+ExpenseDeleteDuplicates2,pro expense,App-private SQLite,gui-only,gui-only,0,1
+ExpenseDeleteMultiple,pro expense,App-private SQLite,gui-only,gui-only,0,1
+ExpenseDeleteMultiple2,pro expense,App-private SQLite,gui-only,gui-only,0,1
+ExpenseDeleteSingle,pro expense,App-private SQLite,gui-only,gui-only,0,1
+FilesDeleteFile,files,Shared files (Download),watermark,watermark,1,1
+FilesMoveFile,files,Shared files (Download),watermark,watermark,1,1
+MarkorAddNoteHeader,markor,Shared files (Documents/Markor),watermark,watermark,1,1
+MarkorChangeNoteContent,markor,Shared files (Documents/Markor),watermark,watermark,1,1
+MarkorCreateFolder,markor,Shared files (Documents/Markor),watermark,watermark,1,0
+MarkorCreateNote,markor,Shared files (Documents/Markor),watermark,watermark,1,0
+MarkorCreateNoteAndSms,markor+simple sms messenger,Shared files (Documents/Markor)+Telephony SMS,watermark+api-only,api-only,1,0
+MarkorCreateNoteFromClipboard,markor+clipper,Shared files (Documents/Markor)+Clipboard,watermark+api-only,api-only,1,1
+MarkorDeleteAllNotes,markor,Shared files (Documents/Markor),watermark,watermark,1,1
+MarkorDeleteNewestNote,markor,Shared files (Documents/Markor),watermark,watermark,1,1
+MarkorDeleteNote,markor,Shared files (Documents/Markor),watermark,watermark,1,1
+MarkorEditNote,markor,Shared files (Documents/Markor),watermark,watermark,1,1
+MarkorMergeNotes,markor,Shared files (Documents/Markor),watermark,watermark,1,1
+MarkorMoveNote,markor,Shared files (Documents/Markor),watermark,watermark,1,1
+MarkorTranscribeReceipt,simple gallery pro+markor,MediaStore (Pictures)+Shared files (Documents/Markor),watermark+watermark,watermark,1,1
+MarkorTranscribeVideo,markor+vlc,Shared files (Documents/Markor)+App-private SQLite,watermark+gui-only,gui-only,1,1
+NotesIsTodo,ir:Notes,App-private SQLite,gui-only,gui-only,0,1
+NotesMeetingAttendeeCount,ir:Notes,App-private SQLite,gui-only,gui-only,0,1
+NotesRecipeIngredientCount,ir:Notes,App-private SQLite,gui-only,gui-only,0,1
+NotesTodoItemCount,ir:Notes,App-private SQLite,gui-only,gui-only,0,1
+OpenAppTaskEval,camera+clock+contacts+settings+dialer,MediaStore (DCIM)+Transient UI state+ContactsContract+Settings / radio state+CallLog,watermark+gui-only+watermark+api-only+watermark,gui-only,1,0
+OsmAndFavorite,osmand,App-specific dir (Android/data),gui-only,gui-only,0,0
+OsmAndMarker,osmand,App-specific dir (Android/data),gui-only,gui-only,0,0
+OsmAndTrack,osmand,App-specific dir (Android/data),gui-only,gui-only,0,0
+RecipeAddMultipleRecipes,broccoli app,App-private SQLite,gui-only,gui-only,0,0
+RecipeAddMultipleRecipesFromImage,broccoli app+simple gallery pro,App-private SQLite+MediaStore (Pictures),gui-only+watermark,gui-only,1,1
+RecipeAddMultipleRecipesFromMarkor,broccoli app+markor,App-private SQLite+Shared files (Documents/Markor),gui-only+watermark,gui-only,1,1
+RecipeAddMultipleRecipesFromMarkor2,broccoli app+markor,App-private SQLite+Shared files (Documents/Markor),gui-only+watermark,gui-only,1,1
+RecipeAddSingleRecipe,broccoli app,App-private SQLite,gui-only,gui-only,0,0
+RecipeDeleteDuplicateRecipes,broccoli app,App-private SQLite,gui-only,gui-only,0,1
+RecipeDeleteDuplicateRecipes2,broccoli app,App-private SQLite,gui-only,gui-only,0,1
+RecipeDeleteDuplicateRecipes3,broccoli app,App-private SQLite,gui-only,gui-only,0,1
+RecipeDeleteMultipleRecipes,broccoli app,App-private SQLite,gui-only,gui-only,0,1
+RecipeDeleteMultipleRecipesWithConstraint,broccoli app,App-private SQLite,gui-only,gui-only,0,1
+RecipeDeleteMultipleRecipesWithNoise,broccoli app,App-private SQLite,gui-only,gui-only,0,1
+RecipeDeleteSingleRecipe,broccoli app,App-private SQLite,gui-only,gui-only,0,1
+RecipeDeleteSingleWithRecipeWithNoise,broccoli app,App-private SQLite,gui-only,gui-only,0,1
+RetroCreatePlaylist,retro music,App-private SQLite,gui-only,gui-only,0,1
+RetroPlayingQueue,retro music,App-private SQLite,gui-only,gui-only,0,1
+RetroPlaylistDuration,retro music,App-private SQLite,gui-only,gui-only,0,1
+RetroSavePlaylist,retro music,App-private SQLite,gui-only,gui-only,0,1
+SaveCopyOfReceiptTaskEval,simple gallery pro,MediaStore (Pictures),watermark,watermark,1,1
+SimpleCalendarAddOneEvent,simple calendar pro,App-private SQLite,gui-only,gui-only,0,0
+SimpleCalendarAddOneEventInTwoWeeks,simple calendar pro,App-private SQLite,gui-only,gui-only,0,0
+SimpleCalendarAddOneEventRelativeDay,simple calendar pro,App-private SQLite,gui-only,gui-only,0,0
+SimpleCalendarAddOneEventTomorrow,simple calendar pro,App-private SQLite,gui-only,gui-only,0,0
+SimpleCalendarAddRepeatingEvent,simple calendar pro,App-private SQLite,gui-only,gui-only,0,0
+SimpleCalendarAnyEventsOnDate,ir:SimpleCalendar,App-private SQLite,gui-only,gui-only,0,1
+SimpleCalendarDeleteEvents,simple calendar pro,App-private SQLite,gui-only,gui-only,0,1
+SimpleCalendarDeleteEventsOnRelativeDay,simple calendar pro,App-private SQLite,gui-only,gui-only,0,1
+SimpleCalendarDeleteOneEvent,simple calendar pro,App-private SQLite,gui-only,gui-only,0,1
+SimpleCalendarEventOnDateAtTime,ir:SimpleCalendar,App-private SQLite,gui-only,gui-only,0,1
+SimpleCalendarEventsInNextWeek,ir:SimpleCalendar,App-private SQLite,gui-only,gui-only,0,1
+SimpleCalendarEventsInTimeRange,ir:SimpleCalendar,App-private SQLite,gui-only,gui-only,0,1
+SimpleCalendarEventsOnDate,ir:SimpleCalendar,App-private SQLite,gui-only,gui-only,0,1
+SimpleCalendarFirstEventAfterStartTime,ir:SimpleCalendar,App-private SQLite,gui-only,gui-only,0,1
+SimpleCalendarLocationOfEvent,ir:SimpleCalendar,App-private SQLite,gui-only,gui-only,0,1
+SimpleCalendarNextEvent,ir:SimpleCalendar,App-private SQLite,gui-only,gui-only,0,1
+SimpleCalendarNextMeetingWithPerson,ir:SimpleCalendar,App-private SQLite,gui-only,gui-only,0,1
+SimpleDrawProCreateDrawing,simple draw pro,Shared files (Pictures),watermark,watermark,1,0
+SimpleSmsReply,simple sms messenger,Telephony SMS,api-only,api-only,0,1
+SimpleSmsReplyMostRecent,simple sms messenger,Telephony SMS,api-only,api-only,0,1
+SimpleSmsResend,simple sms messenger,Telephony SMS,api-only,api-only,0,1
+SimpleSmsSend,simple sms messenger,Telephony SMS,api-only,api-only,0,0
+SimpleSmsSendClipboardContent,simple sms messenger+clipper,Telephony SMS+Clipboard,api-only+api-only,api-only,0,1
+SimpleSmsSendReceivedAddress,simple sms messenger,Telephony SMS,api-only,api-only,0,1
+SportsTrackerActivitiesCountForWeek,ir:SportsTracker,App-private SQLite,gui-only,gui-only,0,1
+SportsTrackerActivitiesOnDate,ir:SportsTracker,App-private SQLite,gui-only,gui-only,0,1
+SportsTrackerActivityDuration,ir:SportsTracker,App-private SQLite,gui-only,gui-only,0,1
+SportsTrackerLongestDistanceActivity,ir:SportsTracker,App-private SQLite,gui-only,gui-only,0,1
+SportsTrackerTotalDistanceForCategoryOverInterval,ir:SportsTracker,App-private SQLite,gui-only,gui-only,0,1
+SportsTrackerTotalDurationForCategoryThisWeek,ir:SportsTracker,App-private SQLite,gui-only,gui-only,0,1
+SystemBluetoothTurnOff,settings,Settings / radio state,api-only,api-only,0,0
+SystemBluetoothTurnOffVerify,settings,Settings / radio state,api-only,api-only,0,0
+SystemBluetoothTurnOn,settings,Settings / radio state,api-only,api-only,0,0
+SystemBluetoothTurnOnVerify,settings,Settings / radio state,api-only,api-only,0,0
+SystemBrightnessMax,settings,Settings / radio state,api-only,api-only,0,0
+SystemBrightnessMaxVerify,settings,Settings / radio state,api-only,api-only,0,0
+SystemBrightnessMin,settings,Settings / radio state,api-only,api-only,0,0
+SystemBrightnessMinVerify,settings,Settings / radio state,api-only,api-only,0,0
+SystemCopyToClipboard,clipper,Clipboard,api-only,api-only,0,0
+SystemWifiTurnOff,settings,Settings / radio state,api-only,api-only,0,0
+SystemWifiTurnOffVerify,settings,Settings / radio state,api-only,api-only,0,0
+SystemWifiTurnOn,settings,Settings / radio state,api-only,api-only,0,0
+SystemWifiTurnOnVerify,settings,Settings / radio state,api-only,api-only,0,0
+TasksCompletedTasksForDate,ir:Tasks,App-private SQLite,gui-only,gui-only,0,1
+TasksDueNextWeek,ir:Tasks,App-private SQLite,gui-only,gui-only,0,1
+TasksDueOnDate,ir:Tasks,App-private SQLite,gui-only,gui-only,0,1
+TasksHighPriorityTasks,ir:Tasks,App-private SQLite,gui-only,gui-only,0,1
+TasksHighPriorityTasksDueOnDate,ir:Tasks,App-private SQLite,gui-only,gui-only,0,1
+TasksIncompleteTasksOnDate,ir:Tasks,App-private SQLite,gui-only,gui-only,0,1
+TurnOffWifiAndTurnOnBluetooth,settings,Settings / radio state,api-only,api-only,0,0
+TurnOnWifiAndOpenApp,settings,Settings / radio state,api-only,api-only,0,0
+VlcCreatePlaylist,vlc,App-private SQLite,gui-only,gui-only,0,1
+VlcCreateTwoPlaylists,vlc,App-private SQLite,gui-only,gui-only,0,1

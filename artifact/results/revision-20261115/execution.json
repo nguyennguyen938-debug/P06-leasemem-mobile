@@ -1,0 +1,17 @@
+{
+  "started": 1794754121.9667342,
+  "experiment_deadline": 1794782921.9667342,
+  "scope": "P06",
+  "state": "complete",
+  "physical_device": false,
+  "experiments_finished": 1794755913.9119182,
+  "elapsed_experiment_seconds": 1791.9451839923859,
+  "completed": 1794756391.82811,
+  "emulators_stopped": true,
+  "report": "review/revision-execution-report.md",
+  "remaining": [
+    "physical device replication",
+    "complete stock evidence contracts",
+    "independent anonymous retrieval"
+  ]
+}

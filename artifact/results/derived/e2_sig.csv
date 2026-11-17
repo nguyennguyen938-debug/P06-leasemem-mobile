@@ -1,0 +1,8 @@
+platform,client,gap,phase,evr,lm,p,p_holm
+api33,bg,bucket,early,7/25,0/25,0.015625,0.09375
+api33,bg,dozeidle,early,4/25,0/25,0.125,0.375
+api33,bg,freeze,early,3/29,0/29,0.25,0.5
+api33,bg,longfreeze,early,1/5,0/5,1.0,1.0
+api33,bg,none,early,7/25,0/25,0.015625,0.09375
+api35,bg,freeze,early,10/12,0/12,0.001953125,0.013671875
+api35,bg,none,early,6/12,0/12,0.03125,0.125
