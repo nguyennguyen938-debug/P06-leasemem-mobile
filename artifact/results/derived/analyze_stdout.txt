@@ -19,6 +19,11 @@
 "e1api35_prov_fg_med_ms": null,
 "e1api35_files_bg_med_ms": 3,
 "e1api35_lat_dropped": 0,
+"oom_fg_min": 50,
+"oom_fg_max": 200,
+"oom_bg_min": 905,
+"oom_bg_max": 915,
+"e2_fgs_leftover_trials": 10,
 "age_api33_bg_lt10_k": 65,
 "age_api33_bg_lt10_n": 76,
 "age_api33_bg_ge10_k": 1,
@@ -88,8 +93,4 @@
 "long_late_n": 120,
 "long_early_ev_k": 3,
 "long_early_n": 120,
-"r1_early_ev_k": 1791,
-"r1_early_n": 1878,
-"death_te_k": 644,
-"death_te_rate": 0.9757575757575757,
-"death_te_lo
+"r1_ea

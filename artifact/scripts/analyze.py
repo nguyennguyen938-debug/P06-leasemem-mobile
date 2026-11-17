@@ -342,6 +342,16 @@ def e2():
             by[cond_of(t)].append(t)
     excl = [{"platform": c[0], "protocol": c[1], "client": c[2], "gap": c[3], "reason": r, "n": n} for (c, r), n in sorted(why.items())]
     wcsv("e2_validity.csv", excl)
+    # oom_adj observed at decision setup, valid protocol-v3 trials, per client mode (prose range in Sec. 3.2)
+    for client in ("fg", "bg"):
+        adj = [int(t["oom_adj_obs"]) for (pl, pr, cl, g), T in by.items() if pr == "v3" and cl == client for t in T
+               if str(t.get("oom_adj_obs", "")).lstrip("-").isdigit()]
+        SUMMARY["oom_%s_min" % client], SUMMARY["oom_%s_max" % client] = (min(adj), max(adj)) if adj else (None, None)
+    # background no-gap trials that ran with a leftover foreground service; moved out of results/raw (RUNLOG 06:35)
+    left = os.path.join(HERE, "..", "logs", "e2v3_bg_none_INVALID_fgservice_left_running.jsonl")
+    if os.path.exists(left):
+        with open(left) as f:
+            SUMMARY["e2_fgs_leftover_trials"] = sum(1 for l in f if l.strip() and (json.loads(l).get("early") or {}).get("fg"))
     rows, trows, taxo, costrows, ages, labels = [], [], [], [], [], []
     for cond, T in sorted(by.items()):
         plat, proto, client, gap = cond

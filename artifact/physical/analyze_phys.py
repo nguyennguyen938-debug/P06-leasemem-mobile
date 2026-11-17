@@ -24,7 +24,7 @@ GAPS = ['none', 'freeze', 'dozeidle', 'bucket', 'unregister', 'kill', 'forcestop
 LOST, INEPOCH = ['unregister', 'kill', 'forcestop', 'perm', 'reboot'], ['none', 'freeze', 'dozeidle', 'bucket']
 FILES = {'deploy': 'deploy*.jsonl', 'gaps': 'gaps-*.jsonl', 'coverage': 'coverage-*.jsonl', 'stock': 'stock-*.jsonl',
          'boundary': 'boundary*.jsonl', 'pitfalls': 'pitfalls-*.jsonl', 'frozen': 'frozen-*.jsonl',
-         'statelog': 'statelog-*.jsonl', 'battery': 'battery-night*-samples.jsonl', 'b0': 'b0-probe-*.jsonl', 'all': '*.jsonl'}
+         'statelog': 'statelog-*.jsonl', 'battery': 'battery-night*-samples.jsonl', 'b0': 'b0-probe-*.jsonl', 'host': 'host-*.jsonl', 'all': '*.jsonl'}
 # Sources never touched on this phone print NR instead of TBD. SMS always (its store is shared with the owner's user);
 # the call log, and with it B9 (whose effect is a call-log row), when the latest B0 record lists it in excluded_sources.
 ALWAYS_OUT = {'sms'}
@@ -254,6 +254,10 @@ def analyze(D):
         return kn(sum(a for a, _ in k), sum(b for _, b in k)) if k and sum(b for _, b in k) else None
     frz = B1.get(('contacts', 'bg_freezer'))
     race_n, race_k = sum(z['n'] for z in R['race'].values()), sum(z['stale'] for z in R['race'].values())
+    host = [r for r in M['host'] if 'error' not in r]                      # B6 matched host trials
+    has = {'B1': any(z['valid'] for z in B1.values()), 'B2': any(z['n'] for z in G.values()), 'B4': race_n > 0,
+           'B6': bool(host), 'B10': bool(R['pitfalls'])}
+    evid = lambda *ex: 'phone' if all(has[e] for e in ex) else None   # guidance-table evidence: measured on the phone
     unpl = SL.get(False, {})
     batt = lambda arm: f"{st.mean(BT[arm]['mah']):.1f}" if arm in BT and BT[arm]['mah'] else None
     macros = {
@@ -305,6 +309,10 @@ def analyze(D):
         'PhysBatteryBgMahPerHour': ('B12 mAh per hour, FGS off', batt('off')),
         'PhysBatteryFgsBlocks': ('B12 complete/all blocks, FGS on', kn(BT['on']['complete'], BT['on']['blocks']) if 'on' in BT else None),
         'PhysBatteryBgBlocks': ('B12 complete/all blocks, FGS off', kn(BT['off']['complete'], BT['off']['blocks']) if 'off' in BT else None),
+        'PhysHostTrials': ('B6 matched host trials', len(host) or None),
+        'PhysEvidCheap': ('phone B2 refresh cost', evid('B2')),   # B6 is optional (may be cut); it only adds
+        'PhysEvidBound': ('phone B1 and B2', evid('B1', 'B2')),
+        'PhysEvidWeak': ('phone B4 and B10', evid('B4', 'B10')),
     }
     return macros, R, P
 
@@ -339,18 +347,19 @@ def tables(gen, R):
         if c['main'] and c['source'] not in NOT_RUN:
             cell = lambda k: kn(c[k + '_k'], c[k + '_n']) + ('$^{\\downarrow}$' if c.get(k + '_down') else '') if c.get(k + '_n') else 'n/a'
             rows.append(f"{SRCNAME[c['source']]} & {c['label']} & " + ' & '.join(cell(k) for k in ('insert', 'update', 'delete', 'none')) + r'\\')
-    table(gen, 'tab_phys_coverage.tex', 'Phone (B3): trials in which a candidate stamp moved after one mutation of each kind by another app (%s trials); None = source untouched; $\\downarrow$: moved downward in some trials.' % cov.get('n', 'no'),
+    table(gen, 'tab_phys_coverage.tex', 'Phone (B3): trials in which a candidate stamp moved after one mutation of each kind by another app (%s trials); None = source untouched; $\\downarrow$: moved downward in some trials.' % cov.get('n', r'\PhysTBD{B3 trials}'),
           'llrrrr', 'Source & Candidate & Insert & Update & Delete & None', rows, 'B3 coverage trials',
           extra=[r'%s & \multicolumn{5}{l}{%s}\\' % (SRCNAME[x], NR) for x in sorted(NOT_RUN)])
 
     rows = []
     for g, z in R['gaps'].items():
-        m = lambda p: kn(*z['miss']['early', p])
+        m = lambda ph, p: kn(*z['miss'][ph, p])
         fc = '%s / %s' % (sec(st.median(z['fcl'])), sec(max(z['fcl']))) if z.get('fcl') else 'none'
         rows.append(f"{GAPNAME.get(g, g)} & {z['n']}/{z['att']} & {pct(z.get('survived', 0), z['n'])} & {fc} & {pct(z.get('ev_e', 0), z.get('nsrc', 0))} & "
-                    f"{pct(z.get('ev_l', 0), z.get('nsrc', 0))} & {z.get('exit', 0)}/{z['n']} & {m('ev')} & {m('evr')} & {m('lm')}\\\\")
-    table(gen, 'tab_phys_gaps.tex', 'Phone (B2), background client: valid/attempted trials, process survival, first callback (median / max, s), changed provider sources notified by the early (+2\\,s) and late (+14\\,s) decision, new \\texttt{ApplicationExitInfo} records, and changed uses missed at the early decision by event-only, restart-aware and \\stamp (missed/changed).',
-          'lrrrrrrrrr', r'Gap & Trials & Surv.\,\% & First cb. & Early\,\% & Late\,\% & Exit & Ev & Evr & \stamp', rows, 'B2 gap trials', star=True)
+                    f"{pct(z.get('ev_l', 0), z.get('nsrc', 0))} & {z.get('exit', 0)}/{z['n']} & " + ' & '.join(m(ph, p) for ph in ('early', 'late') for p in ('ev', 'evr', 'lm')) + r'\\')
+    table(gen, 'tab_phys_gaps.tex', 'Phone (B2), background client: valid/attempted trials, process survival, first callback (median / max, s), changed provider sources notified by the early (+2\\,s) and late (+14\\,s) decision, new \\texttt{ApplicationExitInfo} records, and changed uses missed by event-only (Ev), restart-aware (Evr) and \\stamp at the early (+2\\,s) and late (+14\\,s) decision (missed/changed).',
+          'lrrrrrrrrrrrr', r' & & & & \multicolumn{2}{c}{Notified} & & \multicolumn{3}{c}{Missed at +2\,s} & \multicolumn{3}{c}{Missed at +14\,s}\\ \mhead '
+          r'Gap & Trials & Surv.\,\% & First cb. & +2\,s\,\% & +14\,s\,\% & Exit & Ev & Evr & \stamp & Ev & Evr & \stamp', rows, 'B2 gap trials', star=True)
 
     rows = [f"{SRCNAME.get(c, c)} & {z['n']} & {wil(z['stale'], z['n'])} & {z['unknown']}/{z['n']}\\\\" for c, z in sorted(R['race'].items()) if z['n'] and c not in NOT_RUN]
     table(gen, 'tab_phys_race.tex', 'Phone (B4): a writer races the optimistic anchor; trials whose anchor certified a value that had changed (Wilson 95\\% interval) and trials in which strict \\sys returned \\Unknown.',
@@ -432,6 +441,7 @@ def self_check():
         assert tex.count('\\PhysTBD{') == len(m) - 1 and '\\PhysCalllogtrue' in tex
         assert '\\renewcommand{\\PhysTBD}' in tex
         tabs = sorted(p.name for p in gen.glob('tab_phys_*.tex'))
+        assert '(\\PhysTBD{B3 trials} trials)' in (gen / 'tab_phys_coverage.tex').read_text(encoding='utf-8')
         assert len(tabs) == 9 and all('\\PhysTBD{' in (gen / t).read_text(encoding='utf-8') for t in tabs), tabs
 
         D = {k: [] for k in FILES}
@@ -505,9 +515,13 @@ def self_check():
         assert v['PhysStateDozePct'] == '25' and v['PhysStateKillsPerHour'] == '180.00', v['PhysStateKillsPerHour']
         assert v['PhysBatteryFgsMahPerHour'] == '4.0' and v['PhysBatteryBgMahPerHour'] == '2.0' and v['PhysBatteryBgBlocks'] == '1/2'
         assert P['deploy'][('contacts', 'fg')]['valid'] == 1 and P['records'] == {'deploy': 1, 'gaps': 1}
+        assert v['PhysEvidBound'] == 'phone' and v['PhysEvidWeak'] == 'phone' and v['PhysEvidCheap'] == 'phone' and v['PhysHostTrials'] is None   # B2 without B6 suffices
+        add('host', 'host-X-1400.jsonl', {'case': 'none', 'arms': {}}, {'case': 'one', 'error': 'adb lost'})
+        m, _ = write(D, gen); v = {k: x for k, (_, x) in m.items()}
+        assert v['PhysEvidCheap'] == 'phone' and v['PhysHostTrials'] == 1
         tab = lambda n: (gen / n).read_text(encoding='utf-8')
         assert '\\mgroup{5}{MediaStore}' in tab('tab_phys_deploy.tex') and tab('tab_phys_deploy.tex').count('Foreground service') == 2
-        assert 'Force-stop & 1/1' in tab('tab_phys_gaps.tex') and 'not run on this phone' in tab('tab_phys_pitfalls.tex') and NR in tab('tab_phys_pitfalls.tex')
+        assert 'Force-stop & 1/1' in tab('tab_phys_gaps.tex') and '1/1 & 0/1 & 0/1 & 1/1 & 0/1 & 0/1' in tab('tab_phys_gaps.tex') and 'not run on this phone' in tab('tab_phys_pitfalls.tex') and NR in tab('tab_phys_pitfalls.tex')
         assert not any('\\PhysTBD{' in tab(t) for t in tabs), [t for t in tabs if '\\PhysTBD{' in tab(t)]
         # B0 says the call log runs: call-log macros and B9 are computed (latest B0 record wins)
         add('b0', 'b0-probe-0600.jsonl', {'probe': 'user_info', 'ok': True, 'excluded_sources': ['sms', 'calllog'], 'detail': {}})

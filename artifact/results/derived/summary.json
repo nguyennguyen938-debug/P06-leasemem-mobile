@@ -279,6 +279,7 @@
   "api33/r1/bg/freeze:not_frozen": 8,
   "api33/v3/bg/freeze:error_or_invalid": 8
  },
+ "e2_fgs_leftover_trials": 10,
  "e2_valid_by_cond": {
   "api33/r1/bg/doze": 50,
   "api33/r1/bg/forcestop": 50,
@@ -474,6 +475,10 @@
  "mean_lm_ref_sup": 3.4779116465863456,
  "mean_n_sup": 9,
  "note": "Real Android emulator runs (API 33: P06Avd/P06Avd2; API 35: P06Avd35), deterministic scripted driver; E8 uses a local LLM (Ollama qwen2.5:7b). AndroidWorld census is code inspection.",
+ "oom_bg_max": 915,
+ "oom_bg_min": 905,
+ "oom_fg_max": 200,
+ "oom_fg_min": 50,
  "r1_early_ev_k": 1791,
  "r1_early_evr_k": 466,
  "r1_early_gl_k": 0,

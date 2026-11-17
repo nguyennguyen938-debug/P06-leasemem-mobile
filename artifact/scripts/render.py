@@ -218,6 +218,7 @@ def taxonomy():
                 mac("Fcl%s%s" % (tag, G), sec(r["fcl_med_s"])); mac("FclMax%s%s" % (tag, G), sec(r["fcl_max_s"]))
             if r.get("doze_idle_at_batch2"):
                 mac("DozeIdleTwo%s%s" % (tag, G), r["doze_idle_at_batch2"])
+                mac("DozeMaintTwo%s%s" % (tag, G), n - int(r["doze_idle_at_batch2"]))   # trials not in deep idle at batch 2
     table("tab_gaps.tex", "tab:gaps",
           "What each gap does to a live or restarted client (E2). First callback: median / max delay from a provider mutation to its first \\texttt{ContentObserver} callback. Notified: share of changed provider sources with a callback by the early (+2\\,s) and late (+14\\,s) decision. Trigger: the JobScheduler content trigger (its own package, same gap) fired. Exit: new \\texttt{ApplicationExitInfo} records.",
           "@{}lrrrrrrl@{}", "Gap & Trials & Survived\\,\\% & First callback (s) & Notified early\\,\\% & Notified late\\,\\% & Trigger\\,\\% & Exit record", lines, star=True, size="\\scriptsize")
@@ -717,6 +718,9 @@ def scalars():
         mac("AgeMaxMiss%s" % T, f(g("age_%s_max_missed" % tag), 0) if g("age_%s_max_missed" % tag) is not None else NA)
     mac("FgInEarlyChanged", g("fgin_early_n", NA)); mac("FgAnyChanged", g("fg_any_n", NA)); mac("ApiAnyChanged", g("api35_any_n", NA))
     mac("LongLateChanged", g("long_late_n", NA)); mac("LongEarlyChanged", g("long_early_n", NA)); mac("RoneEarlyChanged", g("r1_early_n", NA))
+    for k in ("oom_fg_min", "oom_fg_max", "oom_bg_min", "oom_bg_max"):
+        mac("Oom" + "".join(x.capitalize() for x in k.split("_")[1:]), g(k, NA))
+    mac("ETwoFgsLeftover", g("e2_fgs_leftover_trials", NA))
     mac("ETwoBg", g("e2v3_bg_trials", NA)); mac("ETwoFg", g("e2v3_fg_trials", NA)); mac("ETwoRone", g("e2r1_trials", NA))
     mac("ETwoApi", g("e2api35_trials", NA))
     exc = g("e2_excluded", {}) or {}
