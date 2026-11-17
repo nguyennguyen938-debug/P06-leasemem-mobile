@@ -1,7 +1,9 @@
 \section{Additional Results}
 \label{app:extra}
 
-\paragraph{Short-hold condition.} A first set of runs held each gap only 0--4\,s, so every change was younger than the 10\,s deferral at the early decision. Its \ETwoRone valid background trials appear as the last block of Table~\ref{tab:trial}. Event-driven policies missed \RoneEarlyEvK of \RoneEarlyChanged changed uses early, and \stamp \RoneEarlyLmK. The Tether-style policy (event-driven propagation, no durable versions) refines which facts an event invalidates. It therefore never misses fewer changes than event-only: \AllTeK vs.\ \AllEvK at the late decision of the background runs.
+\paragraph{Short-hold condition.} A first set of runs held each gap only 0 to 4\,s, so every change was younger than the 10\,s deferral at the early decision. Its \ETwoRone valid background trials appear as the last block of Table~\ref{tab:trial}. Event-driven policies missed \RoneEarlyEvK of \RoneEarlyChanged changed uses early, and \stamp \RoneEarlyLmK. The Tether-style policy (event-driven propagation, no durable versions) refines which facts an event invalidates. It therefore never misses fewer changes than event-only: \AllTeK vs.\ \AllEvK at the late decision of the background runs.
+
+\paragraph{Hold-distribution sensitivity.} For one quiescent write, an unfrozen process, a deterministic callback delay $D$ and a decision at $H+2$ seconds, silence persists with probability $P(H<D-2)$. With $D=10$ and $H\sim U[0,h]$, this is $\min(1,8/h)$: \HoldSensFour, \HoldSensTen, \HoldSensThirty and \HoldSensSixty for $h=4,10,30,60$ seconds. At +14 seconds it is zero under these assumptions. This analytic sensitivity explains why the chosen hold distribution changes event-only rates; it excludes freezing, lost coverage, setup callbacks and concurrent writes, and is not a field-frequency estimate.
 
 \input{generated/tab_policy}
 \input{generated/fig_miss}

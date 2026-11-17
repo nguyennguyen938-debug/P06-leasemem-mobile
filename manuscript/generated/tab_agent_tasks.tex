@@ -1,16 +1,20 @@
 \begin{table}[t]
 \centering\mtab
-\caption{Resumed Android draft tasks: stale actions, exact structured-goal success and measured wall latency through file write/readback (seconds; median and range). Each model has 24 paired trials per force-stop/0.1, force-stop/0.3 and no-gap/0.3 schedule, with three tasks rotated. Memoization reuses model outputs only after reading equal current inputs.}
+\caption{Resumed draft tasks (Android~15 emulator): paired difference in measured suffix latency, memoization minus refresh in the same trial (seconds; mean and trial-bootstrap 95\% CI, 10{,}000 resamples, seed 20261116). $n$ counts trials. Memoization reuses the cached output only when the current inputs equal the pre-gap inputs; with changed inputs it regenerates like refresh.}
 \label{tab:agent-tasks}
-\begin{tabular}{lrrrrrr}\toprule
-\mhead Policy & $n$ & Stale & Success & Median & Range & Reuses\\\midrule
-\mgroup{7}{llama3.2 3b}
-evidence & 72 & 0 & 72/72 & 0.97 & [0.57, 1.53] & 0\\
-memo & 72 & 0 & 72/72 & 0.29 & [0.10, 1.51] & 48\\
-refresh & 72 & 0 & 72/72 & 0.89 & [0.57, 1.59] & 0\\
-\mgroup{7}{qwen2.5 7b}
-evidence & 72 & 0 & 72/72 & 2.25 & [1.20, 4.11] & 0\\
-memo & 72 & 0 & 72/72 & 0.29 & [0.11, 3.88] & 51\\
-refresh & 72 & 0 & 72/72 & 2.29 & [1.41, 3.92] & 0\\
+\begin{tabular}{lrrrr}\toprule
+\mhead  & \multicolumn{2}{c}{Qwen2.5-7B} & \multicolumn{2}{c}{Llama-3.2-3B}\\ \mhead Stratum & $n$ & Memo $-$ refresh & $n$ & Memo $-$ refresh\\\midrule
+All trials & 72 & $-$1.35 [$-$1.58, $-$1.11] & 72 & $-$0.46 [$-$0.54, $-$0.37]\\
+\mgroup{5}{Inputs at resume}
+Unchanged & 51 & $-$1.93 [$-$2.08, $-$1.78] & 48 & $-$0.66 [$-$0.74, $-$0.59]\\
+Changed & 21 & 0.06 [$-$0.06, 0.17] & 24 & $-$0.04 [$-$0.12, 0.03]\\
+\mgroup{5}{Gap and change probability}
+Force-stop, $p{=}.1$ & 24 & $-$1.56 [$-$1.84, $-$1.25] & 24 & $-$0.48 [$-$0.60, $-$0.37]\\
+Force-stop, $p{=}.3$ & 24 & $-$1.23 [$-$1.69, $-$0.78] & 24 & $-$0.39 [$-$0.56, $-$0.22]\\
+No gap, $p{=}.3$ & 24 & $-$1.25 [$-$1.71, $-$0.80] & 24 & $-$0.50 [$-$0.65, $-$0.35]\\
+\mgroup{5}{Task}
+Contact card & 24 & $-$1.27 [$-$1.52, $-$0.99] & 24 & $-$0.32 [$-$0.43, $-$0.20]\\
+Photo draft & 24 & $-$1.45 [$-$1.84, $-$1.04] & 24 & $-$0.55 [$-$0.67, $-$0.41]\\
+Meeting draft & 24 & $-$1.33 [$-$1.85, $-$0.82] & 24 & $-$0.50 [$-$0.69, $-$0.32]\\
 \bottomrule\end{tabular}
 \end{table}

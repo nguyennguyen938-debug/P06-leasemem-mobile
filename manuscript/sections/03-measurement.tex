@@ -22,15 +22,15 @@ In each of \EOneTrials Android~13 trials (\EOneBgTrials with the client in the b
 
 \input{generated/tab_gaps}
 
-Table~\ref{tab:gaps} separates the gaps by their effect on the process and on notifications. Each trial holds the gap 0--30\,s after mutating, so a change is 2--32\,s old at the early decision (protocol in \S\ref{sec:eval-setup}). The first-callback column gives the delay from each provider mutation to its first callback. Three classes emerge.
+Table~\ref{tab:gaps} separates the gaps by their effect on the process and on notifications. Each trial holds the gap from 0 to 30\,s after mutating, so a change is from 2 to 32\,s old at the early decision (protocol in \S\ref{sec:eval-setup}). The first-callback column gives the delay from each provider mutation to its first callback. Three classes emerge.
 
 \emph{Deferred only} (no gap, Doze, restricted bucket). The process survived every trial, and every callback came after the same ContentService deferral as without a gap: median \FclNone\,s with no gap, \FclDozeidle\,s in deep Doze and \FclBucket\,s in the restricted bucket (maxima \FclMaxNone, \FclMaxDozeidle and \FclMaxBucket\,s). These trials show no additional delay attributable to Doze or the bucket. The stepped long-Doze gap gives the same \FclLongdoze\,s, and so does a 10-minute gap in which deep idle was verified at both mutation batches (\FclLongdozeTwo\,s; \S\ref{sec:eval-validity}).
 
-\emph{Held until thaw} (cached-app freezer). Callbacks to a frozen process wait until it thaws; the first-callback delay grows with the hold (median \FclFreeze\,s for 0--30\,s holds). Whether long holds lose callbacks is tested in \S\ref{sec:meas-frozen}.
+\emph{Held until thaw} (cached-app freezer). Callbacks to a frozen process wait until it thaws; the first-callback delay grows with the hold (median \FclFreeze\,s for holds from 0 to 30\,s). Whether long holds lose callbacks is tested in \S\ref{sec:meas-frozen}.
 
 \emph{Lost} (unregistration, kill, force-stop, revocation, reboot). Notifications sent while no observer is registered are never delivered and never replayed. Kill, force-stop and revocation leave an \texttt{ApplicationExitInfo} record, and reboot leaves none. A record tells the app that it was absent, not what changed.
 
-The JobScheduler trigger lives in its own package, which is subjected to the same gap, as if the trigger belonged to the agent. It survived process death, but not force-stop or reboot. An FGS client is never cached or frozen (oom\_adj 50--200 vs.\ 905--915 in the background), and its callbacks arrived in \FgLatMs\,ms. \texttt{am kill} targets only background processes, so the FGS client's kill gap uses \texttt{SIGKILL}; in every background kill trial \texttt{am kill} did end the process (\AmkillAlive survived).
+The JobScheduler trigger lives in its own package, which is subjected to the same gap, as if the trigger belonged to the agent. It survived process death, but not force-stop or reboot. An FGS client is never cached or frozen (oom\_adj from 50 to 200 vs.\ from 905 to 915 in the background), and its callbacks arrived in \FgLatMs\,ms. \texttt{am kill} targets only background processes, so the FGS client's kill gap uses \texttt{SIGKILL}; in every background kill trial \texttt{am kill} did end the process (\AmkillAlive survived).
 Durable evidence can itself be reset. After \RebootEmpty of \RebootN reboots the Contacts database came back empty, rows and tombstone log alike. MediaStore's version string never changed across a reboot (\RebootMediaVer changes).
 
 \subsection{Are callbacks to a frozen process lost?}

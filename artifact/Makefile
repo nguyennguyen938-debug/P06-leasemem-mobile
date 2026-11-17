@@ -11,6 +11,7 @@ render:
 	$(PY) revision/oracle.py
 	$(PY) revision/deployment_summary.py >/dev/null
 	$(PY) followup/analyze.py
+	$(PY) physical/analyze_phys.py
 census:
 	$(AW_PYTHON) scripts/aw_census.py
 paper:
@@ -24,4 +25,8 @@ apks:
 	cd app/fgs35 && ./build.sh
 check-determinism:
 	$(PY) revision/determinism.py
-.PHONY: all analyze render census paper apks check-determinism
+# fails while the PDF still shows a red TBD (physical-phone numbers not yet measured)
+check-final:
+	$(PY) physical/analyze_phys.py --self-check
+	$(PY) scripts/check_final.py
+.PHONY: all analyze render census paper apks check-determinism check-final

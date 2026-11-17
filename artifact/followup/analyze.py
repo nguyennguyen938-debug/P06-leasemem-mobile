@@ -11,7 +11,29 @@ def stats(xs):return {'n':len(xs),'median':st.median(xs),'min':min(xs),'max':max
 DEPLOY_STAR=True  # one column does not fit the per-row ranges legibly
 def table(path,caption,label,cols,header,lines,star=False):
  cols=re.sub(r'^@\{\}|@\{\}$','',cols)
- env='table*'if star else'table';(G/path).write_text('\n'.join([f'\\begin{{{env}}}[t]',r'\centering\mtab',r'\caption{'+caption+'}',r'\label{'+label+'}',r'\begin{tabular}{'+cols+r'}\toprule',r'\mhead '+header+r'\\\midrule',*lines,r'\bottomrule\end{tabular}',f'\\end{{{env}}}'])+'\n')
+ env='table*'if star else'table';(G/path).write_text('\n'.join([f'\\begin{{{env}}}[t]',r'\centering\mtab',r'\caption{'+caption+'}',r'\label{'+label+'}',r'\begin{tabular}{'+cols+r'}\toprule',r'\mhead '+header+r'\\\midrule',*lines,r'\bottomrule\end{tabular}',f'\\end{{{env}}}'])+'\n',newline='\n')
+def boot(xs,seed=20261116,k=10000):
+ # Percentile CI of the mean; resamples whole trials (one paired difference per trial).
+ rng=random.Random(seed);m=sorted(st.mean(rng.choices(xs,k=len(xs)))for _ in range(k));return [m[k//40-1],m[k-k//40-1]]
+num=lambda x:f'{x:.2f}'.replace('-0.00','0.00').replace('-','$-$')  # math minus, not a hyphen
+MODELNAME={'qwen2.5:7b':'Qwen2.5-7B','llama3.2:3b':'Llama-3.2-3B'}
+STRATA=[('All trials',None,lambda r:True),
+ ('Unchanged','Inputs at resume',lambda r:not r['changed_inputs']),('Changed',None,lambda r:r['changed_inputs']),
+ ('Force-stop, $p{=}.1$','Gap and change probability',lambda r:r['gap']=='force-stop'and r['p_change']==.1),('Force-stop, $p{=}.3$',None,lambda r:r['gap']=='force-stop'and r['p_change']==.3),('No gap, $p{=}.3$',None,lambda r:r['gap']=='none'),
+ ('Contact card','Task',lambda r:r['task']=='contact_card'),('Photo draft',None,lambda r:r['task']=='photo_draft'),('Meeting draft',None,lambda r:r['task']=='meeting_draft')]
+def paired(records):
+ """Within-trial suffix latency differences versus refresh, per model and stratum (C1)."""
+ out=[]
+ for model in MODELNAME:
+  rs=[r for r in records if r['model']==model and 'error'not in r]
+  for name,_,keep in STRATA:
+   sel=[r for r in rs if keep(r)];z={'model':model,'stratum':name,'trials':len(sel),'memo_reused':sum(r['arms']['memo']['reused']for r in sel)}
+   for arm in ['memo','evidence']:
+    d=[r['arms'][arm]['suffix_wall_s']-r['arms']['refresh']['suffix_wall_s']for r in sel]
+    z[arm+'_minus_refresh_s']={'mean':st.mean(d),'ci95':boot(d),'median':st.median(d)}if d else None
+   out.append(z)
+ return out
+
 def audit_task(r):
  # Independent recomputation from saved Android content and provider reads.
  old={k:r['anchor']['values'][k]for k in r['keys']};truths=[]
@@ -58,7 +80,7 @@ def main():
    adjs.append(r['before'].get('adj','?'))
   z={'serial':serial,'mode':mode,'attempted':len(rs),'valid':len(valid),'excluded':len(rs)-len(valid),'frozen':frozen,'bound':bound,'before_thaw':before,'after_thaw':after,'delay_ms':stats(delays),'delays_ms':delays,'oom_adj':dict(Counter(adjs))};results.append(z)
   api='13'if serial.endswith('5620')else'15';names={'bg_unfrozen':'Background, unfrozen','bg_freezer':'Background, frozen','fg':'Foreground service','assistant':'Bound assistant (target 35)','persist':'Persistent system app'}
-  v=z['delay_ms'];lat=fmt(v['median']) if v['n']else'held';rng=(spread(v['min'])+'--'+spread(v['max'])) if v['n']else'--'
+  v=z['delay_ms'];lat=fmt(v['median']) if v['n']else'held';rng=('['+spread(v['min'])+', '+spread(v['max'])+']') if v['n']else'n/a'
   if f'Android {api}'not in seen:seen.add(f'Android {api}');lines.append(r'\mgroup{6}{Android '+api+'}')
   lines.append(f'{names[mode]} & {len(valid)}/{len(rs)} & {lat} & {rng} & {before}/{len(valid)} & {after}/{len(valid)}'+r'\\')
   if mode in ['bg_unfrozen','fg','assistant','persist'] and v['n']:
@@ -67,30 +89,43 @@ def main():
  out['deployment']=results
  if groups:
   table('tab_deploy.tex','Verified-state Contacts callbacks: median and range, with valid/attempted trials. Frozen trials hold 14 seconds after mutation; root-side reads do not wake the client. Callback counts are before/after foreground thaw. Each source change is one independent trial; this is not a handset replication.','tab:deploy','@{}lrllrr@{}','Deployment & Trials & Median & Range & Before & After',lines,DEPLOY_STAR)
-  (G/'followup_macros.tex').write_text('\n'.join(mac)+'\n')
+  (G/'followup_macros.tex').write_text('\n'.join(mac)+'\n',newline='\n')
  # Sensitivity model: a single write, quiescent writers, unfrozen process, deterministic 10s deferral.
  out['hold_sensitivity']=[{'hold_uniform_0_to_s':h,'decision_offset_s':2,'assumed_delay_s':10,'probability_not_delivered':min(1,8/h)}for h in [4,10,30,60]]
+ for z,w in zip(out['hold_sensitivity'],['Four','Ten','Thirty','Sixty']):mac.append('\\newcommand{\\HoldSens'+w+'}{'+f"{100*z['probability_not_delivered']:.0f}"+'\\%\\xspace}')
  records=load(D/'agent-tasks.jsonl');ag=defaultdict(list)
  for r in records:
   audit_task(r)
   for arm,x in r.get('arms',{}).items():
    if 'task_success'in x:ag[(r['model'],arm)].append((r,x))
- agent=[];lines=[];seen=set()
+ agent=[]
  for (model,arm),pairs in sorted(ag.items()):
   xs=[x for _,x in pairs];z={'model':model,'arm':arm,'n':len(xs),'stale_actions':sum(x['stale_action']for x in xs),'wrong_inputs':sum(x['wrong_inputs']for x in xs),'task_success':sum(x['task_success']for x in xs),'reused':sum(x['reused']for x in xs),'changed_input_trials':sum(r['changed_inputs']for r,_ in pairs),'wall_s':stats([x['suffix_wall_s']for x in xs]),'per_condition':dict(Counter(f"{r['gap']}/{r['p_change']}"for r,_ in pairs))};agent.append(z)
-  v=z['wall_s']
-  if model not in seen:seen.add(model);lines.append(r'\mgroup{7}{'+model.replace(':',' ')+'}')
-  lines.append(f"{arm} & {z['n']} & {z['stale_actions']} & {z['task_success']}/{z['n']} & {v['median']:.2f} & [{v['min']:.2f}, {v['max']:.2f}] & {z['reused']}"+r'\\')
+ pr=paired(records);lines=[]
+ cell=lambda z,a:(lambda v:f"{num(v['mean'])} [{num(v['ci95'][0])}, {num(v['ci95'][1])}]")(z[a+'_minus_refresh_s'])if z[a+'_minus_refresh_s']else'n/a'
+ for name,group,_ in STRATA:
+  if group:lines.append(r'\mgroup{5}{'+group+'}')
+  zs=[z for z in pr if z['stratum']==name]
+  lines.append(name+''.join(f" & {z['trials']} & {cell(z,'memo')}"for z in zs)+r'\\')
  if records:
-  table('tab_agent_tasks.tex','Resumed Android draft tasks: stale actions, exact structured-goal success and measured wall latency through file write/readback (seconds; median and range). Each model has 24 paired trials per force-stop/0.1, force-stop/0.3 and no-gap/0.3 schedule, with three tasks rotated. Memoization reuses model outputs only after reading equal current inputs.','tab:agent-tasks','@{}lrrrrrr@{}','Policy & $n$ & Stale & Success & Median & Range & Reuses',lines,False)
+  head=' & '.join(['']+[r'\multicolumn{2}{c}{'+m+'}'for m in MODELNAME.values()])+r'\\ \mhead Stratum'+r' & $n$ & Memo $-$ refresh'*len(MODELNAME)
+  table('tab_agent_tasks.tex','Resumed draft tasks (Android~15 emulator): paired difference in measured suffix latency, memoization minus refresh in the same trial (seconds; mean and trial-bootstrap 95\\% CI, 10{,}000 resamples, seed 20261116). $n$ counts trials. Memoization reuses the cached output only when the current inputs equal the pre-gap inputs; with changed inputs it regenerates like refresh.','tab:agent-tasks','@{}lrrrr@{}',head,lines,False)
  if agent:
   for z in agent:
    model='Qwen'if z['model'].startswith('qwen')else'Llama'
    mac.append('\\newcommand{\\Task'+model+z['arm'].capitalize()+'}{'+f"{z['wall_s']['median']:.2f}"+'\\xspace}')
   n=min(z['n']for z in agent);mac.append('\\newcommand{\\TaskN}{'+str(n)+'\\xspace}')
-  upper=100*1.959963984540054**2/(n+1.959963984540054**2)
-  mac.append('\\newcommand{\\TaskZeroBound}{'+f'{upper:.1f}'+'\\xspace}')
-  (G/'followup_macros.tex').write_text('\n'.join(mac)+'\n')
- out['agent']={'oracle_verified_trials':sum(audit_task(r) for r in records),'attempted':len(records),'errors':[{'model':r['model'],'trial':r['trial'],'error':r['error']}for r in records if 'error'in r],'groups':agent}
- (D/'summary.json').write_text(json.dumps(out,indent=2)+'\n');print(json.dumps({'deployment_groups':len(results),'agent_trials':len(records),'agent_errors':len(out['agent']['errors'])}))
+  mac.append('\\newcommand{\\TaskSuccessK}{'+str(sum(z['task_success']for z in agent))+'\\xspace}');mac.append('\\newcommand{\\TaskArmN}{'+str(sum(z['n']for z in agent))+'\\xspace}')
+  mac.append('\\newcommand{\\TaskStaleK}{'+str(sum(z['stale_actions']for z in agent))+'\\xspace}')
+  for z in pr:
+   key={'All trials':'All','Unchanged':'Unch','Changed':'Chg'}.get(z['stratum'])
+   if not key:continue
+   model='Qwen'if z['model'].startswith('qwen')else'Llama'
+   mac.append('\\newcommand{\\TaskPairN'+key+model+'}{'+str(z['trials'])+'\\xspace}')
+   for arm,a in [('memo','Memo'),('evidence','Evid')]:
+    v=z[arm+'_minus_refresh_s']
+    if v:mac.append('\\newcommand{\\TaskPair'+a+key+model+'}{'+num(v['mean'])+'\\,s ['+num(v['ci95'][0])+', '+num(v['ci95'][1])+']'+'\\xspace}')
+  (G/'followup_macros.tex').write_text('\n'.join(mac)+'\n',newline='\n')
+ out['agent']={'oracle_verified_trials':sum(audit_task(r) for r in records),'attempted':len(records),'errors':[{'model':r['model'],'trial':r['trial'],'error':r['error']}for r in records if 'error'in r],'groups':agent,'paired_vs_refresh':pr}
+ (D/'summary.json').write_text(json.dumps(out,indent=2)+'\n',newline='\n');print(json.dumps({'deployment_groups':len(results),'agent_trials':len(records),'agent_errors':len(out['agent']['errors'])}))
 if __name__=='__main__':main()

@@ -1,6 +1,6 @@
 \begin{table*}[t]
 \centering\mtab
-\caption{Matched host helper: median latency in milliseconds and paired mean differences versus refresh with trial-bootstrap 95\% CIs (30 trials per row). The input-read arm equals refresh by construction and is omitted. Continuous writes overlap arm execution.}
+\caption{Matched host helper: median batch latency in milliseconds and paired mean differences versus refresh with trial-bootstrap 95\% CIs (30 trials per row). The validate arm re-reads every fact like refresh and adds a strict check that returns \Unknown without reading the provider, so its difference measures that call, not a validation strategy. The input-read arm equals refresh and is omitted. Continuous writes overlap arm execution.}
 \label{tab:checks-host}
 \begin{tabular}{llrrrrr}\toprule
 \mhead API & Writes & Refresh & Validate & Relay & Validate $- $ refresh [CI] & Relay $- $ refresh [CI]\\\midrule

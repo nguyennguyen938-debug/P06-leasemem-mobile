@@ -85,15 +85,15 @@ def main():
  for key,pol in sorted(groups.items()):
   hrows.append({'platform':key[0],'client':key[1],'group':key[2],**{p:{'k':kn[0],'n':kn[1],'ci':wilson(*kn)} for p,kn in pol.items()}})
  summary['historical_trial_groups']=hrows
- (D/'summary.json').write_text(json.dumps(summary,indent=2,sort_keys=True)+'\n')
+ (D/'summary.json').write_text(json.dumps(summary,indent=2,sort_keys=True)+'\n',newline='\n')
  lines=[r'\begin{table}[t]',r'\centering\mtab',r'\caption{Staged-schedule early decisions: stale trials/total and Wilson 95\% intervals. Facts within a trial are not independent observations.}',r'\label{tab:checks-trials}',r'\begin{tabular}{lllrr}\toprule',r'\mhead API & Client & Gap group & Restart-aware & StampCheck\\\midrule']
  for r in hrows:
   cells=[]
   for p in ['evr','lm']:
    z=r[p];cells.append(f"{z['k']}/{z['n']} [{100*z['ci'][0]:.1f},{100*z['ci'][1]:.1f}]\\%")
   lines.append(f"{r['platform'].replace('api','')} & {r['client']} & {r['group']} & "+' & '.join(cells)+r'\\')
- lines += [r'\bottomrule\end{tabular}',r'\end{table}'];(G/'tab_checks_trials.tex').write_text('\n'.join(lines)+'\n')
- lines=[r'\begin{table*}[t]',r'\centering\mtab',r'\caption{Matched host helper: median latency in milliseconds and paired mean differences versus refresh with trial-bootstrap 95\% CIs (30 trials per row). The input-read arm equals refresh by construction and is omitted. Continuous writes overlap arm execution.}',r'\label{tab:checks-host}',r'\begin{tabular}{llrrrrr}\toprule',r'\mhead API & Writes & Refresh & Validate & Relay & Validate $- $ refresh [CI] & Relay $- $ refresh [CI]\\\midrule']
+ lines += [r'\bottomrule\end{tabular}',r'\end{table}'];(G/'tab_checks_trials.tex').write_text('\n'.join(lines)+'\n',newline='\n')
+ lines=[r'\begin{table*}[t]',r'\centering\mtab',r'\caption{Matched host helper: median batch latency in milliseconds and paired mean differences versus refresh with trial-bootstrap 95\% CIs (30 trials per row). The validate arm re-reads every fact like refresh and adds a strict check that returns \Unknown without reading the provider, so its difference measures that call, not a validation strategy. The input-read arm equals refresh and is omitted. Continuous writes overlap arm execution.}',r'\label{tab:checks-host}',r'\begin{tabular}{llrrrrr}\toprule',r'\mhead API & Writes & Refresh & Validate & Relay & Validate $- $ refresh [CI] & Relay $- $ refresh [CI]\\\midrule']
  for serial in ['emulator-5620','emulator-5622']:
   for case in ['none','one','continuous']:
    v={x['arm']:x for x in out if x['serial']==serial and x['case']==case}
@@ -101,8 +101,8 @@ def main():
    for k in ['validate','relay']:
     x=v[k];lo,hi=x['difference_ci_ms'];cells.append(f"{x['mean_difference_ms']:.1f} [{lo:.1f}, {hi:.1f}]")
    lines.append(('33' if serial.endswith('5620') else '35')+' & '+case+' & '+' & '.join(cells)+r'\\')
- lines += [r'\bottomrule\end{tabular}',r'\end{table*}'];(G/'tab_checks_host.tex').write_text('\n'.join(lines)+'\n')
+ lines += [r'\bottomrule\end{tabular}',r'\end{table*}'];(G/'tab_checks_host.tex').write_text('\n'.join(lines)+'\n',newline='\n')
  macros={'RevReference':len(ref),'RevStock':len(stock),'RevAnchoringRace':sum(sum(v) for v in by.values()),'RevTickPairs':summary['tick']['pairs'],'RevTickTrials':len(tick),'RevTickHits':summary['tick']['equal_tick_changed_trials'],'RevHost':len(host),'RevReferenceRace':summary['reference']['historical_stale'],'RevActionResidual':summary['reference']['action_residual_trials'],'RevSupplement':len(supplement)}
- (G/'revision_macros.tex').write_text(''.join('\\newcommand{\\'+k+'}{'+str(v)+'\\xspace}\n' for k,v in macros.items()))
+ (G/'revision_macros.tex').write_text(''.join('\\newcommand{\\'+k+'}{'+str(v)+'\\xspace}\n' for k,v in macros.items()),newline='\n')
  print(json.dumps({k:summary[k] for k in ['reference','tick']},indent=2))
 if __name__=='__main__':main()

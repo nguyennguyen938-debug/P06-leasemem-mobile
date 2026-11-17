@@ -18,6 +18,7 @@ import glob
 import json
 import math
 import os
+import sys
 import random
 import statistics as st
 from collections import Counter, defaultdict
@@ -805,6 +806,7 @@ def e10_12_13():
 
 
 def main():
+    sys.stdout.reconfigure(newline="")  # LF output on Windows too
     for fn in (e1, e2, e3, e4, e6, e7, e8, e9, e10_12_13):
         try:
             fn()
@@ -817,7 +819,7 @@ def main():
         SUMMARY["aw"] = json.load(open(aw))
     SUMMARY["note"] = ("Real Android emulator runs (API 33: P06Avd/P06Avd2; API 35: P06Avd35), deterministic scripted driver; "
                        "E8 uses a local LLM (Ollama qwen2.5:7b). AndroidWorld census is code inspection.")
-    with open(os.path.join(DER, "summary.json"), "w") as f:
+    with open(os.path.join(DER, "summary.json"), "w", newline="") as f:
         json.dump(SUMMARY, f, indent=1, sort_keys=True, default=str)
     print(json.dumps({k: v for k, v in SUMMARY.items() if not isinstance(v, dict)}, indent=0, default=str)[:2500])
 

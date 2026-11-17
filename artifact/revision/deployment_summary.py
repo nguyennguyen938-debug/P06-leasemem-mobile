@@ -21,8 +21,8 @@ repeats=[]
 for p in sorted(D.glob('freezer-restarted-*.jsonl')):
  rs=[json.loads(line)for line in p.read_text().splitlines()]
  repeats.append({'serial':rs[0]['serial'],'n':len(rs),'errors':sum('error'in r for r in rs),'frozen_trials':sum(any(x.get('frozen')=='1'for x in r.get('states',[]))for r in rs)})
-(D/'freezer-repeat-summary.json').write_text(json.dumps(repeats,indent=2)+'\n')
-(D/'deployment-summary.json').write_text(json.dumps(summary,indent=2)+'\n')
+(D/'freezer-repeat-summary.json').write_text(json.dumps(repeats,indent=2)+'\n',newline='\n')
+(D/'deployment-summary.json').write_text(json.dumps(summary,indent=2)+'\n',newline='\n')
 print(json.dumps(summary,indent=2))
 
 G=D.parents[2]/'manuscript/generated'
@@ -30,5 +30,5 @@ macros={}
 for x in summary:
  if x['mode'] in ['bg_unfrozen','fg','assistant']:
   name='RevDeploy'+('A' if x['serial'].endswith('5620') else 'B')+{'bg_unfrozen':'Bg','fg':'Fg','assistant':'Assist'}[x['mode']]
-  v=x['median_callback_ms_when_observed'];macros[name]=(f'{v/1000:.1f}\\,s' if v>=1000 else f'{v:.0f}\\,ms') if v is not None else '--'
-(G/'revision_deploy_macros.tex').write_text(''.join('\\newcommand{\\'+k+'}{'+str(v)+'\\xspace}\n' for k,v in macros.items()))
+  v=x['median_callback_ms_when_observed'];macros[name]=(f'{v/1000:.1f}\\,s' if v>=1000 else f'{v:.0f}\\,ms') if v is not None else 'n/a'
+(G/'revision_deploy_macros.tex').write_text(''.join('\\newcommand{\\'+k+'}{'+str(v)+'\\xspace}\n' for k,v in macros.items()),newline='\n')
