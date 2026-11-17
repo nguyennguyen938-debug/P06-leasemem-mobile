@@ -82,19 +82,51 @@ public final class Revision {
         JSONObject o=new JSONObject();o.put("writer_id",id);return o;
     }
     static Map<String,Map<String,JSONObject>> caches=new LinkedHashMap<>();
+    /** Mode "stamp" (B6): StampCheck with real batching. Per source, read the durable stamp (LmApp.watermark) BEFORE any
+     *  re-read; the source's cached facts are kept only if the stamp equals the one read before their last refresh, the
+     *  clock did not jump (timestamp stamps), the mtime is not racy (file stamps) and no cached support row vanished.
+     *  Otherwise the source is refreshed and the stamp just read becomes its new stamp. Sources without a stamp
+     *  (SMS, calendar, Settings) are always refreshed. Returns "confirmed" or the reason for refreshing. */
+    static String stampCheck(LmApp a,String src,Map<String,JSONObject> cache)throws Exception {
+        String rule=a.rule(src);
+        if(rule.equals("NONE"))return "no_stamp";
+        long wall=System.currentTimeMillis(),bootWall=wall-SystemClock.elapsedRealtime();
+        String w=a.watermark(src);JSONObject old=cache.get("__stamp_"+src);
+        String reason;
+        if(w==null||w.contains("ERR"))reason="stamp_error";
+        else if(old==null)reason="no_prior_stamp";
+        else if(!w.equals(old.getString("stamp")))reason="stamp_moved";
+        else if((rule.equals("LASTMOD")||rule.equals("TS"))&&Math.abs(bootWall-old.getLong("boot_wall"))>2000)reason="clock_jump";
+        else if(rule.equals("MTIME")&&old.getLong("wall")-Long.parseLong(w.split("\\|")[0])<LmApp.MTIME_GRAN_MS)reason="racy_mtime";
+        else {
+            Set<Long> support=new HashSet<>();
+            for(String[] f:LmApp.FACTS)if(f[1].equals(src)&&cache.containsKey(f[0])){JSONArray s=cache.get(f[0]).optJSONArray("support");for(int i=0;s!=null&&i<s.length();i++)support.add(s.getLong(i));}
+            reason=a.missing(src,support).isEmpty()?"confirmed":"support_missing";
+        }
+        if(!reason.equals("confirmed")){JSONObject n=new JSONObject();n.put("stamp",w==null?"null":w);n.put("wall",wall);n.put("boot_wall",bootWall);cache.put("__stamp_"+src,n);}
+        return reason;
+    }
     static JSONObject batch(LmApp a,String mode)throws Exception {
         Map<String,JSONObject> cache=caches.get(mode);if(cache==null){cache=new LinkedHashMap<>();caches.put(mode,cache);}
-        long start=ns();JSONObject values=new JSONObject(),verdicts=new JSONObject();int refreshed=0,queries=0;
+        long start=ns();long wallOffset=System.currentTimeMillis()-SystemClock.elapsedRealtime();
+        JSONObject values=new JSONObject(),verdicts=new JSONObject(),reads=new JSONObject(),stamps=new JSONObject();int refreshed=0,queries=0,stampReads=0;
         boolean epochBroken=!cache.containsKey("__epoch")||!a.epoch.equals(cache.get("__epoch").optString("value"));
+        if(mode.equals("stamp"))for(String s:LmApp.SOURCES){stamps.put(s,stampCheck(a,s,cache));if(!a.rule(s).equals("NONE"))stampReads++;}
         for(String[] f:LmApp.FACTS) {
             String fid=f[0];JSONObject old=cache.get(fid); boolean refresh=true;
             if(mode.equals("relay")&&old!=null&&!epochBroken) refresh=a.obj("ev_dirty").optBoolean(f[1]);
+            if(mode.equals("stamp")) refresh=!stamps.getString(f[1]).equals("confirmed");
             if(mode.equals("validate")) verdicts.put(fid,validate(a,fid,old));
-            if(refresh||old==null) {JSONObject n=observe(a,fid);values.put(fid,n.get("value"));cache.put(fid,n);refreshed++;queries++;}
+            if(refresh||old==null) {JSONObject n=observe(a,fid);values.put(fid,n.get("value"));cache.put(fid,n);refreshed++;queries++;
+                reads.put(fid,new JSONArray().put(n.getLong("read_start_ns")).put(n.getLong("read_end_ns")));}
             else values.put(fid,old.optString("value"));
         }
         JSONObject ep=new JSONObject();ep.put("value",a.epoch);cache.put("__epoch",ep);
         JSONObject o=new JSONObject();o.put("mode",mode);o.put("values",values);o.put("verdicts",verdicts);o.put("refreshes",refreshed);o.put("fact_reads",queries);o.put("start_ns",start);o.put("end_ns",ns());o.put("epoch",a.epoch);
+        // B7 timestamp oracle: per-fact read intervals (elapsedRealtimeNanos) and the wall-minus-elapsed offset (ms) that
+        // maps them onto the mutator's System.currentTimeMillis commit stamps.
+        o.put("reads",reads);o.put("wall_offset_ms",wallOffset);
+        if(mode.equals("stamp")){o.put("stamp",stamps);o.put("stamp_reads",stampReads);}
         // Never clear notifications here: a callback racing this batch must not be erased.
         return o;
     }
@@ -128,6 +160,11 @@ public final class Revision {
         if(op.equals("reference"))return referenceTrial(a,r.getString("scenario"));
         if(op.equals("refcall"))return ref(a,r.getString("method"),r.optString("value",null));
         if(op.equals("batch"))return batch(a,r.getString("mode"));
+        if(op.equals("effect")) { // B7: the action that uses a value; a durable append to a private file, so it perturbs no observed source
+            long t=ns(),wall=System.currentTimeMillis();JSONObject e=new JSONObject();e.put("value",r.optString("value"));e.put("wall_ms",wall);
+            try(FileOutputStream out=new FileOutputStream(new File(a.getFilesDir(),"effects.jsonl"),true)){out.write((e.toString()+"\n").getBytes("UTF-8"));out.getFD().sync();}
+            e.put("effect_start_ns",t);e.put("effect_end_ns",ns());e.put("wall_offset_ms",wall-t/1000000L);return e;
+        }
         if(op.equals("read")){JSONObject o=observe(a,r.getString("fact"));try{o.put("watermark",a.watermark(LmApp.srcOf(r.getString("fact"))));}catch(Exception e){o.put("watermark_error",e.toString());}return o;}
         if(op.equals("probe"))return a.probe();
         if(op.equals("resetcache")){caches.clear();a.mem.put("ev_dirty",new JSONObject());return new JSONObject().put("ok",true);}

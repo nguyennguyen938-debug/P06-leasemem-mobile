@@ -19,14 +19,14 @@ d.launch()
 LEAD = 2500
 plan = [("bnd", 1)] * nb + ([] if BAND else [("obs", 1)] * max(20, nb // 4) + [("bnd", 0)] * 20 + [("obs", 0)] * 20)
 rng.shuffle(plan)
-with open(out, "a") as fo:
+with lmdrv.open_new(out) as fo:
     for i, (mode, change) in enumerate(plan):
-        rec = {"i": i, "fact": "c.dana", "mode": mode, "change": change, "seed": seed, "protocol": "v2", "band": BAND}
+        rec = {**d.meta(), "i": i, "fact": "c.dana", "mode": mode, "change": change, "seed": seed, "protocol": "v2", "band": BAND}
         try:
             w.ensure_base(); time.sleep(1.0)
             d.cmd("OBSERVE")
             rid = "e3v2_%d_%d" % (seed, i)
-            d.sh("rm -f %s/res_%s.json" % (lmdrv.FILES, rid))
+            d.rm(lmdrv.CPKG, "files/res_%s.json" % rid)
             at = d.now_ms() + LEAD
             rec["at"] = at
             d.sh("am broadcast -n %s/.Cmd --es cmd ACT --es id %s --es fact c.dana --es mode %s --el at %d" % (lmdrv.CPKG, rid, mode, at))
@@ -43,7 +43,7 @@ with open(out, "a") as fo:
             res = None
             t0 = time.time()
             while time.time() - t0 < 15:
-                s = d.sh("cat %s/res_%s.json 2>/dev/null" % (lmdrv.FILES, rid))
+                s = d.cat(lmdrv.CPKG, "files/res_%s.json" % rid)
                 if s.startswith("{") and "effect_end" in s:
                     res = json.loads(s); break
                 time.sleep(0.2)

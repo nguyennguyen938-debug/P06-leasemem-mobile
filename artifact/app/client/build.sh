@@ -10,8 +10,8 @@ NAME=${1:-LeaseMemClient}
 rm -rf build && mkdir -p build/classes build/dex
 $BT/aapt2 link -o build/base.apk -I "$AJAR" --manifest AndroidManifest.xml
 $JAVA_HOME/bin/javac -source 11 -target 11 -d build/classes -classpath "$AJAR" $(find src -name '*.java')
-$BT/d8 --min-api 30 --lib "$AJAR" --output build/dex $(find build/classes -name '*.class')
+"$D8" --min-api 30 --lib "$AJAR" --output build/dex $(find build/classes -name '*.class')
 cd build; cp base.apk unsigned.apk; "$JAVA_HOME/bin/jar" uf unsigned.apk -C dex classes.dex
 $BT/zipalign -f 4 unsigned.apk aligned.apk
-$BT/apksigner sign --ks "$KS" --ks-pass pass:android --key-pass pass:android --out $NAME.apk aligned.apk
+"$APKSIGNER" sign --ks "$KS" --ks-pass pass:android --key-pass pass:android --out $NAME.apk aligned.apk
 shasum -a 256 $NAME.apk

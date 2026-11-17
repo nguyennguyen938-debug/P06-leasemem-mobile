@@ -17,7 +17,7 @@ d = lmdrv.Dev(serial); rng = random.Random(seed); w = lmdrv.World(d, rng)
 d.launch()
 if fg:
     d.sh("am start -n %s/.Main --ez stay true" % lmdrv.CPKG)
-with open(out, "a") as f:
+with lmdrv.open_new(out) as f:
     for t in range(n):
         try:
             w.ensure_base(); time.sleep(SETTLE)
@@ -33,7 +33,7 @@ with open(out, "a") as f:
             time.sleep(SETTLE)
             p1 = d.cmd("PROBE")
             ev = d.cmd("DECIDE")                  # carries the event list with device timestamps
-            rec = {"trial": t, "seed": seed, "serial": serial, "fg": fg, "muts": muts, "p0": p0["probe"], "p1": p1["probe"],
+            rec = {**d.meta(), "trial": t, "seed": seed, "serial": serial, "fg": fg, "muts": muts, "p0": p0["probe"], "p1": p1["probe"],
                    "events": ev.get("events"), "pid0": p0["pid"], "pid1": p1["pid"], "oom_adj": d.sh("cat /proc/%s/oom_score_adj" % (d.pid() or "self")).strip()}
             f.write(json.dumps(rec) + "\n"); f.flush()
             print("trial", t, [(m["src"], m["kind"]) for m in muts], flush=True)

@@ -33,7 +33,7 @@ def main():
    generate(model,'warmup',{'value':'ready'})
    for gap,prob in [('force-stop',.1),('force-stop',.3),('none',.3)]:
     for i in range(24):
-     task,keys=TASKS[i%len(TASKS)];r={'model':model,'gap':gap,'p_change':prob,'trial':i,'task':task,'keys':keys,'seed':20261116,'host_load':os.getloadavg()}
+     task,keys=TASKS[i%len(TASKS)];r={'model':model,'gap':gap,'p_change':prob,'trial':i,'task':task,'keys':keys,'seed':20261116,'host_load':lmdrv.host_load()}
      try:
       if not d.pid():d.launch();d.sh('am start-foreground-service -n org.leasemem.client/.FgService')
       w.ensure_base();c.call('resetcache');r['anchor']=c.call('batch',mode='refresh');old=inputs(r['anchor']['values'],keys);r['cached']=generate(model,task,old)

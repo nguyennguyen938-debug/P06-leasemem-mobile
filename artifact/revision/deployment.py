@@ -7,9 +7,8 @@ serial=sys.argv[1];d=lmdrv.Dev(serial);w=lmdrv.World(d,random.Random(20261115));
 def state(pkg):
  pid=d.pid(pkg);o={'pid':pid,'activity':d.sh('dumpsys activity processes '+pkg)}
  if pid:
-  o['cgroup']=d.sh(f'cat /proc/{pid}/cgroup');o['oom_adj']=d.sh(f'cat /proc/{pid}/oom_score_adj')
-  for ln in o['cgroup'].splitlines():
-   if ln.startswith('0::'):o['frozen']=d.sh('cat /sys/fs/cgroup'+ln[3:]+'/cgroup.freeze').strip()
+  o['cgroup']=d.sh(f'cat /proc/{pid}/cgroup 2>/dev/null');o['oom_adj']=d.sh(f'cat /proc/{pid}/oom_score_adj')
+  o['frozen']=d.frozen(pkg);o['frozen_method']=d.frozen_method
  return o
 with (D/f'deploy-{serial}.jsonl').open('x') as f:
  for mode in ['bg_unfrozen','bg_freezer','fg','assistant']:
@@ -35,9 +34,9 @@ with (D/f'deploy-{serial}.jsonl').open('x') as f:
      if delay==3:base=time.monotonic();time.sleep(3)
      else:time.sleep(max(0,delay-(time.monotonic()-base)))
      r['states'].append({'after_s':delay,**state(pkg)})
-    text=d.sh(f'cat /data/data/{pkg}/files/mem.json');r['memory_before_thaw']=json.loads(text)
+    text=d.cat(pkg,'files/mem.json');r['memory_before_thaw']=json.loads(text)
     d.sh(f'am start -W -n {pkg}/org.leasemem.client.Main');time.sleep(1)
-    r['memory_after_thaw']=json.loads(d.sh(f'cat /data/data/{pkg}/files/mem.json'))
+    r['memory_after_thaw']=json.loads(d.cat(pkg,'files/mem.json'))
    except Exception as e:r['error']=str(e)
    f.write(json.dumps(r)+'\n');f.flush();print(mode,i,r.get('error','ok'),flush=True)
  d.sh('cmd role remove-role-holder android.app.role.ASSISTANT org.leasemem.assist 0');d.sh('am force-stop org.leasemem.assist')

@@ -13,17 +13,22 @@ import lmdrv
 serial, n, seed, out = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
 d = lmdrv.Dev(serial); rng = random.Random(seed); w = lmdrv.World(d, rng)
 d.launch()
-with open(out, "a") as fo:
+with lmdrv.open_new(out) as fo:
     w.ensure_base()
     for i in range(n):
-        r = d.mut("sms_reuse"); fo.write(json.dumps({"exp": "sms_reuse", "i": i, "res": r}) + "\n")
+        r = d.mut("sms_reuse"); fo.write(json.dumps({**d.meta(), "exp": "sms_reuse", "i": i, "res": r}) + "\n")
     for i in range(n):
         r = d.mut("file_touch_same_second", extra="--es tag %d" % i)
         r2 = d.mut("file_touch_same_second", extra="--es tag %db" % i)
-        fo.write(json.dumps({"exp": "mtime", "i": i, "res": [r, r2]}) + "\n")
+        fo.write(json.dumps({**d.meta(), "exp": "mtime", "i": i, "res": [r, r2]}) + "\n")
         time.sleep(rng.uniform(0.05, 1.2))
-    d.sh("settings put global auto_time 0")
-    for i in range(n):
+    if not d.rooted:          # `date` needs root: a production phone skips the clock part (PHYS-PROTOCOL.md, B10)
+        n_clock = 0
+        print("clock rollback skipped: adbd is not root", flush=True)
+    else:
+        n_clock = n
+        d.sh("settings put global auto_time 0")
+    for i in range(n_clock):
         variant = "transient" if i % 2 == 0 else "persistent"
         w.ensure_base(); time.sleep(1.0)
         ob = d.cmd("OBSERVE")
@@ -38,8 +43,9 @@ with open(out, "a") as fo:
         if variant == "persistent":
             d.sh("date @%d" % ((d.now_ms() + 3600 * 1000) // 1000 + 1))
         f = dec["facts"]["c.dana"]
-        rec = {"exp": "clock", "i": i, "variant": variant, "wm_obs": dec["wm_obs"].get("contacts"), "wm_now": dec["wm_now"].get("contacts"),
+        rec = {**d.meta(), "exp": "clock", "i": i, "variant": variant, "wm_obs": dec["wm_obs"].get("contacts"), "wm_now": dec["wm_now"].get("contacts"),
                "clock_jump": dec.get("clock_jump"), "lm": f["lm"], "stale_if_used": f["mem"] != f["truth"], "reason": dec["lm_cost"]["contacts"]["reason"], "mut": m}
         fo.write(json.dumps(rec) + "\n"); fo.flush()
         print(rec["variant"], rec["lm"], rec["reason"], rec["stale_if_used"], flush=True)
-    d.sh("settings put global auto_time 1")
+    if n_clock:
+        d.sh("settings put global auto_time 1")

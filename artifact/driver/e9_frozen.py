@@ -21,9 +21,9 @@ KINDS = {"contacts": ["update", "insert"], "sms": ["insert", "update"], "calllog
 d = lmdrv.Dev(serial); rng = random.Random(seed); w = lmdrv.World(d, rng)
 d.sh("am stopservice -n %s/.FgService" % lmdrv.CPKG)
 d.launch()
-with open(out, "a") as f:
+with lmdrv.open_new(out) as f:
     for t in range(n):
-        log = {"trial": t, "gap": "frozen_long", "seed": seed, "serial": serial, "frozen_target_s": FROZEN_S, "protocol": "v3"}
+        log = {**d.meta(), "trial": t, "gap": "frozen_long", "seed": seed, "serial": serial, "frozen_target_s": FROZEN_S, "protocol": "v3"}
         try:
             if not d.pid():
                 d.launch()
@@ -36,7 +36,7 @@ with open(out, "a") as f:
             while time.time() - t0 < 25 and frozen(d) != "1":
                 time.sleep(0.5)
             log["frozen_after_s"] = round(time.time() - t0, 1)
-            log["frozen"] = frozen(d)
+            log["frozen"] = frozen(d); log["frozen_method"] = d.frozen_method
             if log["frozen"] != "1":
                 log["invalid"] = "not_frozen"
                 f.write(json.dumps(log) + "\n"); f.flush(); print("INVALID not frozen", t, flush=True); continue

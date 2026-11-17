@@ -24,7 +24,7 @@ def memory():return json.loads(d.sh(f'cat /data/data/{pkg}/files/mem.json'))
 w.ensure_base();time.sleep(1)
 with (D/'deploy-emulator-5620-persist.jsonl').open('x')as f:
  for i in range(20):
-  r={'mode':'persist','serial':serial,'trial':i,'host_load':os.getloadavg(),'target_sdk':33}
+  r={'mode':'persist','serial':serial,'trial':i,'host_load':lmdrv.host_load(),'target_sdk':33}
   try:
    d.home();time.sleep(.5);r['before']=state();assert r['before']['adj']=='-800' and r['before']['frozen']=='0',r['before']
    r['mutation']=w.mutate('contacts','update');time.sleep(1);r['states']=[{'after_s':1,**state()}];r['memory_before_thaw']=memory()

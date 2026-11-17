@@ -21,14 +21,7 @@ P_CHANGE = 0.5
 
 
 def frozen(d):
-    pid = d.pid()
-    if not pid:
-        return "dead"
-    path = None
-    for line in d.sh("cat /proc/%s/cgroup" % pid).splitlines():
-        if line.startswith("0::"):
-            path = line[3:].strip()
-    return (d.sh("cat /sys/fs/cgroup%s/cgroup.freeze 2>/dev/null" % path).strip() or "?") if path else "?"
+    return d.frozen()          # cgroup freeze file, or ActivityManager's isFrozen on a production phone (lmdrv)
 
 
 def start_fg(d):
@@ -69,9 +62,9 @@ def main():
     d.launch(); d.launch(lmdrv.TPKG)
     if fg:
         start_fg(d)
-    with open(out, "a") as f:
+    with lmdrv.open_new(out) as f:
         for t in range(n):
-            log = {"trial": t, "gap": gap, "seed": seed, "serial": serial, "fg": fg, "protocol": "v3"}
+            log = {**d.meta(), "trial": t, "gap": gap, "seed": seed, "serial": serial, "fg": fg, "protocol": "v3"}
             try:
                 if not d.pid():
                     d.launch()
@@ -81,7 +74,7 @@ def main():
                 made = w.ensure_base().get("made", 1)
                 time.sleep(12.0 if made else 2.0)
                 ob = d.cmd("OBSERVE")
-                d.sh(": > /data/data/%s/files/trig.log" % lmdrv.TPKG)
+                d.trig_log_clear()
                 d.trig_cmd("RESET")
                 log.update({"t_obs": ob["t_recv"], "pid_obs": ob["pid"], "epoch_obs": ob["epoch"]})
                 log["oom_adj_obs"] = d.sh("cat /proc/%s/oom_score_adj" % (d.pid() or "self")).strip()
@@ -98,8 +91,7 @@ def main():
                     log["alive_after_amkill"] = bool(d.pid())
                 elif gap == "sigkill":
                     for p in PKGS:
-                        if d.pid(p):
-                            d.sh("kill -9 %s" % d.pid(p))
+                        d.kill9(p)
                 elif gap == "forcestop":
                     for p in PKGS:
                         d.sh("am force-stop %s" % p)
@@ -109,7 +101,7 @@ def main():
                     while time.time() - t0 < limit and frozen(d) != "1":
                         time.sleep(0.5 if gap == "freeze" else 5)
                     log["frozen_after_s"] = round(time.time() - t0, 1)
-                    log["frozen"] = frozen(d)
+                    log["frozen"] = frozen(d); log["frozen_method"] = d.frozen_method
                     if log["frozen"] != "1":
                         log["invalid"] = "not_frozen"
                         f.write(json.dumps(log) + "\n"); f.flush()
