@@ -4,21 +4,21 @@ The evidence map supports the deployment-specific choices in Table~\ref{tab:guid
 
 \begin{table}[t]
 \centering\mtab
-\caption{Conditional strategy guidance. Every read retains a later action-boundary race.}
+\caption{Conditional strategy guidance and its evidence: emulator (Android 13 and 15 emulators), phone (the physical phone of \S\ref{sec:phys-setup}) or inferred (from Theorem~\ref{thm:sound} with emulator positive controls). Every read retains a later action-boundary race.}
 \label{tab:guidance}
-\begin{tabular}{p{2.1cm}p{5.8cm}}\toprule
-\mhead Source & Appropriate strategy and condition \\\midrule
-Cheap provider facts & Batch current-value queries; retain read intervals.\\
-LLM-derived facts & Read current inputs; memoize equal-input outputs.\\
-Bound service/FGS & Treat notifications as hints; handle epoch breaks.\\
-Host controller & Match batching, helper residency and privileges.\\
-Cooperative provider & Use transactional snapshots and managed writes/reset.\\
-Weak/absent evidence & Return \Unknown; refresh, re-observe or stop.\\\bottomrule
+\begin{tabular}{p{1.9cm}p{4.1cm}p{1.6cm}}\toprule
+\mhead Source & Appropriate strategy and condition & Evidence\\\midrule
+Cheap provider facts & Batch current-value queries; retain read intervals. & Emulator; phone \PhysTBD{B2 refresh cost}\\
+LLM-derived facts & Read current inputs; memoize equal-input outputs. & Emulator only\\
+Bound service/FGS & Treat notifications as hints; handle epoch breaks. & Emulator; phone \PhysTBD{B1 deployments, B2 gaps}\\
+Host controller & Match batching, helper residency and privileges. & Emulator only\\
+Cooperative provider & Use transactional snapshots and managed writes/reset. & Inferred; emulator\\
+Weak/absent evidence & Return \Unknown; refresh, re-observe or stop. & Emulator; phone \PhysTBD{B4 races, B10 pitfalls}\\\bottomrule
 \end{tabular}
 \end{table}
 
 \paragraph{Derived outputs.} Current inputs do not make a generated output current. Reusing an output for equal inputs is safe only if the input keys capture every dependency and the output asserts nothing beyond them; a draft with current structured fields can still carry stale text from context outside the keys. The task oracle (\S\ref{sec:agent-tasks}) checks structured inputs, task identity and nonempty text, not whether the text reflects the new facts.
 
-\paragraph{External validity.} Emulators on one host, with scripted mutations, supply the source map, policy campaigns and counterexamples. Physical results come from one phone (\PhysTBD{model, Android version and build fingerprint}) and describe that device, not every vendor or release; where phone and emulators differ, we report both. Experiments the phone cannot run (\PhysTBD{list from the feasibility check}) keep emulator results only. Gap frequency comes from a 24-hour state log on that phone (\PhysTBD{usage mode and gaps per type}), not from field users, so it shows which gaps occur, not how often across users. The summed-call model and measured draft tasks have different workloads. Unsupported stock contracts remain disabled, and selected query inspection is not population coverage. Ambiguous temporal overlaps are not counted as successes.
+\paragraph{External validity.} Emulators on one host, with scripted mutations, supply the source map, policy campaigns and counterexamples. Physical results come from one phone (\PhysDevice) and describe that device and build, not every vendor or release; where phone and emulators differ, we report both. The phone is a personal device, so every run uses a separate Android user with synthetic data, and experiments not run there keep emulator results only (\S\ref{sec:phys-setup}). The 24-hour state log follows a scripted schedule inside that test user, not a person's real use: it shows which gaps such a day produces, not how often they occur for real users. The summed-call model and measured draft tasks have different workloads. Unsupported stock contracts remain disabled, and selected query inspection is not population coverage. Ambiguous temporal overlaps are not counted as successes.
 
 \paragraph{Platform opportunities.} Useful APIs would return values and sequence counters atomically, expose reset-safe epochs and complete changes including deletions, and support conditional effects. Public counters alone would not repair an inconsistent observation. Such APIs could make reuse worthwhile for expensive sources, but the present measurements do not establish a general performance advantage.
