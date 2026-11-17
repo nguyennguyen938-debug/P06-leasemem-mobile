@@ -12,6 +12,7 @@ ap=argparse.ArgumentParser();ap.add_argument('serial');ap.add_argument('--out');
 ap.add_argument('--source',default='contacts',choices=['contacts','media','calllog']);ap.add_argument('--n',type=int,default=20);a=ap.parse_args()
 serial=a.serial;out=Path(a.out) if a.out else OUT/f'deploy-{serial}.jsonl'
 c,w=setup(serial,out.parent if a.out else None);d=c.d
+if a.source in d.excluded:raise SystemExit('source %s is excluded on this device (PHYS-PROTOCOL.md section 4)'%a.source)
 
 def state(pkg):
  p=d.pid(pkg);r={'pid':p,'activity':d.sh('dumpsys activity processes '+pkg)}
@@ -25,28 +26,28 @@ def memory(pkg):return json.loads(d.cat(pkg,'files/mem.json'))
 with lmdrv.open_new(out) as f:
  for mode in a.modes.split(','):
   pkg='org.leasemem.assist' if mode=='assistant' else 'org.leasemem.client'
-  d.sh('cmd role remove-role-holder android.app.role.ASSISTANT org.leasemem.assist 0');d.sh('am force-stop org.leasemem.assist')
-  d.sh('am force-stop org.leasemem.client')
+  d.sh(d.u('cmd role remove-role-holder android.app.role.ASSISTANT org.leasemem.assist 0'));d.sh(d.u('am force-stop org.leasemem.assist'))
+  d.sh(d.u('am force-stop org.leasemem.client'))
   if mode=='assistant':
-   result=d.adb('install','-r','-g',str(ROOT/'artifact/app/assist/build/LeaseMemAssist.apk'));assert 'Success' in result,result
-   d.sh('cmd role add-role-holder android.app.role.ASSISTANT '+pkg+' 0');time.sleep(2)
+   d.provision([(lmdrv.APKG,ROOT/'artifact/app/assist/build/LeaseMemAssist.apk')])
+   d.sh(d.u('cmd role add-role-holder android.app.role.ASSISTANT '+pkg+' 0'));time.sleep(2)
   d.sh('device_config set_sync_disabled_for_tests until_reboot');d.sh('device_config put activity_manager_native_boot freeze_debounce_timeout '+('2000' if mode=='bg_freezer' else '600000'))
   for i in range(a.n):
    r={**d.meta(),'serial':serial,'mode':mode,'source':a.source,'trial':i,'host_load':lmdrv.host_load(),'target_sdk':35 if mode=='assistant' else 33}
    try:
     # Restart AFTER config change; a previous eligibility deadline must not survive.
-    if mode!='assistant':d.sh('am force-stop '+pkg)
-    d.sh(f'am start -W -n {pkg}/org.leasemem.client.Main');time.sleep(.4)
-    if mode=='fg':d.sh('am start-foreground-service -n org.leasemem.client/.FgService')
+    if mode!='assistant':d.sh(d.u('am force-stop '+pkg))
+    d.sh(d.u(f'am start -W -n {pkg}/org.leasemem.client.Main'));time.sleep(.4)
+    if mode=='fg':d.sh(d.u('am start-foreground-service -n org.leasemem.client/.FgService'))
     w.ensure_base();time.sleep(.5);d.home();time.sleep(3 if mode=='bg_freezer' else .5)
-    r['before']=state(pkg);r['config']=d.sh('dumpsys activity settings');r['binding']=d.sh('dumpsys voiceinteraction') if mode=='assistant' else None
+    r['before']=state(pkg);r['config']=d.sh('dumpsys activity settings');r['binding']=d.sh("dumpsys voiceinteraction | grep -E 'leasemem|mBound'") if mode=='assistant' else None
     assert r['before'].get('frozen')==('1' if mode=='bg_freezer' else '0'),r['before']
     if mode=='assistant':assert 'mBound=true' in r['binding']
     r['mutation']=w.mutate(a.source,'update');r['states']=[];start=time.monotonic()
     for delay in ([3,8,14] if mode.startswith('bg') else [1]):
      time.sleep(max(0,delay-(time.monotonic()-start)));r['states'].append({'after_s':delay,**state(pkg)})
     r['memory_before_thaw']=memory(pkg)
-    d.sh(f'am start -W -n {pkg}/org.leasemem.client.Main');time.sleep(.5);r['memory_after_thaw']=memory(pkg)
+    d.sh(d.u(f'am start -W -n {pkg}/org.leasemem.client.Main'));time.sleep(.5);r['memory_after_thaw']=memory(pkg)
    except Exception as e:r['error']=repr(e)
    f.write(json.dumps(r)+'\n');f.flush();print(mode,i,r.get('error','ok')[:150],flush=True)
- d.sh('cmd role remove-role-holder android.app.role.ASSISTANT org.leasemem.assist 0');d.sh('am force-stop org.leasemem.assist');d.sh('am force-stop org.leasemem.client')
+ d.sh(d.u('cmd role remove-role-holder android.app.role.ASSISTANT org.leasemem.assist 0'));d.sh(d.u('am force-stop org.leasemem.assist'));d.sh(d.u('am force-stop org.leasemem.client'))

@@ -22,16 +22,10 @@ class Client:
 def setup(serial,out_dir=None):
  # `adb root` is refused on a production phone and then changes nothing; lmdrv falls back to run-as.
  d=lmdrv.Dev(serial);d.adb('root');d.adb('wait-for-device');d.wait_boot()
- records=[]
- for apk in ('client/build/LeaseMemClient-v4.apk','mut/build/LeaseMemMut.apk'):
-  result=d.adb('install','-r','-g',str(ROOT/'artifact/app'/apk));records.append({'apk':apk,'result':result})
-  if 'Success' not in result:raise RuntimeError(records)
- for pkg in ('org.leasemem.client','org.leasemem.mut'):
-  d.sh(f'appops set {pkg} MANAGE_EXTERNAL_STORAGE allow');d.sh(f'appops set {pkg} WRITE_SMS allow')
-  for permission in ('READ_CALL_LOG','READ_SMS','READ_CONTACTS','READ_CALENDAR','READ_MEDIA_IMAGES','WRITE_CALL_LOG','WRITE_CONTACTS','WRITE_SECURE_SETTINGS'):
-   d.sh(f'pm grant {pkg} android.permission.{permission}')
+ # install in the test user, grant there, and write each app's excluded sources (lmdrv.Dev.provision)
+ records=d.provision([('org.leasemem.client',ROOT/'artifact/app/client/build/LeaseMemClient-v4.apk'),('org.leasemem.mut',ROOT/'artifact/app/mut/build/LeaseMemMut.apk')])
  d.sh('device_config set_sync_disabled_for_tests until_reboot');d.sh('device_config put activity_manager_native_boot freeze_debounce_timeout 600000')
- d.launch();d.sh('am start-foreground-service -n org.leasemem.client/.FgService')
+ d.launch();d.sh(d.u('am start-foreground-service -n org.leasemem.client/.FgService'))
  w=lmdrv.World(d,random.Random(20261115));w.ensure_base()
  meta={**d.meta(),'serial':serial,'install':records,'fingerprint':d.sh('getprop ro.build.fingerprint'),'sdk':d.sh('getprop ro.build.version.sdk'),'device_config':d.sh('dumpsys activity settings'),'apks':{str(p.relative_to(ROOT)):hashlib.sha256(p.read_bytes()).hexdigest() for p in [ROOT/'artifact/app/client/build/LeaseMemClient-v4.apk',ROOT/'artifact/app/mut/build/LeaseMemMut.apk']}}
  out_dir=Path(out_dir or D);out_dir.mkdir(parents=True,exist_ok=True)
@@ -47,6 +41,7 @@ def main():
   def emit(r):f.write(json.dumps({**c.d.meta(),**r})+'\n');f.flush();print(r['trial'],r.get('case'),r.get('error','ok'),flush=True)
   for i in range(a.n):
    cases={'reference':['control','observation','reanchor','concurrent','exhaust','delete','reuse','reset','restore','aba','before_query','support','delta','action'],'stock':['contacts','calllog','media','files','sms','calendar','settings'],'host':['none','one','continuous'],'tick':['same_tick']}[a.campaign]
+   if a.campaign=='stock':cases=[x for x in cases if x not in w.d.excluded]   # SMS (and an unproven call log) never on the phone
    for case in cases:
     r={'trial':i,'case':case,'serial':a.serial,'seed':20261115,'campaign':a.campaign,'start':time.time()}
     try:

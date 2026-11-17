@@ -16,7 +16,7 @@ SETTLE = 13.0
 d = lmdrv.Dev(serial); rng = random.Random(seed); w = lmdrv.World(d, rng)
 d.launch()
 if fg:
-    d.sh("am start -n %s/.Main --ez stay true" % lmdrv.CPKG)
+    d.sh(d.u("am start -n %s/.Main --ez stay true" % lmdrv.CPKG))
 with lmdrv.open_new(out) as f:
     for t in range(n):
         try:
@@ -24,8 +24,8 @@ with lmdrv.open_new(out) as f:
             d.cmd("OBSERVE")                       # clears the client's event list
             p0 = d.cmd("PROBE")
             muts = []
-            for src in lmdrv.World.KINDS:
-                kinds = ["none"] + lmdrv.World.KINDS[src]
+            for src in w.kinds:
+                kinds = ["none"] + w.kinds[src]
                 k = rng.choice(kinds)
                 if k == "none":
                     muts.append({"src": src, "kind": "none"}); continue

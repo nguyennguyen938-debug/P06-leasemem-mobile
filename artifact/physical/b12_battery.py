@@ -7,9 +7,9 @@ waits (up to --wait-hours) until dumpsys battery reports no charger; that instan
 the screen off and runs len(--order) blocks of equal length that together end --margin-min before the budget, so the
 whole run stops before the 6-hour mark. Per block: set the arm (FGS on: start FgService; off: stop it), reset
 BatteryStats, sample every --sample-min (charge counter, level, voltage, temperature, Doze state, client state), and at
-the block end save the raw `dumpsys batterystats` text. Every sample and block summary is written and flushed at once,
-so a run cut short keeps its finished blocks. Files: OUT_PREFIX-samples.jsonl and
-OUT_PREFIX-block<k>-<arm>-batterystats.txt. A block ends early, marked incomplete, if a charger is reconnected or
+the block end keep only the client uid's lines of `dumpsys batterystats --charged` (never a full dump, which would
+include the owner's apps, and never a reset, which would erase the owner's battery history). Every sample and block summary is written and flushed at once,
+so a run cut short keeps its finished blocks. File: OUT_PREFIX-samples.jsonl. A block ends early, marked incomplete, if a charger is reconnected or
 the level drops below 15%.
 Night 1: --order on,off,on,off; night 2: --order off,on,off,on.
 Usage: b12_battery.py SERIAL OUT_PREFIX --order on,off,on,off [--max-hours 6] [--margin-min 10] [--sample-min 5]
@@ -40,8 +40,18 @@ def sample(d, kind, **kw):
     except Exception as e:
         rec["error"] = repr(e)[:300]
         if ":" in d.s:                                  # wireless serial: try to reconnect, keep going
-            subprocess.run([lmdrv.ADB, "connect", d.s], capture_output=True, timeout=20)
+            subprocess.run(lmdrv.ADB_CMD + ["connect", d.s], capture_output=True, timeout=20)
     return rec
+
+
+def uid_stats(d):
+    """Lines of `dumpsys batterystats --charged <client>` that name the client's uid (u<user>a<appid>), nothing else."""
+    try:
+        uid = d.sh("stat -c %%u /proc/%s" % d.pid(), timeout=20).strip() if d.pid() else ""
+        tag = "u%da%d" % (int(uid) // 100000, int(uid) % 100000 - 10000) if uid.isdigit() else None
+        return [l.strip() for l in d.sh("dumpsys batterystats --charged %s" % P, timeout=60, retries=1).splitlines() if tag and tag in l]
+    except Exception as e:
+        return ["error: " + repr(e)[:200]]
 
 
 def still_plugged(d):
@@ -49,7 +59,7 @@ def still_plugged(d):
         return battery(d)["plugged"]
     except Exception:
         if ":" in d.s:
-            subprocess.run([lmdrv.ADB, "connect", d.s], capture_output=True, timeout=20)
+            subprocess.run(lmdrv.ADB_CMD + ["connect", d.s], capture_output=True, timeout=20)
         return True
 
 
@@ -62,7 +72,7 @@ def main():
     d = lmdrv.Dev(a.serial); static = {k: v for k, v in d.meta().items() if k != "plugged"}
     f = lmdrv.open_new(a.out_prefix + "-samples.jsonl")
     emit = lambda r: (f.write(json.dumps({**static, **r}) + "\n"), f.flush())
-    d.sh("am stopservice -n %s/.FgService" % P); d.launch(); time.sleep(1); d.home()
+    d.sh(d.u("am stopservice -n %s/.FgService" % P)); d.launch(); time.sleep(1); d.home()
     emit({"kind": "start", "t": time.time(), "order": order, "max_hours": a.max_hours, "margin_min": a.margin_min,
           **battery(d), "device_config": d.sh("dumpsys activity settings | grep -i freeze").strip()})
     if ":" not in a.serial and "_adb-tls-connect" not in a.serial:
@@ -80,11 +90,11 @@ def main():
         if time.time() + 60 > deadline:
             break
         try:
-            d.sh("am start-foreground-service -n %s/.FgService" % P if arm == "on" else "am stopservice -n %s/.FgService" % P, timeout=30)
-            time.sleep(2); d.sh("dumpsys batterystats --reset", timeout=30); set_err = None
+            d.sh(d.u("am start-foreground-service -n %s/.FgService" % P if arm == "on" else "am stopservice -n %s/.FgService" % P), timeout=30)
+            time.sleep(2); set_err = None
         except Exception as e:
             set_err = repr(e)[:200]
-        s0 = sample(d, "block_start", block=k, arm=arm, set_error=set_err); emit(s0)
+        s0 = sample(d, "block_start", block=k, arm=arm, set_error=set_err); s0["batterystats_uid"] = uid_stats(d); emit(s0)
         b_end = min(deadline, s0["t"] + block_s); stop = None
         while time.time() < b_end:
             time.sleep(max(0.0, min(a.sample_min * 60, b_end - time.time())))
@@ -93,12 +103,7 @@ def main():
                 stop = "replugged"; break
             if s.get("level") is not None and s["level"] < 15:
                 stop = "low_battery"; break
-        s1 = sample(d, "block_end", block=k, arm=arm); emit(s1)
-        try:
-            with lmdrv.open_new("%s-block%d-%s-batterystats.txt" % (a.out_prefix, k, arm)) as g:
-                g.write(d.sh("dumpsys batterystats", timeout=120, retries=1))
-        except Exception as e:
-            s1["batterystats_error"] = repr(e)[:200]
+        s1 = sample(d, "block_end", block=k, arm=arm); s1["batterystats_uid"] = uid_stats(d); emit(s1)
         cc = lambda s: s.get("charge_uAh")
         emit({"kind": "block", "block": k, "arm": arm, "t_start": s0["t"], "t_end": s1["t"],
               "duration_s": round(s1["t"] - s0["t"], 1), "charge_start_uAh": cc(s0), "charge_end_uAh": cc(s1),
@@ -107,7 +112,7 @@ def main():
         if stop:
             break
     try:
-        d.sh("am stopservice -n %s/.FgService" % P, timeout=30)
+        d.sh(d.u("am stopservice -n %s/.FgService" % P), timeout=30)
     except Exception:
         pass
     emit({"kind": "end", "t": time.time(), "hours_since_unplug": round((time.time() - t_unplug) / 3600, 3)})

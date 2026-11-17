@@ -15,16 +15,16 @@ d = lmdrv.Dev(serial); rng = random.Random(seed); w = lmdrv.World(d, rng)
 d.launch()
 with lmdrv.open_new(out) as fo:
     w.ensure_base()
-    for i in range(n):
+    for i in range(0 if "sms" in d.excluded else n):     # SMS is never touched on the personal phone
         r = d.mut("sms_reuse"); fo.write(json.dumps({**d.meta(), "exp": "sms_reuse", "i": i, "res": r}) + "\n")
     for i in range(n):
         r = d.mut("file_touch_same_second", extra="--es tag %d" % i)
         r2 = d.mut("file_touch_same_second", extra="--es tag %db" % i)
         fo.write(json.dumps({**d.meta(), "exp": "mtime", "i": i, "res": [r, r2]}) + "\n")
         time.sleep(rng.uniform(0.05, 1.2))
-    if not d.rooted:          # `date` needs root: a production phone skips the clock part (PHYS-PROTOCOL.md, B10)
+    if not (d.emulator and d.rooted):   # clock changes run only on P06's rooted emulators, never on the phone
         n_clock = 0
-        print("clock rollback skipped: adbd is not root", flush=True)
+        print("clock rollback skipped: not a rooted P06 emulator", flush=True)
     else:
         n_clock = n
         d.sh("settings put global auto_time 0")

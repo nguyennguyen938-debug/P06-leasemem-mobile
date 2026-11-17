@@ -29,7 +29,7 @@ with lmdrv.open_new(out) as fo:
             d.rm(lmdrv.CPKG, "files/res_%s.json" % rid)
             at = d.now_ms() + LEAD
             rec["at"] = at
-            d.sh("am broadcast -n %s/.Cmd --es cmd ACT --es id %s --es fact c.dana --es mode %s --el at %d" % (lmdrv.CPKG, rid, mode, at))
+            d.sh(d.u("am broadcast -n %s/.Cmd --es cmd ACT --es id %s --es fact c.dana --es mode %s --el at %d" % (lmdrv.CPKG, rid, mode, at)))
             if change:
                 if BAND and mode == "bnd":
                     delta = rng.uniform(-10, 40)

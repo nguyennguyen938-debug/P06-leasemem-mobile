@@ -53,13 +53,14 @@ public class LmApp extends Application {
     boolean observersActive = false;
     final List<ContentObserver> observers = new ArrayList<>();
     FileObserver fobs;
-    static final String DOCDIR = "/storage/emulated/0/Documents/lm";
+    // This user's shared storage (/storage/emulated/<user>), never another user's.
+    static final String DOCDIR = android.os.Environment.getExternalStorageDirectory().getPath() + "/Documents/lm";
     static final String VOL = MediaStore.VOLUME_EXTERNAL_PRIMARY;
     static final long MTIME_GRAN_MS = 2000;   // FUSE mtimes observed at 1 s resolution; 2 s margin
 
     // ---------------- fact catalogue ----------------
-    static final String[] SOURCES = {"contacts", "sms", "calllog", "media", "calendar", "settings", "files"};
-    static final String[][] FACTS = { // id, source, aggregate?
+    static final String[] ALL_SOURCES = {"contacts", "sms", "calllog", "media", "calendar", "settings", "files"};
+    static final String[][] ALL_FACTS = { // id, source, aggregate?
             {"c.dana", "contacts", "0"}, {"c.omar", "contacts", "0"}, {"c.set", "contacts", "1"},
             {"s.latest", "sms", "1"}, {"s.unread", "sms", "1"}, {"s.tracked", "sms", "0"},
             {"l.latest", "calllog", "1"}, {"l.missed", "calllog", "1"},
@@ -67,10 +68,26 @@ public class LmApp extends Application {
             {"k.standup", "calendar", "0"}, {"k.set", "calendar", "1"},
             {"g.mode", "settings", "0"}, {"g.target", "settings", "0"},
             {"f.todo", "files", "0"}, {"f.list", "files", "1"}};
-    static final String[][] DERIVED = {
+    static final String[][] ALL_DERIVED = {
             {"d.dana_standup", "c.dana", "k.standup"},
             {"d.share_latest", "m.latest", "c.dana"},
             {"d.reply", "s.latest", "c.omar"}};
+    static String[] SOURCES = ALL_SOURCES;
+    static String[][] FACTS = ALL_FACTS, DERIVED = ALL_DERIVED;
+    static final Set<String> EXCLUDED = new HashSet<>();
+    /** Sources this install must not touch, one per line in files/p06_exclude (written by the driver before the
+     *  first start). On the personal test phone the driver excludes SMS: the SMS provider is shared by all
+     *  Android users, so reading, observing or writing it from the test user could reach the owner's messages. */
+    static void loadExclusions(File dir) {
+        EXCLUDED.clear();
+        try { for (String s : new String(java.nio.file.Files.readAllBytes(new File(dir, "p06_exclude").toPath())).split("\\s+")) if (!s.isEmpty()) EXCLUDED.add(s); }
+        catch (Exception ignored) {}
+        List<String> s = new ArrayList<>(); for (String x : ALL_SOURCES) if (!EXCLUDED.contains(x)) s.add(x);
+        List<String[]> f = new ArrayList<>(); for (String[] x : ALL_FACTS) if (!EXCLUDED.contains(x[1])) f.add(x);
+        List<String[]> d = new ArrayList<>();
+        for (String[] x : ALL_DERIVED) { boolean ok = true; for (int i = 1; i < x.length; i++) for (String[] y : ALL_FACTS) if (y[0].equals(x[i]) && EXCLUDED.contains(y[1])) ok = false; if (ok) d.add(x); }
+        SOURCES = s.toArray(new String[0]); FACTS = f.toArray(new String[0][]); DERIVED = d.toArray(new String[0][]);
+    }
     // LeaseMem evidence rule per source (set from the coverage measurement, see artifact/README.md)
     static final Map<String, String> RULE = new HashMap<>();
     static {
@@ -96,6 +113,7 @@ public class LmApp extends Application {
     @Override public void onCreate() {
         super.onCreate();
         if (Application.getProcessName().endsWith(":reference")) return;
+        loadExclusions(getFilesDir());
         I = this; cr = getContentResolver(); main = new Handler(Looper.getMainLooper());
         procStartWall = System.currentTimeMillis();
         mem = load();
@@ -141,6 +159,7 @@ public class LmApp extends Application {
                 {"settings", Settings.Global.getUriFor("lm_mode")}, {"settings", Settings.Global.getUriFor("lm_target")}};
         for (Object[] r : regs) {
             final String src = (String) r[0];
+            if (EXCLUDED.contains(src)) continue;
             ContentObserver o = new ContentObserver(main) {
                 @Override public void onChange(boolean self, Collection<Uri> uris, int flags) { onEvent(src, uris, flags, null); }
                 @Override public void onChange(boolean self, Uri uri) { onEvent(src, uri == null ? new ArrayList<Uri>() : Collections.singletonList(uri), 0, null); }
@@ -614,12 +633,14 @@ public class LmApp extends Application {
         p.put("contacts.max_raw_version", top(RC, "version"));
         long sv = 0; for (String[] x : q(RC, new String[]{"version"}, null, null, null)) sv += Long.parseLong(x[0]); p.put("contacts.sum_raw_version", String.valueOf(sv));
         p.put("contacts.max_id", top(C, "_id"));
+        if (!EXCLUDED.contains("sms")) {
         Uri S = Uri.parse("content://sms");
         p.put("sms.max_id", one(S, "MAX(_id)", null)); p.put("sms.max_date", one(S, "MAX(date)", null));
-        p.put("sms.count", one(S, "COUNT(*)", null)); p.put("sms.sum_read", one(S, "SUM(read)", null));
+        p.put("sms.count", one(S, "COUNT(*)", null)); p.put("sms.sum_read", one(S, "SUM(read)", null)); }
+        if (!EXCLUDED.contains("calllog")) {
         Uri L = CallLog.Calls.CONTENT_URI;
         p.put("calllog.max_id", one(L, "MAX(_id)", null)); p.put("calllog.max_last_modified", one(L, "MAX(last_modified)", null));
-        p.put("calllog.count", one(L, "COUNT(*)", null)); p.put("calllog.max_date", one(L, "MAX(date)", null));
+        p.put("calllog.count", one(L, "COUNT(*)", null)); p.put("calllog.max_date", one(L, "MAX(date)", null)); }
         Uri F = MediaStore.Files.getContentUri(VOL);
         p.put("media.version", MediaStore.getVersion(this, VOL)); p.put("media.generation", String.valueOf(MediaStore.getGeneration(this, VOL)));
         p.put("media.max_gen_modified", one(F, "MAX(generation_modified)", null));
@@ -643,6 +664,7 @@ public class LmApp extends Application {
      *  perform an external effect: insert an outgoing call-log row carrying the value used. Timestamps of every step
      *  are recorded so a host can place injected changes relative to the boundary check and the effect. */
     void act(Intent it, JSONObject out, String id) throws Exception {
+        if (EXCLUDED.contains("calllog")) throw new IllegalStateException("ACT writes its effect to the call log, excluded on this device");
         final String fid = it.getStringExtra("fact"); final String mode = it.getStringExtra("mode");
         final long at = it.getLongExtra("at", System.currentTimeMillis() + it.getLongExtra("delay", 3000));
         final String src = srcOf(fid);

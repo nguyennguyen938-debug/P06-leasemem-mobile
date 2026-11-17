@@ -25,7 +25,7 @@ def frozen(d):
 
 
 def start_fg(d):
-    d.sh("am start-foreground-service -n %s/.FgService" % lmdrv.CPKG)
+    d.sh(d.u("am start-foreground-service -n %s/.FgService" % lmdrv.CPKG))
     time.sleep(0.8)
 
 
@@ -43,7 +43,7 @@ def step_until(d, target, maxsteps=12):
 
 
 def mutate_plan(w, rng):
-    plan = [(src, rng.choice(lmdrv.World.KINDS[src])) for src in lmdrv.World.KINDS if rng.random() < P_CHANGE]
+    plan = [(src, rng.choice(w.kinds[src])) for src in w.kinds if rng.random() < P_CHANGE]
     rng.shuffle(plan)
     return plan
 
@@ -58,7 +58,7 @@ def main():
     assert gap in GAPS
     d = lmdrv.Dev(serial); rng = random.Random(seed); w = lmdrv.World(d, rng)
     if not fg:   # make sure no foreground service from an earlier run keeps the process in the FGS state
-        d.sh("am stopservice -n %s/.FgService" % lmdrv.CPKG)
+        d.sh(d.u("am stopservice -n %s/.FgService" % lmdrv.CPKG))
     d.launch(); d.launch(lmdrv.TPKG)
     if fg:
         start_fg(d)
@@ -86,7 +86,7 @@ def main():
                     d.home(); time.sleep(0.5)
                     log["oom_adj_kill"] = d.sh("cat /proc/%s/oom_score_adj" % (d.pid() or "self")).strip()
                     for p in PKGS:
-                        d.sh("am kill %s" % p)
+                        d.sh(d.u("am kill %s" % p))
                     time.sleep(0.5)
                     log["alive_after_amkill"] = bool(d.pid())
                 elif gap == "sigkill":
@@ -94,7 +94,7 @@ def main():
                         d.kill9(p)
                 elif gap == "forcestop":
                     for p in PKGS:
-                        d.sh("am force-stop %s" % p)
+                        d.sh(d.u("am force-stop %s" % p))
                 elif gap in ("freeze", "longfreeze"):
                     d.home()
                     t0 = time.time(); limit = 25 if gap == "freeze" else 900
@@ -113,8 +113,8 @@ def main():
                 elif gap == "bucket":
                     d.home()
                     for p in PKGS:
-                        d.sh("am set-standby-bucket %s restricted" % p)
-                    log["bucket"] = d.sh("am get-standby-bucket %s" % lmdrv.CPKG).strip()
+                        d.sh(d.u("am set-standby-bucket %s restricted" % p))
+                    log["bucket"] = d.sh(d.u("am get-standby-bucket %s" % lmdrv.CPKG)).strip()
                 elif gap in ("longdoze", "longdoze2"):
                     d.home(); d.sh("dumpsys battery unplug"); d.sh("input keyevent KEYCODE_SLEEP")
                     d.sh("dumpsys deviceidle force-inactive")
@@ -123,7 +123,7 @@ def main():
                     d.cmd("UNREGISTER")
                 elif gap == "perm":
                     for p in PKGS:
-                        d.sh("pm revoke %s android.permission.READ_CONTACTS" % p)
+                        d.sh(d.u("pm revoke %s android.permission.READ_CONTACTS" % p))
                     time.sleep(0.5)
                 # ---------------- mutations during the gap ----------------
                 if gap == "reboot":
@@ -132,8 +132,10 @@ def main():
                     log["t_reboot"] = d.now_ms()
                     d.adb("reboot"); time.sleep(5)
                     log["boot_s"] = round(d.wait_boot(), 1)
-                    d.adb("root"); time.sleep(3); d.wait_boot()
-                    d.sh("appops set root WRITE_SMS allow")
+                    t_u = time.time(); d.adb("root"); time.sleep(3); d.after_reboot()   # phone: waits for the user to return to P06 Test
+                    log["user_back_s"] = round(time.time() - t_u, 1)
+                    if d.emulator:
+                        d.sh("appops set root WRITE_SMS allow")
                     muts += [w.mutate(s, k) for s, k in plan[half:]]
                     hold = rng.uniform(hold_lo, hold_hi)
                 elif gap == "longdoze2":
@@ -182,7 +184,7 @@ def main():
                 if gap in ("kill", "sigkill", "forcestop", "reboot", "perm"):
                     if gap == "perm":
                         for p in PKGS:
-                            d.sh("pm grant %s android.permission.READ_CONTACTS" % p)
+                            d.sh(d.u("pm grant %s android.permission.READ_CONTACTS" % p))
                     log["pid_before_relaunch"] = d.pid()
                     d.launch(); d.launch(lmdrv.TPKG)
                     if fg:
@@ -191,7 +193,7 @@ def main():
                     d.sh("dumpsys deviceidle unforce"); d.sh("dumpsys battery reset"); d.sh("input keyevent KEYCODE_WAKEUP")
                 elif gap == "bucket":
                     for p in PKGS:
-                        d.sh("am set-standby-bucket %s active" % p)
+                        d.sh(d.u("am set-standby-bucket %s active" % p))
                 elif gap == "unregister":
                     d.cmd("REGISTER")
                 time.sleep(EARLY)
@@ -208,8 +210,8 @@ def main():
                 try:
                     d.sh("dumpsys deviceidle unforce"); d.sh("dumpsys battery reset"); d.sh("input keyevent KEYCODE_WAKEUP")
                     for p in PKGS:
-                        d.sh("pm grant %s android.permission.READ_CONTACTS" % p)
-                        d.sh("am set-standby-bucket %s active" % p)
+                        d.sh(d.u("pm grant %s android.permission.READ_CONTACTS" % p))
+                        d.sh(d.u("am set-standby-bucket %s active" % p))
                     d.wait_boot(); d.adb("root"); time.sleep(2)
                     d.launch(); d.launch(lmdrv.TPKG)
                     if gap == "unregister":

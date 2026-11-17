@@ -2,6 +2,20 @@
 """Host-side driver for LeaseMem-Mobile experiments (Android emulators and one test phone, adb only).
 
 Deterministic scripted "agent": no LLM. All randomness is seeded and logged.
+
+The phone is the user's personal phone (PHYS-PROTOCOL.md sections 3 and 4). On any device other than P06's two
+emulators, Dev enforces:
+- every experiment runs in the Android user named "P06 Test" (never user 0); Dev refuses to start otherwise, refuses
+  a phone whose adbd runs as root, and refuses unless that user is in the foreground;
+- every user-scoped command (am, pm, appops, content, cmd role, run-as, install) is built by Dev.u() or
+  Dev.install(), which add --user <that id>; Dev.sh() refuses any command that lacks it or names another user,
+  any banned command (pm clear, user management, clock changes, root, setprop, batterystats reset, shared storage,
+  settings other than P06's own lm_* keys), and any dumpsys outside a short allowlist;
+- SMS is never touched (its provider is shared by all Android users), and the call log is used only if the test
+  user carries the no_outgoing_calls restriction (calls off, so its call history is its own);
+- drivers run only under physical/campaign.py, which records device-wide settings first and restores them after
+  every step, also when a step fails; a reboot needs the campaign's --allow-reboot, and after it the driver only
+  waits for the user to switch back to P06 Test.
 """
 import json
 import os
@@ -30,13 +44,67 @@ def _find_adb():
 
 
 ADB = _find_adb()
+ADB_CMD = [sys.executable, ADB] if ADB.endswith(".py") else [ADB]   # a .py path is the E7 fake adb
 CPKG = "org.leasemem.client"
 TPKG = "org.leasemem.trig"
 MPKG = "org.leasemem.mut"
+APKG = "org.leasemem.assist"
 FILES = "/data/data/%s/files" % CPKG
+EMULATORS = {"emulator-5620", "emulator-5622"}
+TEST_USER = "P06 Test"
 # P06's emulators, plus test phones named in $P06_SERIALS (comma separated). An entry matches the adb serial or the
 # device's ro.serialno, so one entry covers a phone over USB and over wireless debugging (whose adb serial changes).
-ALLOWED = {"emulator-5620", "emulator-5622"} | {x.strip() for x in os.environ.get("P06_SERIALS", "").split(",") if x.strip()}
+ALLOWED = EMULATORS | {x.strip() for x in os.environ.get("P06_SERIALS", "").split(",") if x.strip()}
+PERMS = ["READ_CONTACTS", "WRITE_CONTACTS", "READ_CALL_LOG", "WRITE_CALL_LOG", "READ_CALENDAR", "WRITE_CALENDAR",
+         "READ_MEDIA_IMAGES", "READ_EXTERNAL_STORAGE", "POST_NOTIFICATIONS", "READ_SMS", "WRITE_SECURE_SETTINGS"]
+PERM_SOURCE = {"READ_SMS": "sms", "READ_CALL_LOG": "calllog", "WRITE_CALL_LOG": "calllog"}
+
+if os.environ.get("P06_FAKE_TIME"):     # E7 dry run against the fake adb: a virtual clock, so waits cost ~nothing
+    _off, _sleep, _time, _mono = [0.0], time.sleep, time.time, time.monotonic
+
+    def _vsleep(s):
+        _off[0] += max(0.0, s); _sleep(min(max(0.0, s), 0.002))
+    time.sleep, time.time, time.monotonic = _vsleep, (lambda: _time() + _off[0]), (lambda: _mono() + _off[0])
+
+# ---------- personal-phone guard (applies to every device except the two emulators) ----------
+_AT = r"(?:^|[;&|(`]|\$\(|\bdo\s|\bthen\s|-c\s+')\s*"         # a command position inside a shell string
+SCOPED = re.compile(_AT + r"(am|pm|appops|content|run-as|cmd)\s([^;&|`)]*)")
+USER_ADMIN = re.compile(r"(pm list users|am get-current-user|am get-started-user-state \d+)\s*")
+BANNED = re.compile(r"batterystats\s+--reset|/sdcard|/storage/|/data/|\bauto_time|" + _AT + r"("
+    r"pm\s+(clear|create-user|remove-user|disable\S*|hide|suspend|set-user-restriction|reset-permissions)\b"
+    r"|pm\s+uninstall\s+(?!--user\s+\d+\s+org\.leasemem\.\w+\s*$)|am\s+(switch-user|stop-user|start-user)\b"
+    r"|date\s+(-s|@|\d)|cmd\s+(alarm|time)\b|locksettings\b|svc\b|su\b|setprop\b|reboot\b|wipe\b|recovery\b"
+    r"|content\s+(insert|update|delete)\b|settings\s+(?!(get|put|delete)\s+global\s+lm_(mode|target)\b)"
+    r"|device_config\s+(?!((get|put|delete)\s+activity_manager_native_boot\s+freeze_debounce_timeout|(set|get)_sync_disabled_for_tests)\b))")
+DUMPSYS_OK = [re.compile(p + r"\s*") for p in (
+    r"battery( unplug| reset)?( \| grep .*)?", r"deviceidle (get (deep|light)|force-idle( deep)?|force-inactive|unforce|step( deep)?)",
+    r"activity settings( \| grep .*)?", r"activity (processes|services) org\.leasemem\S*", r"(package|meminfo) org\.leasemem\S*",
+    r"batterystats --charged org\.leasemem\S*", r"power \| grep -m1 mWakefulness=", r"voiceinteraction \| grep .*",
+    r"user \| awk .*")]
+
+
+class GuardError(RuntimeError):
+    pass
+
+
+def phone_violation(cmd, user):
+    """Why `cmd` may not reach the personal phone with test user `user`, or None. Used by Dev.sh() and the tests."""
+    m = BANNED.search(cmd)
+    if m:
+        return "banned: %r" % m.group(0)
+    for m in SCOPED.finditer(cmd):
+        tool, seg = m.group(1), (m.group(1) + " " + m.group(2)).strip()
+        if USER_ADMIN.fullmatch(seg):
+            continue
+        if tool == "cmd" and not seg.startswith("cmd role "):
+            return "cmd other than role: %r" % seg
+        users = re.findall(r"--user\s+(\S+)", seg)
+        if users != [str(user)]:
+            return "user-scoped command without --user %s: %r" % (user, seg)
+    for m in re.finditer(r"\bdumpsys\b\s*([^;&`)]*)", cmd):
+        if not any(p.fullmatch(m.group(1)) for p in DUMPSYS_OK):
+            return "dumpsys not in allowlist: %r" % m.group(0)
+    return None
 
 
 def host_load():
@@ -72,27 +140,47 @@ class Dev:
         if not os.path.isfile(ADB) and not shutil.which(ADB):
             raise RuntimeError("adb not found (%s); set ANDROID_HOME or ADB" % ADB)
         try:
-            state = subprocess.run([ADB, "-s", serial, "get-state"], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=15)
+            state = subprocess.run(ADB_CMD + ["-s", serial, "get-state"], capture_output=True, text=True, timeout=15)
         except subprocess.TimeoutExpired:
             raise RuntimeError("adb get-state timed out for %s" % serial)
         if state.stdout.strip() != "device":
             raise RuntimeError("device %s not attached or not authorized (adb get-state: %s); check `adb devices -l`"
                                % (serial, (state.stdout + state.stderr).strip()))
-        self.s = serial
-        self.seq = 0
-        self._root = None
-        self.frozen_method = None
+        self.s, self.seq, self._root, self.frozen_method = serial, 0, None, None
+        self.emulator = serial in EMULATORS
+        self.user, self.excluded, self.restrictions = (0 if self.emulator else None), set(), set()
         hw = self.sh("getprop ro.serialno", timeout=15).strip()
         if serial not in ALLOWED and hw not in ALLOWED:
             raise RuntimeError("%s (ro.serialno %s) is not in the allowlist; add it to P06_SERIALS only if it is the "
                                "test phone" % (serial, hw))
+        if not self.emulator:
+            if not os.environ.get("P06_CAMPAIGN"):
+                raise RuntimeError("on the phone, run drivers through physical/campaign.py (it records and restores "
+                                   "device-wide settings)")
+            if self.rooted:
+                raise RuntimeError("adbd runs as root on this phone; P06 never uses root on the personal phone")
+            ids = [int(i) for i, name in re.findall(r"UserInfo\{(\d+):([^:}]*):", self.sh("pm list users", timeout=15))
+                   if name == TEST_USER]
+            if len(ids) != 1 or ids[0] == 0:
+                raise RuntimeError("need exactly one Android user named %r other than user 0 (found ids %s); create it "
+                                   "in Settings, see PHYS-PROTOCOL.md section 3" % (TEST_USER, ids))
+            self.user = ids[0]
+            self.restrictions = self.user_restrictions()
+            # SMS storage is shared by all users: never touched. The call log is the user's own only while calls are off.
+            self.excluded = {"sms"} | (set() if "no_outgoing_calls" in self.restrictions else {"calllog"})
+            self.require_fg()
         keep_host_awake()
 
     # ---------- adb ----------
     def sh(self, cmd, timeout=60, check=False, retries=2):
+        if not self.emulator:
+            why = phone_violation(cmd, self.user)
+            if why:
+                raise GuardError("refused on the personal phone (%s)" % why)
         for attempt in range(retries + 1):          # adb occasionally hangs under host load: retry, then give up
             try:
-                r = subprocess.run([ADB, "-s", self.s, "shell", cmd], capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
+                r = subprocess.run(ADB_CMD + ["-s", self.s, "shell", cmd], capture_output=True, text=True,
+                                   encoding="utf-8", errors="replace", timeout=timeout)
                 break
             except subprocess.TimeoutExpired:
                 if attempt == retries:
@@ -103,9 +191,45 @@ class Dev:
         return r.stdout.replace("\r", "")
 
     def adb(self, *args, timeout=120):
-        if args and args[0] in ("root", "unroot", "reboot"):
+        a0 = args[0] if args else ""
+        if not self.emulator:
+            if a0 == "root":
+                return ""                                    # never ask the personal phone for root
+            if a0 == "reboot":
+                if os.environ.get("P06_ALLOW_REBOOT") != "1":
+                    raise GuardError("reboot refused: the user has not allowed reboots for this run (--allow-reboot)")
+                pause = os.environ.get("P06_FG_PAUSE_FILE")
+                if pause:
+                    open(pause, "w").close()                 # campaign's foreground watchdog waits for after_reboot()
+            if a0 == "install" and list(args[1:3]) != ["--user", str(self.user)]:
+                raise GuardError("install without --user %s refused" % self.user)
+            if a0 in ("uninstall", "push", "pull", "sideload", "restore", "backup", "disable-verity", "remount", "unroot"):
+                raise GuardError("adb %s refused on the personal phone" % a0)
+            if a0 == "shell":
+                why = phone_violation(" ".join(args[1:]), self.user)
+                if why:
+                    raise GuardError("refused on the personal phone (%s)" % why)
+        if a0 in ("root", "unroot", "reboot"):
             self._root = None
-        return subprocess.run([ADB, "-s", self.s] + list(args), capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout).stdout
+        return subprocess.run(ADB_CMD + ["-s", self.s] + list(args), capture_output=True, text=True,
+                              encoding="utf-8", errors="replace", timeout=timeout).stdout
+
+    def u(self, cmd):
+        """Add --user <test user> to a user-scoped command: 'am start -n x' -> 'am start --user 10 -n x'."""
+        if cmd.startswith("run-as "):
+            head, rest = "run-as", cmd[7:]
+        elif cmd.startswith("cmd role "):
+            p = cmd.split(" ", 3); head, rest = " ".join(p[:3]), (p[3] if len(p) > 3 else "")
+        elif cmd.split(" ", 1)[0] in ("am", "pm", "appops", "content"):
+            p = cmd.split(" ", 2); head, rest = " ".join(p[:2]), (p[2] if len(p) > 2 else "")
+        else:
+            raise ValueError("not a user-scoped command: " + cmd)
+        return ("%s --user %d %s" % (head, self.user, rest)).rstrip()
+
+    def install(self, apk):
+        if self.emulator:     # P06's emulators: as in the emulator runs (all runtime permissions granted)
+            return self.adb("install", "--user", "0", "-r", "-g", apk)
+        return self.adb("install", "--user", str(self.user), "-r", apk)
 
     @property
     def rooted(self):
@@ -115,11 +239,68 @@ class Dev:
             self._root = self.sh("id -u", timeout=15).strip() == "0"
         return self._root
 
+    # ---------- the test user ----------
+    def current_user(self):
+        out = self.sh("am get-current-user", timeout=15).strip()
+        return int(out) if out.isdigit() else None
+
+    def require_fg(self):
+        """Stop if the test user is not the foreground user: key events and activity starts would reach another user."""
+        if not self.emulator and self.current_user() != self.user:
+            raise GuardError("Android user %r (id %s) is not in the foreground; switch to it on the phone"
+                             % (TEST_USER, self.user))
+
+    def user_restrictions(self):
+        """User restrictions of the test user, read on the phone so that only its own block of dumpsys user leaves."""
+        block = self.sh("dumpsys user | awk '/UserInfo\\{/{p=index($0,\"UserInfo{%d:\")>0} p'" % self.user, timeout=20)
+        return set(re.findall(r"\b(no_[a-z_]+)\b", block))
+
+    def after_reboot(self, timeout=1800):
+        """Wait for boot, then for the user to switch to the test user (the driver never unlocks or switches users)."""
+        pause = os.environ.get("P06_FG_PAUSE_FILE")
+        try:
+            self.wait_boot()
+            if self.emulator:
+                return
+            print("rebooted: waiting for the user to switch the phone to %r" % TEST_USER, flush=True)
+            t0 = time.time()
+            while time.time() - t0 < timeout:
+                try:
+                    if self.current_user() == self.user and "RUNNING_UNLOCKED" in self.sh("am get-started-user-state %d" % self.user):
+                        return
+                except Exception:
+                    pass
+                time.sleep(5)
+            raise GuardError("the phone did not return to %r within %d s after the reboot" % (TEST_USER, timeout))
+        finally:
+            if pause and os.path.exists(pause):
+                os.remove(pause)
+
+    def provision(self, pkg_apks):
+        """Install P06 apps in the test user, grant what they need there, and tell each app which sources it must not
+        touch (files/p06_exclude). Returns install records. pkg_apks: [(package, apk path)]."""
+        recs = []
+        for pkg, apk in pkg_apks:
+            r = self.install(apk); recs.append({"pkg": pkg, "apk": str(apk), "result": r.strip()[-200:]})
+            if "Success" not in r:
+                raise RuntimeError(recs)
+            self.sh(self.u("appops set %s MANAGE_EXTERNAL_STORAGE allow" % pkg))
+            if "sms" not in self.excluded:
+                self.sh(self.u("appops set %s WRITE_SMS allow" % pkg))
+            for p in PERMS:
+                if PERM_SOURCE.get(p) not in self.excluded:
+                    self.sh(self.u("pm grant %s android.permission.%s" % (pkg, p)))
+            if self.excluded:
+                self.app_sh(pkg, "mkdir -p files && echo %s > files/p06_exclude" % " ".join(sorted(self.excluded)))
+                self.sh(self.u("am force-stop %s" % pkg))   # next start reads the exclusion file
+        return recs
+
+    # ---------- app sandbox ----------
     def app_sh(self, pkg, cmd, timeout=60):
-        """Run cmd in pkg's data directory (/data/data/<pkg>), as root or as the app's uid."""
-        if self.rooted:
+        """Run cmd in pkg's data directory, as root on the emulators or as the app's uid (run-as) in the test user."""
+        if self.rooted and self.emulator:
             return self.sh("cd /data/data/%s && %s" % (pkg, cmd), timeout=timeout)
-        return self.sh("run-as %s sh -c '%s'" % (pkg, cmd.replace("'", "'\\''")), timeout=timeout)
+        return self.sh(self.u("run-as %s sh -c '%s'" % (pkg, cmd.replace("'", "'\\''"))), timeout=timeout)
 
     def cat(self, pkg, rel):
         return self.app_sh(pkg, "cat %s 2>/dev/null" % rel)
@@ -131,7 +312,7 @@ class Dev:
         """SIGKILL the app process. The shell uid cannot signal an app uid on a production build; run-as can."""
         p = self.pid(pkg)
         if p:
-            if self.rooted:
+            if self.rooted and self.emulator:
                 self.sh("kill -9 %s" % p)
             else:
                 self.app_sh(pkg, "kill -9 %s" % p)
@@ -169,7 +350,10 @@ class Dev:
         if not hasattr(self, "_meta"):
             g = lambda k: self.sh("getprop " + k, timeout=15).strip()
             self._meta = {"device": "%s %s" % (g("ro.product.manufacturer"), g("ro.product.model")),
-                          "fingerprint": g("ro.build.fingerprint"), "sdk": g("ro.build.version.sdk")}
+                          "fingerprint": g("ro.build.fingerprint"), "sdk": g("ro.build.version.sdk"),
+                          "user_id": self.user, "excluded_sources": sorted(self.excluded),
+                          "user_no_sms": "no_sms" in self.restrictions,
+                          "user_no_outgoing_calls": "no_outgoing_calls" in self.restrictions}
         return dict(self._meta, serial=self.s, rooted=self.rooted, plugged=self.plugged())
 
     def now_ms(self):
@@ -181,20 +365,29 @@ class Dev:
             try:
                 if self.sh("getprop sys.boot_completed", timeout=10).strip() == "1":
                     return time.time() - t0
+            except GuardError:
+                raise
             except Exception:
                 pass
             time.sleep(2)
         raise RuntimeError("boot timeout")
 
     def pid(self, pkg=CPKG):
-        return self.sh("pidof %s" % pkg).strip()
+        if self.emulator:
+            return self.sh("pidof %s" % pkg).strip()
+        # only the process of the test user (uid = user * 100000 + app id), never another user's copy
+        for line in self.sh("for p in $(pidof %s); do echo $p $(stat -c %%u /proc/$p); done" % pkg).splitlines():
+            p = line.split()
+            if len(p) == 2 and p[1].isdigit() and int(p[1]) // 100000 == self.user:
+                return p[0]
+        return ""
 
     # ---------- client commands ----------
     def cmd(self, cmd, extra="", timeout=40, pkg=CPKG):
         self.seq += 1
         rid = "%d_%d" % (int(time.time() * 1000) % 10**9, self.seq)
         self.rm(pkg, "files/res_%s.json" % rid)
-        self.sh("am broadcast -n %s/.Cmd --es cmd %s --es id %s %s" % (pkg, cmd, rid, extra))
+        self.sh(self.u("am broadcast -n %s/.Cmd --es cmd %s --es id %s %s" % (pkg, cmd, rid, extra)))
         t0 = time.time()
         while time.time() - t0 < timeout:
             out = self.cat(pkg, "files/res_%s.json" % rid)
@@ -205,7 +398,8 @@ class Dev:
         raise TimeoutError("no response to %s %s" % (cmd, rid))
 
     def launch(self, pkg=CPKG):
-        self.sh("am start -W -n %s/.Main" % pkg, timeout=60)
+        self.require_fg()
+        self.sh(self.u("am start -W -n %s/.Main" % pkg), timeout=60)
         for _ in range(60):
             if self.pid(pkg):
                 return True
@@ -216,7 +410,7 @@ class Dev:
         """Mutate shared media/files as another app (org.leasemem.mut) through MediaStore / FUSE file I/O."""
         self.seq += 1
         rid = "m%d" % self.seq
-        self.sh("am broadcast -f 32 -n org.leasemem.mut/.Cmd --es op %s --es a '%s' --es b '%s' --es id %s %s" % (op, a, b, rid, extra))
+        self.sh(self.u("am broadcast -f 32 -n org.leasemem.mut/.Cmd --es op %s --es a '%s' --es b '%s' --es id %s %s" % (op, a, b, rid, extra)))
         t0 = time.time()
         while time.time() - t0 < timeout:
             out = self.cat(MPKG, "files/done_%s" % rid)
@@ -227,6 +421,7 @@ class Dev:
         raise TimeoutError("mut " + op)
 
     def home(self):
+        self.require_fg()
         self.sh("input keyevent KEYCODE_HOME")
 
     def trig_log(self):
@@ -236,7 +431,7 @@ class Dev:
         self.app_sh(TPKG, ": > files/trig.log")
 
     def trig_cmd(self, cmd):
-        self.sh("am broadcast -n %s/.Cmd --es cmd %s" % (TPKG, cmd))
+        self.sh(self.u("am broadcast -n %s/.Cmd --es cmd %s" % (TPKG, cmd)))
 
 
 # ---------- tiny PNG for media mutations ----------
@@ -253,13 +448,13 @@ def png_bytes(seed):
 
 # ---------- sources: setup + mutations (all via public provider APIs or the FUSE file path) ----------
 PHONE = "vnd.android.cursor.item/phone_v2"
-DOC = "/storage/emulated/0/Documents/lm"
 NAME = "vnd.android.cursor.item/name"
 
 
 class World:
     """Ground-truth-tracking mutator. Mutations are performed by a separate app (org.leasemem.mut) through public
-    Android APIs; every mutation records what it did and the device time before/after."""
+    Android APIs; every mutation records what it did and the device time before/after. self.kinds leaves out the
+    sources the device excludes (SMS, and the call log unless it is proven separate, on the personal phone)."""
 
     KINDS = {"contacts": ["update", "delete", "insert"], "sms": ["insert", "update", "delete"],
              "calllog": ["insert", "update", "delete"], "media": ["insert", "update", "delete"],
@@ -270,6 +465,7 @@ class World:
         self.d = dev
         self.r = rng
         self.n = 0
+        self.kinds = {s: k for s, k in self.KINDS.items() if s not in dev.excluded}
 
     def ensure_base(self):
         r = self.d.mut("ensure")
@@ -278,6 +474,8 @@ class World:
         return r
 
     def mutate(self, src, kind):
+        if src in self.d.excluded:
+            raise GuardError("source %s is excluded on this device" % src)
         self.n += 1
         tag = "%d%03d" % (int(time.time()) % 100000, self.n % 1000)
         r = self.d.mut("mutate", src, kind, extra="--es tag %s" % tag)

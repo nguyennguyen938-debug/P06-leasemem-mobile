@@ -19,7 +19,8 @@ STEP = 3.0
 KINDS = {"contacts": ["update", "insert"], "sms": ["insert", "update"], "calllog": ["insert", "update"],
          "media": ["insert", "update"], "calendar": ["update", "insert"], "settings": ["update"], "files": ["update", "insert"]}
 d = lmdrv.Dev(serial); rng = random.Random(seed); w = lmdrv.World(d, rng)
-d.sh("am stopservice -n %s/.FgService" % lmdrv.CPKG)
+KINDS = {s: k for s, k in KINDS.items() if s not in d.excluded}   # SMS (and an unproven call log) never on the phone
+d.sh(d.u("am stopservice -n %s/.FgService" % lmdrv.CPKG))
 d.launch()
 with lmdrv.open_new(out) as f:
     for t in range(n):

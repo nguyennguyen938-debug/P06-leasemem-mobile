@@ -26,7 +26,9 @@ public class TrigJob extends JobService {
     static void schedule(Context c) {
         JobScheduler js = c.getSystemService(JobScheduler.class);
         JobInfo.Builder b = new JobInfo.Builder(JOB_ID, new ComponentName(c, TrigJob.class));
-        for (String[] u : URIS) b.addTriggerContentUri(new JobInfo.TriggerContentUri(Uri.parse(u[1]), JobInfo.TriggerContentUri.FLAG_NOTIFY_FOR_DESCENDANTS));
+        String ex = "";   // files/p06_exclude: sources this install must not observe (SMS on the personal phone)
+        try { ex = " " + new String(java.nio.file.Files.readAllBytes(new File(c.getFilesDir(), "p06_exclude").toPath())).replaceAll("\\s+", " ") + " "; } catch (Exception ignored) {}
+        for (String[] u : URIS) if (!ex.contains(" " + u[0] + " ")) b.addTriggerContentUri(new JobInfo.TriggerContentUri(Uri.parse(u[1]), JobInfo.TriggerContentUri.FLAG_NOTIFY_FOR_DESCENDANTS));
         b.setTriggerContentUpdateDelay(50); b.setTriggerContentMaxDelay(500);
         int r = js.schedule(b.build());
         Log.i("LMTRIG", "schedule=" + r);

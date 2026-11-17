@@ -32,10 +32,19 @@ import java.util.Random;
  */
 public class Cmd extends BroadcastReceiver {
     static final String VOL = MediaStore.VOLUME_EXTERNAL_PRIMARY;
-    static final String DOC = "/storage/emulated/0/Documents/lm";
+    // This user's shared storage (/storage/emulated/<user>), never another user's.
+    static final String DOC = android.os.Environment.getExternalStorageDirectory().getPath() + "/Documents/lm";
     static final String PHONE = ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE;
     static final String NAME = ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE;
     ContentResolver cr; Context ctx; Random rnd = new Random();
+    /** True if this install must not touch, one per line in files/p06_exclude (written by the driver before the
+     *  first start). On the personal test phone the driver excludes SMS: the SMS provider is shared by all
+     *  Android users, so reading, observing or writing it from the test user could reach the owner's messages. */
+    boolean excluded(String src) {
+        try { for (String s : new String(java.nio.file.Files.readAllBytes(new File(ctx.getFilesDir(), "p06_exclude").toPath())).split("\\s+")) if (s.equals(src)) return true; }
+        catch (Exception ignored) {}
+        return false;
+    }
 
     @Override public void onReceive(Context c, Intent it) {
         ctx = c; cr = c.getContentResolver();
@@ -176,11 +185,11 @@ public class Cmd extends BroadcastReceiver {
         if (rawOf("LM Dana").isEmpty()) { addContact("LM Dana", "+15551110000"); made++; }
         if (rawOf("LM Omar").isEmpty()) { addContact("LM Omar", "+15552220000"); made++; }
         long now = System.currentTimeMillis();
-        if (q(sms(), new String[]{"_id"}, "address='+15550001'", null, null).size() < 2) {
+        if (!excluded("sms") && q(sms(), new String[]{"_id"}, "address='+15550001'", null, null).size() < 2) {
             smsInsert("+15550001", "filler " + rnd.nextInt(1000000), now - 1000000, 1);
             smsInsert("+15550001", "see you at " + rnd.nextInt(24), now - 500000, 1); made++; }
-        if (q(sms(), new String[]{"_id"}, "body LIKE 'LMTRACK%'", null, null).isEmpty()) { smsInsert("+15550009", "LMTRACK base", now, 1); made++; }
-        if (q(CallLog.Calls.CONTENT_URI, new String[]{"_id"}, "number LIKE '+1666%'", null, null).size() < 2) {
+        if (!excluded("sms") && q(sms(), new String[]{"_id"}, "body LIKE 'LMTRACK%'", null, null).isEmpty()) { smsInsert("+15550009", "LMTRACK base", now, 1); made++; }
+        if (!excluded("calllog") && q(CallLog.Calls.CONTENT_URI, new String[]{"_id"}, "number LIKE '+1666%'", null, null).size() < 2) {
             callInsert("+16660001", 1, now - 2000); callInsert("+16660002", 1, now - 1000); made++; }
         new File(DOC).mkdirs();
         List<String> im = imgs(); boolean tr = false; for (String n : im) if (n.startsWith("track_")) tr = true;
@@ -197,6 +206,7 @@ public class Cmd extends BroadcastReceiver {
 
     // ---------------- mutations ----------------
     String mutate(String src, String kind, String tag) throws Exception {
+        if (excluded(src)) throw new IllegalStateException("source excluded on this device: " + src);
         switch (src) {
             case "contacts":
                 if (kind.equals("update")) { return contactUpdate(tag); }
@@ -244,6 +254,7 @@ public class Cmd extends BroadcastReceiver {
 
     /** Pitfall probe: delete the newest SMS and insert a new one; report whether the row id is reused. */
     String smsReuse() {
+        if (excluded("sms")) throw new IllegalStateException("source excluded on this device: sms");
         long now = System.currentTimeMillis();
         smsInsert("+15550077", "reuse-a", now, 1);
         List<String[]> r = q(sms(), new String[]{"_id"}, null, null, "_id DESC");
