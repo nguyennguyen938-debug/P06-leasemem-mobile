@@ -25,10 +25,16 @@ LOST, INEPOCH = ['unregister', 'kill', 'forcestop', 'perm', 'reboot'], ['none', 
 FILES = {'deploy': 'deploy*.jsonl', 'gaps': 'gaps-*.jsonl', 'coverage': 'coverage-*.jsonl', 'stock': 'stock-*.jsonl',
          'boundary': 'boundary*.jsonl', 'pitfalls': 'pitfalls-*.jsonl', 'frozen': 'frozen-*.jsonl',
          'statelog': 'statelog-*.jsonl', 'battery': 'battery-night*-samples.jsonl', 'b0': 'b0-probe-*.jsonl', 'all': '*.jsonl'}
-# Sources cut on this phone (user decision at stop point 3, recorded in RUNLOG.md); their macros and table rows print
-# NR instead of TBD. SMS and call log are cut if their isolation from the owner's user cannot be shown.
-NOT_RUN = set()
+# Sources never touched on this phone print NR instead of TBD. SMS always (its store is shared with the owner's user);
+# the call log, and with it B9 (whose effect is a call-log row), when the latest B0 record lists it in excluded_sources.
+ALWAYS_OUT = {'sms'}
 NR = 'not run on phone'
+
+
+def not_run(b0):
+    """Sources not run: ALWAYS_OUT plus excluded_sources of the latest B0 record (files sort by date and time)."""
+    recs = [r for r in b0 if 'excluded_sources' in r]
+    return ALWAYS_OUT | set(recs[-1]['excluded_sources'] if recs else ())
 
 
 def load(res, pattern):
@@ -230,17 +236,14 @@ def android(b0):
     return '; '.join(v) if v else None
 
 
-def nr(src, val):
-    """A source cut on this phone prints NR, not TBD."""
-    return NR if src in NOT_RUN else val
-
-
 def analyze(D):
     """D: experiment key -> records (with _file). Returns (macros, results of main runs, results of pilot runs)."""
     M = {k: [r for r in v if not pilot(r)] for k, v in D.items()}
     R = {'deploy': deploy(M['deploy']), 'gaps': gaps(M['gaps']), 'coverage': coverage(M['coverage']), 'race': race(M['stock']),
          'boundary': boundary(M['boundary']), 'pitfalls': pitfalls(M['pitfalls']), 'frozen': frozen(M['frozen']),
-         'statelog': statelog(M['statelog']), 'battery': battery(M['battery'])}
+         'statelog': statelog(M['statelog']), 'battery': battery(M['battery']), 'not_run': not_run(D['b0'])}
+    X = R['not_run']
+    nr = lambda src, val: NR if src in X else val       # a source not run prints NR, not TBD
     P = {'deploy': deploy([r for r in D['deploy'] if pilot(r)]),
          'records': dict(Counter(k for k, v in D.items() if k != 'all' for r in v if pilot(r)))}
     B1, G, BD, F, SL, BT = R['deploy'], R['gaps'], R['boundary'], R['frozen'], R['statelog'], R['battery']
@@ -282,11 +285,11 @@ def analyze(D):
         'PhysGapInEpochLm': ('B2 in-epoch gaps, early: StampCheck missed/changed uses', gmiss(INEPOCH, 'early', 'lm')),
         'PhysRaceTrials': ('B4 anchoring-race trials', race_n or None),
         'PhysRaceStale': ('B4 trials with a stale anchor', race_k if race_n else None),
-        'PhysBoundaryTrials': ('B9 boundary trials', BD.get('n')),
-        'PhysCteMs': ('B9 median check-to-effect interval, ms', f"{st.median(BD['cte']):.1f}" if BD.get('cte') else None),
-        'PhysBndObsStale': ('B9 observation check, change before the action: stale/n', kn(*BD['k']('obs', 'before_action')) if BD else None),
-        'PhysBndBeforeCheckStale': ('B9 boundary check, change before the check: stale/n', kn(*BD['k']('bnd', 'before_check')) if BD else None),
-        'PhysBndOverlapStale': ('B9 boundary check, change overlaps check or residual: stale/n', kn(*BD['k']('bnd', 'overlaps')) if BD else None),
+        'PhysBoundaryTrials': ('B9 boundary trials', nr('calllog', BD.get('n'))),
+        'PhysCteMs': ('B9 median check-to-effect interval, ms', nr('calllog', f"{st.median(BD['cte']):.1f}" if BD.get('cte') else None)),
+        'PhysBndObsStale': ('B9 observation check, change before the action: stale/n', nr('calllog', kn(*BD['k']('obs', 'before_action')) if BD else None)),
+        'PhysBndBeforeCheckStale': ('B9 boundary check, change before the check: stale/n', nr('calllog', kn(*BD['k']('bnd', 'before_check')) if BD else None)),
+        'PhysBndOverlapStale': ('B9 boundary check, change overlaps check or residual: stale/n', nr('calllog', kn(*BD['k']('bnd', 'overlaps')) if BD else None)),
         'PhysSmsReuse': ('B10 SMS id reuse trials', nr('sms', kn(*R['pitfalls']['sms']) if R['pitfalls'] else None)),
         'PhysMtimeSame': ('B10 same-second mtime trials', kn(*R['pitfalls']['mtime']) if R['pitfalls'] else None),
         'PhysFrozenHolds': ('B5 valid frozen holds', F.get('valid')),
@@ -307,15 +310,16 @@ def analyze(D):
 
 
 # ------------------------------------------------------------------ tables (no data: one red TBD row)
-def table(gen, name, caption, cols, header, rows, what, star=False, extra=()):
+def table(gen, name, caption, cols, header, rows, what, star=False, extra=(), tbd=True):
     env = 'table*' if star else 'table'
-    body = (rows if rows else [r'\multicolumn{%d}{c}{\PhysTBD{%s}}\\' % (len(cols), what)]) + list(extra)
+    body = (rows if rows or not tbd else [r'\multicolumn{%d}{c}{\PhysTBD{%s}}\\' % (len(cols), what)]) + list(extra)
     (gen / name).write_text('\n'.join(['%% AUTO-GENERATED by artifact/physical/analyze_phys.py; do not edit', r'\begin{%s}[tp]' % env, r'\centering\mtab',
         r'\caption{%s}' % caption, r'\label{tab:%s}' % name[4:-4].replace('_', '-'), r'\begin{tabular}{%s}\toprule' % cols,
         r'\mhead ' + header + r'\\\midrule', *body, r'\bottomrule\end{tabular}', r'\end{%s}' % env]) + '\n', encoding='utf-8', newline='\n')
 
 
 def tables(gen, R):
+    NOT_RUN = R['not_run']
     rows, last = [], None
     for (src, mode), z in R['deploy'].items():
         if src in NOT_RUN:
@@ -354,18 +358,19 @@ def tables(gen, R):
           extra=[r'%s & \multicolumn{3}{l}{%s}\\' % (SRCNAME[x], NR) for x in sorted(NOT_RUN)])
 
     BD, rows = R['boundary'], []
-    if BD:
+    if BD and 'calllog' not in NOT_RUN:
         for lab, m, w in [('check at observation; change before the action', 'obs', 'before_action'), ('boundary check; change before the check', 'bnd', 'before_check'),
                           ('boundary check; change overlaps check or residual', 'bnd', 'overlaps'), ('boundary check; change after the effect', 'bnd', 'after_effect'),
                           ('boundary check, no change (control)', 'bnd', 'none'), ('observation check, no change (control)', 'obs', 'none')]:
             rows.append(f"{lab} & {kn(*BD['k'](m, w))}\\\\")
         rows += [f"change starts within 10\\,ms of the check & {kn(*BD['bins']['near'])}\\\\", f"change starts 10 to 60\\,ms after it & {kn(*BD['bins']['late'])}\\\\"]
     table(gen, 'tab_phys_boundary.tex', 'Phone (B9): stale effects by where the change landed relative to the boundary check and the effect (stale/trials); median check-to-effect interval \\PhysCteMs\\,ms.',
-          'lr', 'Placement of the change & Stale effects', rows, 'B9 boundary trials')
+          'lr', 'Placement of the change & Stale effects', rows, 'B9 boundary trials', tbd='calllog' not in NOT_RUN,
+          extra=[r'\multicolumn{2}{c}{the effect is a call-log row: %s}\\' % NR] if 'calllog' in NOT_RUN else [])
 
     PF, rows = R['pitfalls'], []
     if PF:
-        rows = [f"SMS \\texttt{{\\_id}} reused after delete and insert & {nr('sms', wil(*PF['sms']))}\\\\", f"second append in the same second leaves mtime & {wil(*PF['mtime'])}\\\\",
+        rows = [f"SMS \\texttt{{\\_id}} reused after delete and insert & {NR if 'sms' in NOT_RUN else wil(*PF['sms'])}\\\\", f"second append in the same second leaves mtime & {wil(*PF['mtime'])}\\\\",
                 'wall-clock rollback & ' + (f"{PF['clock']} records" if PF['clock'] else 'not run on this phone') + r'\\']
     table(gen, 'tab_phys_pitfalls.tex', 'Phone (B10): evidence pitfalls, trials affected out of trials (Wilson 95\\% interval). Clock changes are not allowed on this phone.',
           'lr', 'Pitfall & Trials affected', rows, 'B10 pitfall trials',
@@ -402,6 +407,7 @@ def write(D, gen):
     macros, R, P = analyze(D)
     lines = ['% AUTO-GENERATED by artifact/physical/analyze_phys.py; do not edit',
              r'\providecommand{\PhysTBD}[1]{}\renewcommand{\PhysTBD}[1]{\textcolor{red}{TBD}}']
+    lines.append(r'\newif\ifPhysCalllog\PhysCalllog%s' % ('false' if 'calllog' in R['not_run'] else 'true'))
     for name, (what, val) in macros.items():
         lines.append('\\newcommand{\\%s}{%s\\xspace}' % (name, val if val is not None else '\\PhysTBD{%s}' % what))
     (gen / 'physical_macros.tex').write_text('\n'.join(lines) + '\n', encoding='utf-8', newline='\n')
@@ -422,7 +428,8 @@ def self_check():
         gen = Path(d)
         m, _ = write(empty, gen)
         tex = (gen / 'physical_macros.tex').read_text(encoding='utf-8')
-        assert all(v is None for _, v in m.values()) and tex.count('\\PhysTBD{') == len(m), 'no data must give TBD everywhere'
+        assert all(v is None for k, (_, v) in m.items() if k != 'PhysSmsReuse') and m['PhysSmsReuse'][1] == NR, 'no data: TBD everywhere, SMS not run'
+        assert tex.count('\\PhysTBD{') == len(m) - 1 and '\\PhysCalllogtrue' in tex
         assert '\\renewcommand{\\PhysTBD}' in tex
         tabs = sorted(p.name for p in gen.glob('tab_phys_*.tex'))
         assert len(tabs) == 9 and all('\\PhysTBD{' in (gen / t).read_text(encoding='utf-8') for t in tabs), tabs
@@ -492,7 +499,7 @@ def self_check():
         assert v['PhysCoverageTrials'] == 1 and v['PhysRaceTrials'] == 2 and v['PhysRaceStale'] == 1
         assert v['PhysBoundaryTrials'] == 3 and v['PhysCteMs'] == '30.0' and v['PhysBndBeforeCheckStale'] == '0/1'
         assert v['PhysBndOverlapStale'] == '1/1' and v['PhysBndObsStale'] == '1/1'
-        assert v['PhysSmsReuse'] == '1/1' and v['PhysMtimeSame'] == '0/1'
+        assert v['PhysSmsReuse'] == NR and v['PhysMtimeSame'] == '0/1'
         assert v['PhysFrozenHolds'] == 2 and v['PhysFrozenKilled'] == '1/2' and v['PhysFrozenLastUnseen'] == '0/2'
         assert v['PhysStateHours'] == '0.0' and v['PhysStateFrozenPct'] == '25' and v['PhysStateAlivePct'] == '75', (v['PhysStateFrozenPct'], v['PhysStateAlivePct'])
         assert v['PhysStateDozePct'] == '25' and v['PhysStateKillsPerHour'] == '180.00', v['PhysStateKillsPerHour']
@@ -500,21 +507,28 @@ def self_check():
         assert P['deploy'][('contacts', 'fg')]['valid'] == 1 and P['records'] == {'deploy': 1, 'gaps': 1}
         tab = lambda n: (gen / n).read_text(encoding='utf-8')
         assert '\\mgroup{5}{MediaStore}' in tab('tab_phys_deploy.tex') and tab('tab_phys_deploy.tex').count('Foreground service') == 2
-        assert 'Force-stop & 1/1' in tab('tab_phys_gaps.tex') and 'not run on this phone' in tab('tab_phys_pitfalls.tex')
+        assert 'Force-stop & 1/1' in tab('tab_phys_gaps.tex') and 'not run on this phone' in tab('tab_phys_pitfalls.tex') and NR in tab('tab_phys_pitfalls.tex')
         assert not any('\\PhysTBD{' in tab(t) for t in tabs), [t for t in tabs if '\\PhysTBD{' in tab(t)]
-        # SMS and call log cut on this phone: their macros and rows print NR, never TBD; other sources are unaffected
-        global NOT_RUN
-        NOT_RUN = {'sms', 'calllog'}
-        try:
-            m, _ = write(D, gen); v = {k: x for k, (_, x) in m.items()}
-            assert v['PhysDeployCalllogBgMedian'] == NR and v['PhysDeployCalllogFgMedian'] == NR and v['PhysSmsReuse'] == NR
-            assert v['PhysDeployMediaBgMedian'] == '500\\,ms' and v['PhysMtimeSame'] == '0/1'
-            assert 'Call log: ' + NR in tab('tab_phys_deploy.tex') and tab('tab_phys_deploy.tex').count('Foreground service') == 1
-            assert all(NR in tab(t) for t in ('tab_phys_coverage.tex', 'tab_phys_race.tex', 'tab_phys_pitfalls.tex'))
-            write(empty, gen)
-            assert '\\PhysTBD{' in tab('tab_phys_deploy.tex') and 'Call log: ' + NR in tab('tab_phys_deploy.tex') and NR in tab('tab_phys_pitfalls.tex')
-        finally:
-            NOT_RUN = set()
+        # B0 says the call log runs: call-log macros and B9 are computed (latest B0 record wins)
+        add('b0', 'b0-probe-0600.jsonl', {'probe': 'user_info', 'ok': True, 'excluded_sources': ['sms', 'calllog'], 'detail': {}})
+        add('b0', 'b0-probe-0700.jsonl', {'probe': 'user_info', 'ok': True, 'excluded_sources': ['sms'], 'detail': {}})
+        m, _ = write(D, gen); v = {k: x for k, (_, x) in m.items()}
+        assert v['PhysDeployCalllogFgMedian'] == '6\\,ms' and v['PhysBoundaryTrials'] == 3 and v['PhysSmsReuse'] == NR
+        assert '\\PhysCalllogtrue' in tab('physical_macros.tex') and 'Call log' in tab('tab_phys_deploy.tex') and NR not in tab('tab_phys_boundary.tex')
+        # B0 excludes the call log: call-log cells and all of B9 print NR, never TBD; other sources are unaffected
+        add('b0', 'b0-probe-0800.jsonl', {'probe': 'user_info', 'ok': True, 'excluded_sources': ['sms', 'calllog'], 'detail': {}})
+        m, _ = write(D, gen); v = {k: x for k, (_, x) in m.items()}
+        assert v['PhysDeployCalllogBgMedian'] == NR and v['PhysDeployCalllogFgMedian'] == NR and v['PhysSmsReuse'] == NR
+        assert all(v[k] == NR for k in ('PhysBoundaryTrials', 'PhysCteMs', 'PhysBndObsStale', 'PhysBndBeforeCheckStale', 'PhysBndOverlapStale'))
+        assert v['PhysDeployMediaBgMedian'] == '500\\,ms' and v['PhysMtimeSame'] == '0/1' and '\\PhysCalllogfalse' in tab('physical_macros.tex')
+        assert 'Call log: ' + NR in tab('tab_phys_deploy.tex') and tab('tab_phys_deploy.tex').count('Foreground service') == 1
+        assert all(NR in tab(t) for t in ('tab_phys_coverage.tex', 'tab_phys_race.tex', 'tab_phys_pitfalls.tex', 'tab_phys_boundary.tex'))
+        assert '\\PhysTBD{' not in tab('tab_phys_boundary.tex')
+        # same exclusion without any data: B9 is NR, not TBD; other tables stay TBD
+        bare = dict(empty, b0=D['b0'][-1:])
+        m, _ = write(bare, gen); v = {k: x for k, (_, x) in m.items()}
+        assert v['PhysBoundaryTrials'] == NR and v['PhysDeployBgMedian'] is None and '\\PhysTBD{' not in tab('tab_phys_boundary.tex')
+        assert '\\PhysTBD{' in tab('tab_phys_deploy.tex') and 'Call log: ' + NR in tab('tab_phys_deploy.tex')
     print('analyze_phys self-check ok')
 
 
