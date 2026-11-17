@@ -4,7 +4,9 @@ commands the drivers send with fixed, plausible values, keeps a little device st
 processes, app files, settings, battery and Doze overrides) in $FAKE_ADB_STATE, and logs every command to
 $FAKE_ADB_LOG together with the verdict of the personal-phone guard (lmdrv.phone_violation) for user 10, so a dry
 run shows exactly what would reach the phone. `adb forward` starts a small TCP server (this file with --serve) that
-answers the client's loopback ops used by revision/run.py and b7_continuous.py.
+answers the client's loopback ops used by revision/run.py and b7_continuous.py. Failure injection for the restore
+checks: a shell command matching $FAKE_FAIL exits 1 with an error and changes nothing; one matching $FAKE_IGNORE
+exits 0 and changes nothing (a silent failure).
 Use through physical/e7_dryrun.py (it sets ADB to this file, so lmdrv runs it with the Python interpreter).
 """
 import json, os, re, socket, socketserver, subprocess, sys, time
@@ -343,7 +345,7 @@ def main(argv):
         serial, argv = argv[1], argv[2:]
     lock()
     try:
-        s = load(); entry = {"t": time.time(), "serial": serial, "argv": argv}; out, rc = "", 0
+        s = load(); entry = {"t": time.time(), "serial": serial, "argv": argv}; out, rc, err = "", 0, ""
         if argv[:1] == ["devices"]:
             out = "List of devices attached\n%s device product:p06 model:P06Phone\n" % SERIAL
         elif serial != SERIAL:
@@ -352,10 +354,16 @@ def main(argv):
             out = "device"
         elif argv[0] == "shell":
             cmd = " ".join(argv[1:]); entry["violation"] = lmdrv.phone_violation(cmd, USER)
-            r = shell(s, cmd)
-            if r is None:
-                entry["unknown"] = True; r = ""
-            out = r
+            fail, ignore = os.environ.get("FAKE_FAIL"), os.environ.get("FAKE_IGNORE")
+            if fail and re.search(fail, cmd):          # loud failure: exit 1, nothing changes
+                rc, err, entry["injected"] = 1, "Error: injected failure for %s\n" % cmd, "fail"
+            elif ignore and re.search(ignore, cmd):    # silent failure: exit 0, nothing changes
+                entry["injected"] = "ignore"
+            else:
+                r = shell(s, cmd)
+                if r is None:
+                    entry["unknown"] = True; r = ""
+                out = r
         elif argv[0] == "install":
             entry["violation"] = None if argv[1:3] == ["--user", str(USER)] else "install without --user 10"
             name = Path(argv[-1]).stem
@@ -378,6 +386,7 @@ def main(argv):
     with open(LOG, "a", encoding="utf-8") as f:
         f.write(json.dumps(entry) + "\n")
     sys.stdout.write(out + ("\n" if out and not out.endswith("\n") else ""))
+    sys.stderr.write(err)
     return rc
 
 

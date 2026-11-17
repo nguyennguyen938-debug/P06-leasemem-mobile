@@ -5,7 +5,9 @@ the Android user "P06 Test" (lmdrv enforces the isolation rules; PHYS-PROTOCOL.m
 Before the first step it records the device-wide settings the drivers may touch (freezer debounce and DeviceConfig
 sync mode, P06's two Settings.Global keys, standby buckets of P06 apps) in build/phone-restore-state.json; after
 every step, also a failed or stopped one, it restores them and resets battery and Doze overrides, the test user's
-assistant role and READ_CONTACTS grants. If the runner itself dies, `campaign.py --restore` restores from that file.
+assistant role and READ_CONTACTS grants, checking every command's exit status and reading every restored value back
+against the snapshot; any failure goes to RUNLOG and keeps the state file. If the runner itself dies,
+`campaign.py --restore` restores from that file.
 While a driver runs, a watchdog reads the foreground user every 10 s and stops the run if it is not P06 Test (a
 reboot pauses the watchdog until the user has switched back). Reboots need --allow-reboot (the user's consent for
 this run); without it B2 skips its reboot gap and B0 its reboot probe.
@@ -20,7 +22,7 @@ Usage: python physical/campaign.py TASK --serial SERIAL [--pilot] [--dry-run] [-
   TASK: setup B0 B1 B2 B3 B4 B5 B6 B7 B9 B10 B11 B12 cleanup   (--pilot: 2 trials per condition, for S2)
 Environment: ANDROID_HOME (finds adb); P06_SERIALS = the phone's ro.serialno (lmdrv allowlist).
 """
-import argparse, hashlib, json, os, subprocess, sys, time
+import argparse, hashlib, json, os, re, subprocess, sys, time
 from pathlib import Path
 
 A = Path(__file__).resolve().parents[1]
@@ -93,10 +95,10 @@ def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot):
     raise SystemExit("unknown task " + task)
 
 
-def run_pre(d, cmd):
+def run_pre(d, cmd, check=False):
     if cmd.startswith("{u:"):
-        return d.sh(d.u(cmd[3:-1]))
-    return d.sh(cmd)
+        return d.sh(d.u(cmd[3:-1]), check=check)
+    return d.sh(cmd, check=check)
 
 
 def snapshot(d):
@@ -109,24 +111,52 @@ def snapshot(d):
 
 
 def restore(d, snap):
-    """Put every device-wide value back; also clear battery and Doze overrides and the test user's assistant role.
-    Without a snapshot (state file lost) it applies the platform defaults. Returns the commands that failed."""
+    """Put every recorded device-wide value back, reset battery and Doze overrides, remove the test user's assistant
+    role and re-grant READ_CONTACTS. Each command runs with its exit status checked; each restored value is then read
+    back and compared with the snapshot (battery and Doze resets have no recorded value, so only their exit status is
+    checked). Without a snapshot (state file lost) the platform defaults are the target. Returns what failed: an empty
+    list means every command exited 0 and every read-back value matched."""
     snap = snap or {"debounce": "null", "sync_disabled": "none", "settings": {"lm_mode": "null", "lm_target": "null"}, "buckets": {}}
-    deb, sync = snap["debounce"], snap["sync_disabled"]
-    cmds = ["dumpsys battery reset", "dumpsys deviceidle unforce",
-            "device_config delete activity_manager_native_boot freeze_debounce_timeout" if deb in ("", "null")
-            else "device_config put activity_manager_native_boot freeze_debounce_timeout %s" % deb,
-            "device_config set_sync_disabled_for_tests %s" % (sync if sync in ("none", "persistent", "until_reboot") else "none")]
-    cmds += ["settings delete global %s" % k if v in ("", "null") else "settings put global %s %s" % (k, v) for k, v in snap["settings"].items()]
-    cmds += ["{u:am set-standby-bucket %s %s}" % (p, BUCKET[b]) for p, b in snap["buckets"].items() if b in BUCKET]
-    cmds += ["{u:cmd role remove-role-holder android.app.role.ASSISTANT %s 0}" % lmdrv.APKG]
-    cmds += ["{u:pm grant %s android.permission.READ_CONTACTS}" % p for p in (lmdrv.CPKG, lmdrv.TPKG)]
+    deb = snap["debounce"] if snap["debounce"] not in ("",) else "null"
+    sync = snap["sync_disabled"]
+    is_ = lambda want: (lambda got: got == want)
+    pkgs = set(re.findall(r"package:(\S+)", d.sh(d.u("pm list packages org.leasemem"), timeout=30)))
+    # (command, read-back command or None, test of the read-back output, what was expected)
+    todo = [("dumpsys battery reset", None, None, None), ("dumpsys deviceidle unforce", None, None, None),
+            ("device_config delete activity_manager_native_boot freeze_debounce_timeout" if deb == "null"
+             else "device_config put activity_manager_native_boot freeze_debounce_timeout %s" % deb,
+             "device_config get activity_manager_native_boot freeze_debounce_timeout", is_(deb), deb)]
+    if sync in ("none", "persistent", "until_reboot"):
+        todo.append(("device_config set_sync_disabled_for_tests %s" % sync, "device_config get_sync_disabled_for_tests", is_(sync), sync))
+    else:   # the phone did not report a sync mode: re-enable sync, nothing recorded to compare with
+        todo.append(("device_config set_sync_disabled_for_tests none", None, None, None))
+    for k, v in snap["settings"].items():
+        v = v if v not in ("",) else "null"
+        todo.append(("settings delete global %s" % k if v == "null" else "settings put global %s %s" % (k, v),
+                     "settings get global %s" % k, is_(v), v))
+    for p, b in snap["buckets"].items():
+        if b in BUCKET and p in pkgs:
+            todo.append(("{u:am set-standby-bucket %s %s}" % (p, BUCKET[b]), "{u:am get-standby-bucket %s}" % p, is_(b), b))
+    if lmdrv.APKG in pkgs:
+        todo.append(("{u:cmd role remove-role-holder android.app.role.ASSISTANT %s 0}" % lmdrv.APKG,
+                     "{u:cmd role get-role-holders android.app.role.ASSISTANT}", lambda got: lmdrv.APKG not in got, "no P06 holder"))
+    for p in (lmdrv.CPKG, lmdrv.TPKG):
+        if p in pkgs:
+            todo.append(("{u:pm grant %s android.permission.READ_CONTACTS}" % p, "dumpsys package %s" % p,
+                         lambda got: "android.permission.READ_CONTACTS: granted=true" in got, "READ_CONTACTS granted"))
     failed = []
-    for c in cmds:
+    for cmd, back, ok, want in todo:
         try:
-            run_pre(d, c)
+            run_pre(d, cmd, check=True)
         except Exception as e:
-            failed.append("%s: %r" % (c, e))
+            failed.append("%s: exit error %s" % (cmd, str(e).strip()[:160])); continue
+        if back:
+            try:
+                got = run_pre(d, back, check=True).strip()
+            except Exception as e:
+                failed.append("%s: read-back error %s" % (back, str(e).strip()[:160])); continue
+            if not ok(got):
+                failed.append("%s: read back %r, expected %s" % (back, got[:80], want))
     return failed
 
 
@@ -220,47 +250,50 @@ def main():
             for p in PKGS:
                 d.sh(d.u("pm uninstall %s" % p))
             runlog(out_root, "- %s cleanup: uninstalled %s from user %s" % (time.strftime("%H:%M"), ", ".join(PKGS), d.user))
-            return 0
-        sys.path.insert(0, str(A / "physical")); import b0_setup
-        out.mkdir(parents=True, exist_ok=True)
-        rec = b0_setup.setup(d, out)
-        runlog(out_root, "- %s %s setup: `campaign.py %s` on %s (`%s`, user %s, excluded %s, foreign rows %s); APK sha256 %s" % (
-            time.strftime("%H:%M"), a.task, a.task, meta["device"], meta["fingerprint"], d.user, sorted(d.excluded),
-            rec["foreign_before"], apk))
-        d.sh(d.u("am stopservice -n %s/.FgService" % lmdrv.CPKG))
-        skipped = sorted({"gap reboot (no --allow-reboot)": a.task == "B2" and not a.allow_reboot, "B9 (call log excluded)": a.task == "B9" and not plan,
-                          "B1 call log": a.task == "B1" and "calllog" in d.excluded} .items())
-        for k, v in skipped:
-            if v:
-                runlog(out_root, "- %s %s skipped: %s" % (time.strftime("%H:%M"), a.task, k))
-        (out / "logs").mkdir(parents=True, exist_ok=True)
-        for label, argv, pre, f in plan:
-            d.require_fg()
-            for cmd in pre:
-                run_pre(d, cmd)
-            t0 = time.time(); log = out / "logs" / ("%s-%s-%s.log" % (a.task, label, hm))
-            try:
-                rc, stopped = run_step(d, argv, log, env)
-            finally:
-                failed = restore(d, snap)
-            status = status or rc or (1 if stopped else 0)
-            try:
-                plugged = d.plugged()
-            except Exception as e:
-                plugged = "unknown (%s)" % type(e).__name__
-            runlog(out_root, "- %s %s %s%s: `%s` on %s (`%s`, user %s, rooted=%s, plugged=%s); APK sha256 %s; %.1f min; exit %s; %s%s; restore %s; output `%s`, log `%s`" % (
-                time.strftime("%H:%M"), a.task, label, " (pilot)" if a.pilot else "", " ".join(Path(x).name if i < 2 else x for i, x in enumerate(argv)),
-                meta["device"], meta["fingerprint"], d.user, meta["rooted"], plugged, apk, (time.time() - t0) / 60, rc,
-                counts(f), "; " + stopped if stopped else "", "ok" if not failed else "FAILED %s" % failed, Path(f).name, log.name))
-            print(label, "exit", rc, counts(f), stopped or "", flush=True)
-            if stopped or failed:
-                break
+        else:
+            sys.path.insert(0, str(A / "physical")); import b0_setup
+            out.mkdir(parents=True, exist_ok=True)
+            rec = b0_setup.setup(d, out)
+            runlog(out_root, "- %s %s setup: `campaign.py %s` on %s (`%s`, user %s, excluded %s, foreign rows %s); APK sha256 %s" % (
+                time.strftime("%H:%M"), a.task, a.task, meta["device"], meta["fingerprint"], d.user, sorted(d.excluded),
+                rec["foreign_before"], apk))
+            d.sh(d.u("am stopservice -n %s/.FgService" % lmdrv.CPKG))
+            skipped = sorted({"gap reboot (no --allow-reboot)": a.task == "B2" and not a.allow_reboot, "B9 (call log excluded)": a.task == "B9" and not plan,
+                              "B1 call log": a.task == "B1" and "calllog" in d.excluded} .items())
+            for k, v in skipped:
+                if v:
+                    runlog(out_root, "- %s %s skipped: %s" % (time.strftime("%H:%M"), a.task, k))
+            (out / "logs").mkdir(parents=True, exist_ok=True)
+            for label, argv, pre, f in plan:
+                d.require_fg()
+                for cmd in pre:
+                    run_pre(d, cmd)
+                t0 = time.time(); log = out / "logs" / ("%s-%s-%s.log" % (a.task, label, hm))
+                try:
+                    rc, stopped = run_step(d, argv, log, env)
+                finally:
+                    failed = restore(d, snap)
+                status = status or rc or (1 if stopped else 0) or (3 if failed else 0)
+                try:
+                    plugged = d.plugged()
+                except Exception as e:
+                    plugged = "unknown (%s)" % type(e).__name__
+                runlog(out_root, "- %s %s %s%s: `%s` on %s (`%s`, user %s, rooted=%s, plugged=%s); APK sha256 %s; %.1f min; exit %s; %s%s; restore %s; output `%s`, log `%s`" % (
+                    time.strftime("%H:%M"), a.task, label, " (pilot)" if a.pilot else "", " ".join(Path(x).name if i < 2 else x for i, x in enumerate(argv)),
+                    meta["device"], meta["fingerprint"], d.user, meta["rooted"], plugged, apk, (time.time() - t0) / 60, rc,
+                    counts(f), "; " + stopped if stopped else "", "ok" if not failed else "FAILED %s" % failed, Path(f).name, log.name))
+                print(label, "exit", rc, counts(f), stopped or "", flush=True)
+                if stopped or failed:
+                    break
     finally:
         failed = restore(d, snap)
         if not failed:
             STATE.unlink()
         else:
+            runlog(out_root, "- %s %s final restore FAILED %s; state kept in %s; run `campaign.py --restore`" % (
+                time.strftime("%H:%M"), a.task, failed, STATE.name))
             print("RESTORE FAILED %s; state kept in %s; run `campaign.py --restore`" % (failed, STATE), flush=True)
+            status = status or 3
     return status
 
 

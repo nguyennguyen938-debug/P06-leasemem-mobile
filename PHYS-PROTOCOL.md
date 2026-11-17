@@ -104,7 +104,7 @@ Experiment takes `projects/p06-leasemem/phone.lock` before the first command and
 | Test user in the foreground | `Dev` checks `am get-current-user` at start, before every activity start and HOME key; `campaign.py` checks before every step and every 10 s while a driver runs, and stops the run otherwise. |
 | No owner data | SMS is never read, observed or written (the SMS provider is shared by all users); the call log only when the test user has `no_outgoing_calls`. Shared storage is `/storage/emulated/<test user>`; the shell never touches `/sdcard`, `/storage` or `/data`. Before writing fixtures, `b0_setup.py` counts rows in the test user that P06 did not write (contacts, call log, calendar, images; `_id` only, count only) and stops if any exists. Only the client's own uid lines of BatteryStats are read; only the test user's block of `dumpsys user` leaves the phone; `dumpsys` is limited to an allowlist. |
 | Banned on this phone | `pm clear`, user creation or removal, user switching by the driver, clock changes (`date`, `cmd alarm`, `auto_time`), root, `setprop`, `svc`, `locksettings`, `content insert/update/delete` from the shell, `batterystats --reset`, `settings` other than P06's keys `lm_mode` and `lm_target`, `device_config` other than the freezer debounce and its sync mode, `adb uninstall/push/pull`, and `pm uninstall` of anything but `org.leasemem.*` in the test user. `Dev.sh()` and `Dev.adb()` refuse them. |
-| Device-wide settings are temporary | Drivers run only under `campaign.py` (`Dev` refuses otherwise on the phone). Before the first step it saves the freezer debounce, the DeviceConfig sync mode, Settings.Global `lm_mode` and `lm_target`, and the standby buckets of the P06 apps to `build/phone-restore-state.json`; after every step, also a failed or stopped one, it restores them and resets battery and Doze overrides, the test user's assistant role and READ_CONTACTS grants. `campaign.py --restore` does it from the file if the runner died. |
+| Device-wide settings are temporary | Drivers run only under `campaign.py` (`Dev` refuses otherwise on the phone). Before the first step it saves the freezer debounce, the DeviceConfig sync mode, Settings.Global `lm_mode` and `lm_target`, and the standby buckets of the P06 apps to `build/phone-restore-state.json`; after every step, also a failed or stopped one, it restores them and resets battery and Doze overrides, the test user's assistant role and READ_CONTACTS grants. Every restore command must exit 0, and every restored value is read back and compared with the saved one (debounce, sync mode, the two keys, buckets; the role must be gone and READ_CONTACTS granted); battery and Doze have no saved value, so for them only the exit status is checked. Any failure is written to RUNLOG as `restore FAILED`, keeps the state file and ends the run with exit status 3. `campaign.py --restore` does the same from the file if the runner died. |
 | Reboot only with consent | `Dev.adb('reboot')` refuses unless the run has `--allow-reboot`; afterwards `Dev.after_reboot()` only waits for the user. |
 | Static check | `python physical/test_user_scope.py`: scans every file `campaign.py` runs for user-scoped command strings without `--user` and for banned commands, and checks the runtime guard on fixed examples. |
 
@@ -281,7 +281,8 @@ complete blocks.
   analysis, never by editing raw data.
 - Every `campaign.py` command appends to RUNLOG: time, task, label, command, device, fingerprint, user id, `rooted`,
   `plugged`, APK SHA-256 (first 12 hex digits), minutes, exit code, records, records with `error`, records marked
-  `invalid`, whether the run was stopped (foreground user changed), restore result, output and log names. Skipped
+  `invalid`, whether the run was stopped (foreground user changed), restore result (`ok`, or `FAILED` with the command
+  or the read-back value that did not match), output and log names. Skipped
   parts (reboot gap without consent, B9 or B1 call log when excluded) get their own RUNLOG line.
 - Freezer-dependent trials are valid only if the frozen state was observed (existing `not_frozen` rule).
 - B11 and B12 records with `plugged: true` are analyzed as charging time, separately.
@@ -304,29 +305,36 @@ complete blocks.
 
 ## 10. Results macros fed by each file
 
-The 24 macro names are those of the registry in `artifact/physical/analyze_phys.py` (owned by Results); this
-protocol keeps all of them and renames none. `analyze_phys.py` reads only top-level
-`artifact/results/physical-*/*.jsonl` and leaves out every file with `pilot` in its name.
+The authoritative list is the `macros` registry in `analyze()` of `artifact/physical/analyze_phys.py` (owned by
+Results); each entry becomes one `\newcommand` in `manuscript/generated/physical_macros.tex`. The table lists all 52
+entries of that registry as of 2026-11-18 03:40 (with Results' F2a); if Results adds or renames a macro, the
+registry wins and this table is updated. `analyze_phys.py` reads only top-level
+`artifact/results/physical-*/*.jsonl` and leaves out every file with `pilot` in its name. A macro without data
+prints a red TBD; a macro for a source that is never run on the phone prints "not run on phone" (NR column).
 
-| Macro | Task | Raw file pattern under `results/physical-<YYYYMMDD>/` |
-|---|---|---|
-| `PhysDevice`, `PhysFingerprint`, `PhysRooted` | all | `*.jsonl` (common fields `device`, `fingerprint`, `rooted` in every record) |
-| `PhysDeployTrials`, `PhysDeployBgMedian`, `PhysDeployFgMedian`, `PhysDeployAssistMedian`, `PhysDeployFrozenBeforeThaw` | B1 | `deploy*.jsonl`, i.e. `deploy-contacts-HHMM.jsonl`, `deploy-media-HHMM.jsonl`, `deploy-calllog-HHMM.jsonl` |
-| `PhysCoverageTrials` | B3 | `coverage-HHMM.jsonl` |
-| `PhysGapTrials`, `PhysGapNoneFcl` | B2 | `gaps-<gap>-HHMM.jsonl` (`gap` field inside each record) |
-| `PhysRaceTrials`, `PhysRaceStale` | B4 | `stock-<serial>-HHMM.jsonl` |
-| `PhysBoundaryTrials`, `PhysCteMs` | B9 | `boundary-HHMM.jsonl`, `boundary-band-HHMM.jsonl` (`band` field inside) |
-| `PhysSmsReuse`, `PhysMtimeSame` | B10 | `pitfalls-HHMM.jsonl` (`exp` field). On the phone only `mtime` exists; `PhysSmsReuse` has no phone data (SMS not touched) |
-| `PhysFrozenHolds`, `PhysFrozenKilled` | B5 | `frozen-HHMM.jsonl` |
-| `PhysStateHours`, `PhysStateFrozenPct`, `PhysStateKillsPerHour` | B11 | `statelog-HHMM.jsonl` |
-| `PhysBatteryFgsMahPerHour`, `PhysBatteryBgMahPerHour` | B12 | `battery-night<N>-HHMM-samples.jsonl` (complete `kind: block` records) |
+| Macro(s) | Task | Raw file pattern under `results/physical-<YYYYMMDD>/` | NR when |
+|---|---|---|---|
+| `PhysDevice`, `PhysFingerprint`, `PhysRooted`, `PhysSdk` | all | `*.jsonl` (common fields `device`, `fingerprint`, `rooted`, `sdk`) | |
+| `PhysAndroid` | B0 | `b0-probe-*.jsonl` (`identity` probe: release and SDK) | |
+| `PhysDeployTrials` (all sources), `PhysDeployBgMedian`, `PhysDeployFgMedian`, `PhysDeployAssistMedian`, `PhysDeployFrozenBeforeThaw` (Contacts) | B1 | `deploy*.jsonl`, records with `source == 'contacts'` for the Contacts macros | |
+| `PhysDeployMediaBgMedian`, `PhysDeployMediaFgMedian` | B1 | `deploy*.jsonl`, `source == 'media'` | |
+| `PhysDeployCalllogBgMedian`, `PhysDeployCalllogFgMedian` | B1 | `deploy*.jsonl`, `source == 'calllog'` | call log excluded |
+| `PhysCoverageTrials` | B3 | `coverage-*.jsonl` | |
+| `PhysGapTrials`, `PhysGapNoneFcl`, `PhysGapFreezeFcl`, `PhysGapDozeFcl`, `PhysGapBucketFcl` | B2 | `gaps-*.jsonl` (`gap` field: `none`, `freeze`, `dozeidle`, `bucket`, ...) | |
+| `PhysGapLostEv`, `PhysGapLostEvr`, `PhysGapLostLm` (lost-coverage gaps, late decision), `PhysGapInEpochEv`, `PhysGapInEpochEvr`, `PhysGapInEpochLm` (in-epoch gaps, early decision) | B2 | `gaps-*.jsonl` | |
+| `PhysRaceTrials`, `PhysRaceStale` | B4 | `stock-*.jsonl` | |
+| `PhysBoundaryTrials`, `PhysCteMs`, `PhysBndObsStale`, `PhysBndBeforeCheckStale`, `PhysBndOverlapStale` | B9 | `boundary*.jsonl` (`boundary-HHMM`, `boundary-band-HHMM`) | call log excluded (the effect is a call-log row) |
+| `PhysSmsReuse` | B10 | `pitfalls-*.jsonl`, `exp == 'sms_reuse'` | always (SMS is never touched on the phone) |
+| `PhysMtimeSame` | B10 | `pitfalls-*.jsonl`, `exp == 'mtime'` | |
+| `PhysFrozenHolds`, `PhysFrozenStayed`, `PhysFrozenKilled`, `PhysFrozenLastUnseen` | B5 | `frozen-*.jsonl` | |
+| `PhysStateHours`, `PhysStateAlivePct`, `PhysStateFrozenPct`, `PhysStateDozePct`, `PhysStateKillsPerHour` | B11 | `statelog-*.jsonl` (shares over unplugged samples) | |
+| `PhysBatteryFgsMahPerHour`, `PhysBatteryBgMahPerHour`, `PhysBatteryFgsBlocks`, `PhysBatteryBgBlocks` | B12 | `battery-night*-samples.jsonl` (`kind: block` records) | |
+| `PhysHostTrials` | B6 | `host-*.jsonl` | |
+| `PhysEvidCheap` | B2 | prints `phone` once `gaps-*.jsonl` has valid trials | |
+| `PhysEvidBound` | B1, B2 | prints `phone` once both `deploy*.jsonl` and `gaps-*.jsonl` have valid trials | |
+| `PhysEvidWeak` | B4, B10 | prints `phone` once both `stock-*.jsonl` and `pitfalls-*.jsonl` have records | |
 
-Notes for Results:
-
-1. `deploy*.jsonl` mixes three sources; filter on the record's `source` field (`contacts` for the existing
-   `PhysDeploy*` macros); media and call-log trials need their own macros if the paper reports them.
-2. Other top-level files that `*.jsonl` also loads: `b0-probe-*`, `b0-trial-none-*`, `host-*` (B6),
-   `continuous-*` (B7). They carry the common fields, so `PhysDevice` and the like are unaffected. B6 and B7 have no
-   macro yet; names are Results' choice when those tasks run.
-3. `PhysSmsReuse` stays without phone data by design (SMS is shared with the owner's user); the paper keeps the
-   emulator result for it.
+Which sources are excluded comes from the latest B0 record that carries `excluded_sources` (`b0-probe-*.jsonl`);
+SMS is always excluded. B7 (`continuous-*.jsonl`) has no macro; its oracle is `classify()` in
+`artifact/physical/b7_continuous.py`. `deploy*.jsonl` mixes three sources, so every B1 macro filters on the record's
+`source` field.
