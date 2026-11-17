@@ -102,7 +102,8 @@ def main():
     x=v[k];lo,hi=x['difference_ci_ms'];cells.append(f"{x['mean_difference_ms']:.1f} [{lo:.1f}, {hi:.1f}]")
    lines.append(('33' if serial.endswith('5620') else '35')+' & '+case+' & '+' & '.join(cells)+r'\\')
  lines += [r'\bottomrule\end{tabular}',r'\end{table*}'];(G/'tab_checks_host.tex').write_text('\n'.join(lines)+'\n',newline='\n')
- macros={'RevReference':len(ref),'RevStock':len(stock),'RevAnchoringRace':sum(sum(v) for v in by.values()),'RevTickPairs':summary['tick']['pairs'],'RevTickTrials':len(tick),'RevTickHits':summary['tick']['equal_tick_changed_trials'],'RevHost':len(host),'RevReferenceRace':summary['reference']['historical_stale'],'RevActionResidual':summary['reference']['action_residual_trials'],'RevSupplement':len(supplement)}
+ prov=json.loads((ROOT/'artifact/revision/provenance/sample.json').read_text())['rows'];per=Counter(r['task_class'] for r in prov)
+ macros={'RevProvTasks':len(prov),'RevProvPerClass':min(per.values()),'RevProvClasses':len(per),'RevReference':len(ref),'RevStock':len(stock),'RevAnchoringRace':sum(sum(v) for v in by.values()),'RevTickPairs':summary['tick']['pairs'],'RevTickTrials':len(tick),'RevTickHits':summary['tick']['equal_tick_changed_trials'],'RevHost':len(host),'RevReferenceRace':summary['reference']['historical_stale'],'RevActionResidual':summary['reference']['action_residual_trials'],'RevSupplement':len(supplement)}
  (G/'revision_macros.tex').write_text(''.join('\\newcommand{\\'+k+'}{'+str(v)+'\\xspace}\n' for k,v in macros.items()),newline='\n')
  print(json.dumps({k:summary[k] for k in ['reference','tick']},indent=2))
 if __name__=='__main__':main()

@@ -108,6 +108,7 @@ def gaps(rows):
             for p in ('ev', 'evr', 'lm'):
                 ch = [x for c in C for x in c.values() if x['changed']]
                 z['miss'][phase, p] = (sum(not x['refresh'][p] for x in ch), len(ch))
+        z['cost'] = [ea.decision_cost(t, 'late', ea.classify(t, 'late')) for t in T if 'lm_cost' in t['late']]
         out[g] = z
     return out
 
@@ -258,6 +259,10 @@ def analyze(D):
     has = {'B1': any(z['valid'] for z in B1.values()), 'B2': any(z['n'] for z in G.values()), 'B4': race_n > 0,
            'B6': bool(host), 'B10': bool(R['pitfalls'])}
     evid = lambda *ex: 'phone' if all(has[e] for e in ex) else None   # guidance-table evidence: measured on the phone
+    cost = [c for z in G.values() for c in z.get('cost', [])]       # B2 late decisions with the client's lm_cost
+    has['cost'] = bool(cost)
+    cmed = lambda k: '%.0f' % st.median(c[k] for c in cost) if cost else None
+    cci = lambda k: (lambda m: '[%.0f, %.0f]' % (m[1], m[2]))(ea.boot_ci([c[k] for c in cost])) if cost else None
     unpl = SL.get(False, {})
     batt = lambda arm: f"{st.mean(BT[arm]['mah']):.1f}" if arm in BT and BT[arm]['mah'] else None
     macros = {
@@ -310,7 +315,12 @@ def analyze(D):
         'PhysBatteryFgsBlocks': ('B12 complete/all blocks, FGS on', kn(BT['on']['complete'], BT['on']['blocks']) if 'on' in BT else None),
         'PhysBatteryBgBlocks': ('B12 complete/all blocks, FGS off', kn(BT['off']['complete'], BT['off']['blocks']) if 'off' in BT else None),
         'PhysHostTrials': ('B6 matched host trials', len(host) or None),
-        'PhysEvidCheap': ('phone B2 refresh cost', evid('B2')),   # B6 is optional (may be cut); it only adds
+        'PhysCostGl': ('B2 median provider ms per late decision, global refresh', cmed('gl_ms')),
+        'PhysCostGlCi': ('B2 bootstrap CI of that median', cci('gl_ms')),
+        'PhysCostLm': ('B2 median provider ms per late decision, StampCheck', cmed('lm_ms')),
+        'PhysCostLmCi': ('B2 bootstrap CI of that median', cci('lm_ms')),
+        'PhysCostN': ('B2 late decisions with cost', len(cost) or None),
+        'PhysEvidCheap': ('phone B2 refresh cost', evid('cost')),   # B6 is optional (may be cut); it only adds
         'PhysEvidBound': ('phone B1 and B2', evid('B1', 'B2')),
         'PhysEvidWeak': ('phone B4 and B10', evid('B4', 'B10')),
     }
@@ -440,6 +450,7 @@ def self_check():
         assert all(v is None for k, (_, v) in m.items() if k != 'PhysSmsReuse') and m['PhysSmsReuse'][1] == NR, 'no data: TBD everywhere, SMS not run'
         assert tex.count('\\PhysTBD{') == len(m) - 1 and '\\PhysCalllogtrue' in tex
         assert '\\renewcommand{\\PhysTBD}' in tex
+        assert '%' not in tex.split('\n', 1)[1], 'a % in a macro would comment out the rest of its line'
         tabs = sorted(p.name for p in gen.glob('tab_phys_*.tex'))
         assert '(\\PhysTBD{B3 trials} trials)' in (gen / 'tab_phys_coverage.tex').read_text(encoding='utf-8')
         assert len(tabs) == 9 and all('\\PhysTBD{' in (gen / t).read_text(encoding='utf-8') for t in tabs), tabs
@@ -460,8 +471,9 @@ def self_check():
         add('deploy', 'deploy-pilot-contacts-0800.jsonl', dep('fg', '0', 1006, 'contacts'))
         # B2: two no-gap trials (callback 10 s after the change), one force-stop trial; a pilot trial stays out
         def gap(g, pid_late, ev_t, mem, evr):
-            f = {'src': 'contacts', 'ev': 'KEEP', 'te': 'KEEP', 'lm': 'CHANGED', 'lme': 'CHANGED', 'evr': evr, 'mem': mem, 'truth': 'B', 'refresh_ns': 1000}
-            dec = lambda t, ev: {'t_dec': t, 'fg': False, 'pid': pid_late, 'facts': {'c.dana': f}, 'events': ev, 'last_start': {}}
+            f = {'src': 'contacts', 'ev': 'KEEP', 'te': 'KEEP', 'lm': 'CHANGED', 'lme': 'CHANGED', 'evr': evr, 'mem': mem, 'truth': 'B', 'refresh_ns': 2000000}
+            dec = lambda t, ev: {'t_dec': t, 'fg': False, 'pid': pid_late, 'facts': {'c.dana': f}, 'events': ev, 'last_start': {},
+                                 'lm_cost': {'contacts': {'ns': 2000000}, 'probe_contacts': 1000000}}
             ev = [{'src': 'contacts', 't': ev_t}] if ev_t else []
             return {'gap': g, 'protocol': 'v3', 'fg': False, 'trial': 0, 't_obs': 0, 't_gap_start': 100, 'hold': 5, 'pid_obs': 7,
                     'muts': [{'src': 'contacts', 'kind': 'update', 't_pre': 1000, 't_dev': 1000}], 'early': dec(7000, []), 'late': dec(19000, ev)}
@@ -516,6 +528,10 @@ def self_check():
         assert v['PhysBatteryFgsMahPerHour'] == '4.0' and v['PhysBatteryBgMahPerHour'] == '2.0' and v['PhysBatteryBgBlocks'] == '1/2'
         assert P['deploy'][('contacts', 'fg')]['valid'] == 1 and P['records'] == {'deploy': 1, 'gaps': 1}
         assert v['PhysEvidBound'] == 'phone' and v['PhysEvidWeak'] == 'phone' and v['PhysEvidCheap'] == 'phone' and v['PhysHostTrials'] is None   # B2 without B6 suffices
+        assert v['PhysCostGl'] == '2' and v['PhysCostLm'] == '5' and v['PhysCostN'] == 3 and v['PhysCostLmCi'] == '[5, 5]', (v['PhysCostGl'], v['PhysCostLm'])
+        nocost = dict(D, gaps=[dict(r, late={k: x for k, x in r['late'].items() if k != 'lm_cost'}) for r in D['gaps']])
+        m, _ = write(nocost, gen); w = {k: x for k, (_, x) in m.items()}
+        assert w['PhysEvidCheap'] is None and w['PhysCostGl'] is None and w['PhysGapTrials'] == '3/3', 'B2 without cost numbers must not claim phone evidence'
         add('host', 'host-X-1400.jsonl', {'case': 'none', 'arms': {}}, {'case': 'one', 'error': 'adb lost'})
         m, _ = write(D, gen); v = {k: x for k, (_, x) in m.items()}
         assert v['PhysEvidCheap'] == 'phone' and v['PhysHostTrials'] == 1
