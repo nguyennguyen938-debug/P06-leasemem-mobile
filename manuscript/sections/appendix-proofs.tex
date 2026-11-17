@@ -1,5 +1,29 @@
-\section{Consistency Argument}
+\section{Validation Procedure and Consistency Argument}
 \label{app:proofs}
+Algorithm~\ref{alg:validate} states the observation and validation protocol of \S\ref{sec:design} for one source.
+
+\begin{algorithm}[ht]
+\caption{Consistent observation or validation of one source}
+\label{alg:validate}
+\small
+\begin{algorithmic}[1]
+\Require explicit adapter contract; old certificate for validation
+\If{contract missing, unsupported, or old schema incompatible}
+ \State \Return \Unknown
+\EndIf
+\For{$i=1,2,3$}
+ \State $E_0\gets$ complete provider evidence
+ \State $Q\gets$ query snapshot; collect support and complete change evidence
+ \State $E_1\gets$ complete provider evidence
+ \If{same epoch and evidence, with all contract guards satisfied}
+  \State bind $Q$ to this attempt's certificate
+  \State \Return observed value, or comparison with old value
+ \EndIf
+\EndFor
+\State \Return \Unknown
+\end{algorithmic}
+\end{algorithm}
+
 For Theorem~\ref{thm:sound}, consider a successful attempt. In the atomic case, the provider transaction returns the value and metadata from one snapshot. In the bracket case, the adapter's complete, non-repeating evidence is equal at both boundaries, within the same provider epoch. Under the theorem's premises, no relevant committed mutation occurs between those boundaries. All query, support and change reads are inside them, so their combined evidence describes the same relevant state. Comparing with a preceding certified value is therefore sound at the inner query snapshot. A retry discards every read of the unsuccessful attempt. Exhaustion, missing evidence and epoch mismatch return \Unknown. The result does not cross sources or extend beyond the certified interval.
 
 For Theorem~\ref{thm:indist}, take an execution with no relevant write and an execution with one committed write whose notification has not yet been delivered. Before delivery, the stipulated reader sees identical prior state, lifecycle observations and delivered events. It therefore makes the same decision in both executions, although the source values differ. A fixed wait changes this argument only if an additional premise excludes writes during the relevant interval and establishes delivery completion.
