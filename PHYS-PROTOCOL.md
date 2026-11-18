@@ -357,7 +357,8 @@ trials rejected by the driver keep `invalid` (for example `not_frozen`).
   valid only when the freezer was on during it. Its state is read from the record's `use_freezer`, otherwise from the
   `config` text the B1 driver saved (`use_freezer=`), otherwise from the run's RUNLOG "freezer on" line; unknown means
   excluded. Units seen with the freezer off by default: 3A111FDJH00269 (B1 run 106d9bc0), 43140DLJH00138 (pilot B1
-  5ec38290), 3A111FDJH0026A (B1F, setting `disabled`); on: 3A030DLJH001AT, 39091FDJH00DGA.
+  5ec38290; pilot only, not counted by `PhysFreezerOffUnits`), 3A111FDJH0026A (B1F, setting `disabled`); on: 3A030DLJH001AT,
+  39091FDJH00DGA. Results reads the RUNLOG line "freezer on <instance>: use_freezer X -> Y"; its format stays.
 - Raw files are created with `open(..., 'x')` on the test host, and `fetch` copies them with create-only writes;
   nothing is overwritten or deleted. A failed or cut run keeps its files and gets RUNLOG lines; exclusions are listed
   in `artifact/results/RUNLOG.md` and applied by the analysis.
@@ -400,8 +401,8 @@ goes to Contacts (`effect_store`).
 | Macro(s) | Task | Raw file pattern under `results/physical-<YYYYMMDD>/` |
 |---|---|---|
 | `PhysDevice`, `PhysFingerprint`, `PhysRooted`, `PhysSdk` | all | `*.jsonl` (common fields) |
-| `PhysFreezerOffUnits` | all physical files, B0 (`b0-*`) and `diag-*` included | distinct `device_instance` seen with the freezer off (record `use_freezer_before` = false, `config` with `use_freezer=false`, or a RUNLOG "freezer on" line with `use_freezer false`), out of the units whose state is known |
-| `PhysInstances` | all experiment files of the main model | distinct `device_instance` over the experiment files (`deploy*`, `gaps-*`, `coverage-*`, `stock-*`, `boundary*`, `pitfalls-*`, `frozen-*`, `host-*`), without pilot files, B0 files or `b13-*` |
+| `PhysFreezerOffUnits` | all physical files, B0 (`b0-*`) and `diag-*` included, pilot files not | distinct `device_instance` seen with the freezer off (record `use_freezer_before` = false, `config` with `use_freezer=false`, or a RUNLOG "freezer on" line with `use_freezer false`, the line inside the run's "AWS fetch <run arn>:" block), out of the units whose state is known; a unit seen only in pilot files is not counted (43140DLJH00138), so on 2026-11-19 01:15 it is 2 of 4 |
+| `PhysInstances` | all experiment files of the main model | distinct `device_instance` over the fixed list of experiment files (`deploy*`, `gaps-*`, `coverage-*`, `stock-*`, `boundary*`, `pitfalls-*`, `frozen-*`, `host-*`), without pilot files, B0 files, `diag-*` or `b13-*` |
 | `PhysAndroid` | B0 | `b0-probe-*.jsonl` (`identity` probe) |
 | `PhysDeployTrials`, `PhysDeployBgMedian`, `PhysDeployFgMedian`, `PhysDeployAssistMedian`, `PhysDeployFrozenBeforeThaw`, `PhysDeployMediaBgMedian`, `PhysDeployMediaFgMedian`, `PhysDeployCalllogBgMedian`, `PhysDeployCalllogFgMedian` | B1 | `deploy*.jsonl` (filtered on `source`) |
 | `PhysCoverageTrials` | B3 | `coverage-*.jsonl` |
@@ -410,6 +411,7 @@ goes to Contacts (`effect_store`).
 | `PhysBoundaryTrials`, `PhysCteMs`, `PhysBndObsStale`, `PhysBndBeforeCheckStale`, `PhysBndOverlapStale` | B9 | `boundary*.jsonl` (rules below) |
 | `PhysSmsReuse`, `PhysMtimeSame` | B10 | `pitfalls-*.jsonl` (`exp`) |
 | `\ifPhysClock`, `PhysClockTrials`, `PhysClockStale` | B10 clock | `pitfalls-*.jsonl` records with `exp` = `clock`; a trial is valid when it has no `error` and `clock_moved_back_ms` >= 3,000,000 |
+| `PhysClockTsTransientStale`, `PhysClockTsPersistentGuard` | B10 clock | `pitfalls-*.jsonl` records with `exp` = `clock` (same validity rule): the StampCheck timestamp adapter `lm_ts_hist` and the client's `clock_jump`, by `variant` (transient, persistent) |
 | `PhysFrozenHolds`, `PhysFrozenStayed`, `PhysFrozenKilled`, `PhysFrozenLastUnseen` | B5 | `frozen-*.jsonl` (both parts) |
 | `PhysHostTrials` | B6 | `host-*.jsonl` |
 | `PhysEvidCheap`, `PhysEvidBound`, `PhysEvidWeak` | B2; B1 and B2; B4 and B10 | as above |

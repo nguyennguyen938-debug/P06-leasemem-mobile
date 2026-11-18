@@ -47,7 +47,7 @@ DEBOUNCE = ("device_config set_sync_disabled_for_tests until_reboot; "
             "device_config put activity_manager_native_boot freeze_debounce_timeout %d")
 
 
-def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=None, part=0):
+def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=None, part=0, tag=None):
     """[(label, argv, pre-commands, main output file)] for one task; pre-commands are user-scoped via {u:...}.
     trials overrides the trials per step; part K > 0 adds 1000*K to every seed and "-pK" to every file name."""
     D, P, R = str(A / "driver"), str(A / "physical"), str(A / "revision")
@@ -98,12 +98,15 @@ def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=No
              [stop_fgs], o("boundary-band"))]
     if task == "B10":
         return [("pitfalls", [PY, D + "/e6_pitfalls.py", serial, str(n(50)), sd(2611001), o("pitfalls")], [stop_fgs], o("pitfalls"))]
-    if task == "B13":    # second model: B1 Contacts (4 deployments, 10 trials) and B2 with 5 main gaps (10 trials each);
-        # files start with "b13-" so B1 and B2 analyses of the main model never read them
-        return [("b13-deploy-contacts", [PY, str(A / "followup/deployment.py"), serial, "--out", o("b13-deploy-contacts"),
-                                         "--source", "contacts", "--n", str(n(10))], [], o("b13-deploy-contacts"))] + [
-            ("b13-gap-" + g, [PY, D + "/e2v3_gaps.py", serial, g, str(n(10)), sd(2621301 + i), o("b13-gaps-" + g)],
-             [stop_fgs, DEBOUNCE % (2000 if g == "freeze" else 600000)], o("b13-gaps-" + g))
+    if task in ("B13", "B14"):   # another model: B1 Contacts (4 deployments, 10 trials) and B2 with 5 main gaps (10 trials
+        # each); files start with "b13-" (B14: "b13-<tag>-", one tag per model) so the main model's analyses never read them
+        if task == "B14" and not tag:
+            raise SystemExit("B14 needs --tag <model> (file names b13-<tag>-*)")
+        b = "b13-" if task == "B13" else "b13-%s-" % tag
+        return [(b + "deploy-contacts", [PY, str(A / "followup/deployment.py"), serial, "--out", o(b + "deploy-contacts"),
+                                         "--source", "contacts", "--n", str(n(10))], [], o(b + "deploy-contacts"))] + [
+            (b + "gap-" + g, [PY, D + "/e2v3_gaps.py", serial, g, str(n(10)), sd(2621301 + i), o(b + "gaps-" + g)],
+             [stop_fgs, DEBOUNCE % (2000 if g == "freeze" else 600000)], o(b + "gaps-" + g))
             for i, g in enumerate(["none", "freeze", "dozeidle", "kill", "forcestop"])]
     if task == "B11":
         return [("statelog", [PY, P + "/b11_statelog.py", serial, o("statelog"), "--hours", "0.05" if pilot else "24"], [], o("statelog"))]
@@ -244,6 +247,7 @@ def main():
     ap.add_argument("--trials", type=int, help="trials per step, overriding the plan (one part of a split task)")
     ap.add_argument("--part", type=int, default=0, help="part number: seed offset 1000*K and file tag -pK")
     ap.add_argument("--budget-min", type=float, help="start no new step after this many minutes (Device Farm timeout)")
+    ap.add_argument("--tag", help="B14: model tag in the file names, b13-<tag>-*")
     a = ap.parse_args(); t_start = time.time()
     out_root = Path(a.out_root).resolve()
     if ADB_IS_FAKE and out_root == (A / "results").resolve():
@@ -251,7 +255,7 @@ def main():
     out = out_root / ("physical-" + time.strftime("%Y%m%d")); hm = time.strftime("%H%M")
     if a.dry_run:
         for label, argv, pre, f in steps(a.task, a.serial, out, hm, a.pilot, a.night, set() if lmdrv.AWS else {"sms"},
-                                         a.allow_reboot, a.trials, a.part):
+                                         a.allow_reboot, a.trials, a.part, a.tag):
             if not a.only or label in a.only.split(","):
                 print("[%s] pre: %s\n    run: %s\n    out: %s" % (label, "; ".join(pre) or "-", " ".join(argv), f))
         print("(dry run: AWS mode excludes nothing)" if lmdrv.AWS else
@@ -282,7 +286,7 @@ def main():
         raise SystemExit("APKs not built: %s (run app/*/build.sh with JAVA_HOME and ANDROID_HOME)" % missing)
     if STATE.exists():
         raise SystemExit("an earlier run did not restore the phone's settings (%s); run `campaign.py --restore` first" % STATE)
-    plan = steps(a.task, a.serial, out, hm, a.pilot, a.night, d.excluded, a.allow_reboot, a.trials, a.part)
+    plan = steps(a.task, a.serial, out, hm, a.pilot, a.night, d.excluded, a.allow_reboot, a.trials, a.part, a.tag)
     if a.only:
         plan = [p for p in plan if p[0] in a.only.split(",")]
     meta = d.meta(); apk = " ".join("%s %s" % (k, sha(v)) for k, v in APKS.items())

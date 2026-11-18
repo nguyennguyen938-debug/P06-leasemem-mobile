@@ -47,7 +47,7 @@ PROJECT_ARN = "arn:aws:devicefarm:us-west-2:478825889366:project:83e7e695-4f56-4
 DEVICES = {"pixel8": "arn:aws:devicefarm:us-west-2::device:DE5BD47FF3BD42C3A14BF7A6EFB1BFE7",    # Pixel 8, Android 15
            "pixel9": "arn:aws:devicefarm:us-west-2::device:BCDA2B2CE0B54ABEA1F8B34A54A2752C",    # Pixel 9, Android 15
            "s25": "arn:aws:devicefarm:us-west-2::device:69977E819F314BD481F194580E8EFC16"}       # Galaxy S25, B13
-MAX_TIMEOUT, FREE_MARGIN_MIN, MAX_PARALLEL, USD_PER_MIN = 150, 30.0, 2, estimate.USD_PER_MIN
+MAX_TIMEOUT, FREE_MARGIN_MIN, MAX_PARALLEL, USD_PER_MIN = 150, 30.0, 6, estimate.USD_PER_MIN   # 6: overnight rule of 2026-11-19
 FREE_TOL_MIN, FREE_POLLS, FREE_POLL_S = 0.1, 6, 30    # after a run: free-minute drop >= metered - tolerance, re-read up to 3 min
 # Python custom environment with the client APK as the app under test; the drivers also install every APK themselves
 TEST_TYPE, PKG_TYPE, SPEC_TYPE, APP_TYPE = "APPIUM_PYTHON", "APPIUM_PYTHON_TEST_PACKAGE", "APPIUM_PYTHON_TEST_SPEC", "ANDROID_APP"

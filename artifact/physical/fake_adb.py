@@ -79,7 +79,9 @@ def client_reply(s, cmd, rid, extras):
         r.update(facts={f: {"lm": "FRESH", "ev": "FRESH", "gl": "FRESH", "mem": "v", "truth": "v", "lm_hist": "FRESH", "lmts_hist": "FRESH"} for f in FACTS},
                  lm_hist_cost={"contacts": {"ns": 1000, "reason": "wm_equal"}}, lmts_hist_cost={"contacts": {"ns": 1000, "reason": "wm_equal"}},
                  wm_obs={"contacts": "V1", "contacts@VER": "V1"}, wm_now={"contacts": "V1", "contacts@VER": "V1"},
-                 lm_cost={"contacts": {"reason": "wm_equal", "ns": 1}}, events=[], fg=s["fgs"], clock_jump=False, broken=False)
+                 # client v4 on a phone: strict EvCheck, lm_cost keyed by fact with a verdict (B2 part 2, B10 run 7ffc578c)
+                 lm_cost={f: {"verdict": "UNKNOWN", "reason": "strict_epoch_and_snapshot_unavailable", "fact": f} for f in FACTS},
+                 events=[], fg=s["fgs"], clock_jump=False, broken=False)
     elif cmd == "PROBE":
         r["probe"] = {"contacts.count": "2", "calllog.max_id": "3", "media.generation": "7", "facts": {}}
     elif cmd == "PING":

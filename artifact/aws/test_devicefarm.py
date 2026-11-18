@@ -96,14 +96,14 @@ def test_run_b0():
 
 def test_parallel_and_free():
     n0 = len(calls()); st = state()
-    # two P06 runs and two runs of another project in the shared Device Farm project: only the P06 ones count
+    # MAX_PARALLEL P06 runs and two runs of another project in the shared Device Farm project: only the P06 ones count
     seeded = {"arn:%s" % k: {"name": k, "status": "RUNNING", "polls": 0, "stopped": False}
-              for k in ("p06-B1-a", "p06-B3-b", "pilot-p01-a36-android15", "pilot-p01-x")}
+              for k in ["p06-B%d-x" % i for i in range(df.MAX_PARALLEL)] + ["pilot-p01-a36-android15", "pilot-p01-x"]}
     st["runs"].update(seeded); save(st)
     try:
         df.cmd_run(ns()); raise AssertionError("parallel limit not enforced")
     except SystemExit as e:
-        assert str(e).startswith("2 P06 run(s) already active"), e
+        assert str(e).startswith("%d P06 run(s) already active" % df.MAX_PARALLEL), e
     st["runs"] = {k: v for k, v in st["runs"].items() if k not in seeded}
     # too few free minutes: another project's open run (60 min) and a remote access session (150) count against them
     st.update(free=200.0, other_runs={"arn:other-1": {"name": "pilot-p01-a36-android15", "status": "RUNNING", "jobTimeoutMinutes": 60}},

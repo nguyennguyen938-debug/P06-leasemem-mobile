@@ -51,7 +51,9 @@ with lmdrv.open_new(out) as fo:
             set_clock(d.now_ms() + 3600 * 1000 + 1000)
         f = dec["facts"]["c.dana"]
         rec = {**d.meta(), "exp": "clock", "i": i, "variant": variant, "wm_obs": dec["wm_obs"].get("contacts"), "wm_now": dec["wm_now"].get("contacts"),
-               "clock_jump": dec.get("clock_jump"), "lm": f["lm"], "stale_if_used": f["mem"] != f["truth"], "reason": dec["lm_cost"]["contacts"]["reason"], "mut": m,
+               "clock_jump": dec.get("clock_jump"), "lm": f["lm"], "stale_if_used": f["mem"] != f["truth"], "mut": m,
+               # client v4 keys the strict lm_cost by fact (c.dana), the emulator's StampCheck by source (contacts)
+               "reason": ((dec.get("lm_cost") or {}).get("contacts") or (dec.get("lm_cost") or {}).get("c.dana") or {}).get("reason"),
                "clock_method": "cmd alarm set-time" if d.aws else "date", "clock_moved_back_ms": now - t_back,
                # the timestamp adapter with its clock guard on the same decision, as in e6v2_clock.py (\ClockTs*)
                "lm_ts": f.get("lmts"), "reason_ts": ((dec.get("lmts_cost") or {}).get("c.dana")

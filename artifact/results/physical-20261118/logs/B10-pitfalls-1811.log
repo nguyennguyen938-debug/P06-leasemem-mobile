@@ -1,0 +1,5 @@
+Traceback (most recent call last):
+  File "/tmp/devicefarm-workspace/execution-ud6my4vg/test-package-drhbs1ez/tests/P06/artifact/driver/e6_pitfalls.py", line 54, in <module>
+    "clock_jump": dec.get("clock_jump"), "lm": f["lm"], "stale_if_used": f["mem"] != f["truth"], "reason": dec["lm_cost"]["contacts"]["reason"], "mut": m,
+                                                                                                           ~~~~~~~~~~~~~~^^^^^^^^^^^^
+KeyError: 'contacts'
