@@ -28,7 +28,7 @@ FILES = {'deploy': 'deploy*.jsonl', 'gaps': 'gaps-*.jsonl', 'coverage': 'coverag
          'boundary': 'boundary*.jsonl', 'pitfalls': 'pitfalls-*.jsonl', 'frozen': 'frozen-*.jsonl',
          'b0': 'b0-probe-*.jsonl', 'host': 'host-*.jsonl', 'all': '*.jsonl'}
 # Sources never touched on this phone print NR instead of TBD: those the latest B0 record lists in excluded_sources.
-# SMS and the call log (and with it B9, whose effect is a call-log row) each have an \if switch for the prose.
+# SMS and the call log each have an \if switch for the prose; B9 has its own (\ifPhysBoundary), whatever the call log.
 NR = 'not run on phone'
 # B11 (24-hour state log) and B12 (battery) are dropped: rented Device Farm phones are always charging and a run lasts
 # at most 150 min. Their macros stay defined and print NR; their tables carry one row that says why.
@@ -138,19 +138,38 @@ def race(rows):
 
 
 def boundary(rows):
-    """B9: stale effects by where the change landed (scripts/analyze.py e3 rules)."""
+    """B9: stale effects by where the change landed (scripts/analyze.py e3 rules), independent of excluded_sources.
+    Effect store `calllog` (also records without effect_store, the emulator schema): the client's stale flag.
+    Store `contacts` (AWS: a Data row of a separate raw contact): stale = the number in effect_row differs from Dana's
+    number at effect_row.wall_ms. The record pins that number (truth_after_effect) only without a change, or when the
+    change ended before wall_ms or began after the truth read; otherwise the trial counts as undetermined. Excluded:
+    no effect row read back, a no-change trial whose Dana VERSION is missing or moved, or a change that never ran."""
     rows = [r for r in rows if r.get('res')]
-    if not rows:
-        return {}
-    cls, cte, bins = Counter(), [], {'near': [0, 0], 'late': [0, 0]}
+    cls, cte, bins, excl, undet, stores = Counter(), [], {'near': [0, 0], 'late': [0, 0]}, Counter(), 0, set()
     for r in rows:
-        res, stale = r['res'], bool(r['res'].get('stale'))
+        res, store, mut = r['res'], r.get('effect_store', 'calllog'), r.get('mut') if r['change'] else None
+        stale = bool(res.get('stale'))
+        if r['change'] and 'mut_start' not in (mut or {}):
+            excl['change not made'] += 1; continue
+        if store == 'contacts':
+            row = r.get('effect_row') or {}
+            if 'number' not in row:
+                excl['no effect row'] += 1; continue
+            if not r['change'] and not (r.get('dana_version_unchanged') is True and r.get('dana_version_before')):
+                excl["VERSION moved in a control"] += 1; continue
+            if mut and not (mut['mut_end'] < row['wall_ms'] or mut['mut_start'] > res['effect_end'] + res.get('truth_read_ns', 0) / 1e6):
+                stale = None
+            else:
+                stale = row['number'] != res['truth_after_effect'].split(',')[0]
+        stores.add(store)
         if r['mode'] == 'bnd':
             cte.append(res['effect_end'] - res['check2_start'])
-        if not (r['change'] and r.get('mut')):
+        if stale is None:
+            undet += 1; continue
+        if not mut:
             where = 'none'
         else:
-            ms, me = r['mut']['mut_start'], r['mut']['mut_end']
+            ms, me = mut['mut_start'], mut['mut_end']
             if r['mode'] == 'bnd':
                 where = 'before_check' if me < res['check2_start'] else 'after_effect' if ms > res['effect_end'] else 'overlaps'
                 rel = ms - res['check2_start']
@@ -161,7 +180,8 @@ def boundary(rows):
                 where = 'before_action' if me < res['effect_start'] else 'after_effect' if ms > res['effect_end'] else 'overlaps'
         cls[r['mode'], where, stale] += 1
     k = lambda m, w: (cls[m, w, True], cls[m, w, True] + cls[m, w, False])
-    return {'n': len(rows), 'cte': cte, 'k': k, 'bins': bins}
+    n = len(rows) - sum(excl.values())
+    return {'n': n, 'cte': cte, 'k': k, 'bins': bins, 'excluded': excl, 'undetermined': undet, 'stores': stores} if n else {}
 
 
 def pitfalls(rows):
@@ -234,6 +254,7 @@ def analyze(D):
     cmed = lambda k: '%.0f' % st.median(c[k] for c in cost) if cost else None
     cci = lambda k: (lambda m: '[%.0f, %.0f]' % (m[1], m[2]))(ea.boot_ci([c[k] for c in cost])) if cost else None
     pf = lambda k: kn(*PF[k]) if PF and PF[k][1] else None          # B10 cell; no trials of that kind: TBD, not 0/0
+    bk = lambda m, w: kn(*BD['k'](m, w)) if BD and BD['k'](m, w)[1] else None   # B9 class, same rule
     inst = {r.get('device_instance') for k, v in M.items() if k not in ('all', 'b0') for r in v} - {None}
     macros = {
         'PhysDevice': ('device model', tex(device(D['all'], 'device'))),
@@ -265,11 +286,11 @@ def analyze(D):
         'PhysGapInEpochLm': ('B2 in-epoch gaps, early: StampCheck missed/changed uses', gmiss(INEPOCH, 'early', 'lm')),
         'PhysRaceTrials': ('B4 anchoring-race trials', race_n or None),
         'PhysRaceStale': ('B4 trials with a stale anchor', race_k if race_n else None),
-        'PhysBoundaryTrials': ('B9 boundary trials', nr('calllog', BD.get('n'))),
-        'PhysCteMs': ('B9 median check-to-effect interval, ms', nr('calllog', f"{st.median(BD['cte']):.1f}" if BD.get('cte') else None)),
-        'PhysBndObsStale': ('B9 observation check, change before the action: stale/n', nr('calllog', kn(*BD['k']('obs', 'before_action')) if BD else None)),
-        'PhysBndBeforeCheckStale': ('B9 boundary check, change before the check: stale/n', nr('calllog', kn(*BD['k']('bnd', 'before_check')) if BD else None)),
-        'PhysBndOverlapStale': ('B9 boundary check, change overlaps check or residual: stale/n', nr('calllog', kn(*BD['k']('bnd', 'overlaps')) if BD else None)),
+        'PhysBoundaryTrials': ('B9 valid boundary trials', BD.get('n')),
+        'PhysCteMs': ('B9 median check-to-effect interval, ms', f"{st.median(BD['cte']):.1f}" if BD.get('cte') else None),
+        'PhysBndObsStale': ('B9 observation check, change before the action: stale/n', bk('obs', 'before_action')),
+        'PhysBndBeforeCheckStale': ('B9 boundary check, change before the check: stale/n', bk('bnd', 'before_check')),
+        'PhysBndOverlapStale': ('B9 boundary check, change overlaps check or residual: stale/n', bk('bnd', 'overlaps')),
         'PhysSmsReuse': ('B10 SMS id reuse trials', nr('sms', pf('sms'))),
         'PhysMtimeSame': ('B10 same-second mtime trials', pf('mtime')),
         'PhysClockTrials': ('B10 valid clock set-back trials', PF['clock'][1] if PF and PF['clock'][1] else None),
@@ -293,11 +314,11 @@ def analyze(D):
 
 
 # ------------------------------------------------------------------ tables (no data: one red TBD row)
-def table(gen, name, caption, cols, header, rows, what, star=False, extra=(), tbd=True):
+def table(gen, name, caption, cols, header, rows, what, star=False, extra=(), tbd=True, font=''):
     env = 'table*' if star else 'table'
     body = (rows if rows or not tbd else [r'\multicolumn{%d}{c}{\PhysTBD{%s}}\\' % (len(cols), what)]) + list(extra)
     (gen / name).write_text('\n'.join(['%% AUTO-GENERATED by artifact/physical/analyze_phys.py; do not edit', r'\begin{%s}[tp]' % env, r'\centering\mtab',
-        r'\caption{%s}' % caption, r'\label{tab:%s}' % name[4:-4].replace('_', '-'), r'\begin{tabular}{%s}\toprule' % cols,
+        r'\caption{%s}' % caption, r'\label{tab:%s}' % name[4:-4].replace('_', '-'), font + r'\begin{tabular}{%s}\toprule' % cols,
         r'\mhead ' + header + r'\\\midrule', *body, r'\bottomrule\end{tabular}', r'\end{%s}' % env]) + '\n', encoding='utf-8', newline='\n')
 
 
@@ -325,7 +346,8 @@ def tables(gen, R):
             rows.append(f"{SRCNAME[c['source']]} & {c['label']} & " + ' & '.join(cell(k) for k in ('insert', 'update', 'delete', 'none')) + r'\\')
     table(gen, 'tab_phys_coverage.tex', 'Phone (B3): trials in which a candidate stamp moved after one mutation of each kind by another app (%s trials); None = source untouched; $\\downarrow$: moved downward in some trials.' % cov.get('n', r'\PhysTBD{B3 trials}'),
           'llrrrr', 'Source & Candidate & Insert & Update & Delete & None', rows, 'B3 coverage trials',
-          extra=[r'%s & \multicolumn{5}{l}{%s}\\' % (SRCNAME[x], NR) for x in sorted(NOT_RUN)])
+          extra=[r'%s & \multicolumn{5}{l}{%s}\\' % (SRCNAME[x], NR) for x in sorted(NOT_RUN)],
+          font=r'\scriptsize\setlength{\tabcolsep}{2.4pt}')   # as the emulator Table tab:coverage; fits one column
 
     rows = []
     for g, z in R['gaps'].items():
@@ -342,16 +364,22 @@ def tables(gen, R):
           'lrrr', r'Source & Trials & Stale \Fresh & \Unknown', rows, 'B4 race trials',
           extra=[r'%s & \multicolumn{3}{l}{%s}\\' % (SRCNAME[x], NR) for x in sorted(NOT_RUN)])
 
-    BD, rows = R['boundary'], []
-    if BD and 'calllog' not in NOT_RUN:
+    BD, rows, store = R['boundary'], [], ''
+    if BD:
+        store = ' The effect is %s.' % ' or '.join(sorted({'contacts': "a Data row of a separate raw contact, not Dana's",
+                                                         'calllog': 'a call-log row'}[s] for s in BD['stores']))
+        if 'contacts' in BD['stores']:
+            store += " Stale: the number written differs from Dana's number at the effect's time."
         for lab, m, w in [('check at observation; change before the action', 'obs', 'before_action'), ('boundary check; change before the check', 'bnd', 'before_check'),
                           ('boundary check; change overlaps check or residual', 'bnd', 'overlaps'), ('boundary check; change after the effect', 'bnd', 'after_effect'),
                           ('boundary check, no change (control)', 'bnd', 'none'), ('observation check, no change (control)', 'obs', 'none')]:
             rows.append(f"{lab} & {kn(*BD['k'](m, w))}\\\\")
         rows += [f"change starts within 10\\,ms of the check & {kn(*BD['bins']['near'])}\\\\", f"change starts 10 to 60\\,ms after it & {kn(*BD['bins']['late'])}\\\\"]
-    table(gen, 'tab_phys_boundary.tex', 'Phone (B9): stale effects by where the change landed relative to the boundary check and the effect (stale/trials); median check-to-effect interval \\PhysCteMs\\,ms.',
-          'lr', 'Placement of the change & Stale effects', rows, 'B9 boundary trials', tbd='calllog' not in NOT_RUN,
-          extra=[r'\multicolumn{2}{c}{the effect is a call-log row: %s}\\' % NR] if 'calllog' in NOT_RUN else [])
+        if 'contacts' in BD['stores'] or BD['excluded']:
+            rows += [f"change spans the effect: undetermined & {BD['undetermined']}\\\\"]
+            rows += [f"excluded: {why} & {c}\\\\" for why, c in sorted(BD['excluded'].items())]
+    table(gen, 'tab_phys_boundary.tex', 'Phone (B9): stale effects by where the change landed relative to the boundary check and the effect (stale/trials); median check-to-effect interval \\PhysCteMs\\,ms.' + store,
+          'lr', 'Placement of the change & Stale effects', rows, 'B9 boundary trials')
 
     PF, rows = R['pitfalls'], []
     if PF:
@@ -382,6 +410,7 @@ def write(D, gen):
         lines.append(r'\newif\ifPhys%s\Phys%s%s' % (sw, sw, 'false' if src in R['not_run'] else 'true'))
     lines.append(r'\newif\ifPhysReboot\PhysReboot%s' % ('true' if R['gaps'].get('reboot', {}).get('n') else 'false'))   # valid B2 reboot trials
     lines.append(r'\newif\ifPhysClock\PhysClock%s' % ('true' if R['pitfalls'].get('clock', (0, 0))[1] else 'false'))   # valid B10 clock trials
+    lines.append(r'\newif\ifPhysBoundary\PhysBoundary%s' % ('true' if R['boundary'] else 'false'))   # valid, non-pilot B9 trials
     for name, (what, val) in macros.items():
         lines.append('\\newcommand{\\%s}{%s\\xspace}' % (name, val if val is not None else '\\PhysTBD{%s}' % what))
     (gen / 'physical_macros.tex').write_text('\n'.join(lines) + '\n', encoding='utf-8', newline='\n')
@@ -405,7 +434,7 @@ def self_check():
         tex = tab('physical_macros.tex')
         assert all(v is None for k, (_, v) in m.items() if k not in DROPPED) and all(m[k][1] == NR for k in DROPPED), 'no data: TBD except dropped B11/B12'
         assert tex.count('\\PhysTBD{') == len(m) - len(DROPPED)
-        assert all(s in tex for s in ('\\PhysCalllogtrue', '\\PhysSmstrue', '\\PhysRebootfalse', '\\PhysClockfalse')), 'before B0: SMS and call log run, no reboot or clock'
+        assert all(s in tex for s in ('\\PhysCalllogtrue', '\\PhysSmstrue', '\\PhysRebootfalse', '\\PhysClockfalse', '\\PhysBoundaryfalse')), 'before B0: SMS and call log run; no reboot, clock or B9'
         assert '\\renewcommand{\\PhysTBD}' in tex
         assert '%' not in tex.split('\n', 1)[1], 'a % in a macro would comment out the rest of its line'
         tabs = sorted(p.name for p in gen.glob('tab_phys_*.tex'))
@@ -518,24 +547,51 @@ def self_check():
         assert v['PhysDeployCalllogFgMedian'] == '6\\,ms' and v['PhysBoundaryTrials'] == 3 and v['PhysSmsReuse'] == NR
         assert '\\PhysCalllogtrue' in tab('physical_macros.tex') and 'Call log' in tab('tab_phys_deploy.tex') and NR not in tab('tab_phys_boundary.tex')
         assert '\\PhysSmsfalse' in tab('physical_macros.tex') and NR in tab('tab_phys_pitfalls.tex')
-        # B0 excludes the call log: call-log cells and all of B9 print NR, never TBD; other sources are unaffected
+        # B0 excludes the call log: call-log cells print NR, never TBD; B9 and other sources are unaffected
         add('b0', 'b0-probe-0800.jsonl', {'probe': 'user_info', 'ok': True, 'excluded_sources': ['sms', 'calllog'], 'detail': {}})
         m, _ = write(D, gen); v = {k: x for k, (_, x) in m.items()}
         assert v['PhysDeployCalllogBgMedian'] == NR and v['PhysDeployCalllogFgMedian'] == NR and v['PhysSmsReuse'] == NR
-        assert all(v[k] == NR for k in ('PhysBoundaryTrials', 'PhysCteMs', 'PhysBndObsStale', 'PhysBndBeforeCheckStale', 'PhysBndOverlapStale'))
+        assert v['PhysBoundaryTrials'] == 3 and v['PhysCteMs'] == '30.0' and '\\PhysBoundarytrue' in tab('physical_macros.tex'), 'B9 no longer depends on the call log'
         assert v['PhysDeployMediaBgMedian'] == '500\\,ms' and v['PhysMtimeSame'] == '0/1' and '\\PhysCalllogfalse' in tab('physical_macros.tex')
         assert 'Call log: ' + NR in tab('tab_phys_deploy.tex') and tab('tab_phys_deploy.tex').count('Foreground service') == 1
-        assert all(NR in tab(t) for t in ('tab_phys_coverage.tex', 'tab_phys_race.tex', 'tab_phys_pitfalls.tex', 'tab_phys_boundary.tex'))
+        assert all(NR in tab(t) for t in ('tab_phys_coverage.tex', 'tab_phys_race.tex', 'tab_phys_pitfalls.tex')) and NR not in tab('tab_phys_boundary.tex')
         assert '\\PhysTBD{' not in tab('tab_phys_boundary.tex')
-        # same exclusion without any data: B9 is NR, not TBD; other tables stay TBD
+        # same exclusion without any data: B9 is TBD like every other table
         bare = dict(empty, b0=D['b0'][-1:])
         m, _ = write(bare, gen); v = {k: x for k, (_, x) in m.items()}
-        assert v['PhysBoundaryTrials'] == NR and v['PhysDeployBgMedian'] is None and '\\PhysTBD{' not in tab('tab_phys_boundary.tex')
+        assert v['PhysBoundaryTrials'] is None and v['PhysDeployBgMedian'] is None and '\\PhysTBD{' in tab('tab_phys_boundary.tex')
+        assert '\\PhysBoundaryfalse' in tab('physical_macros.tex')
         assert '\\PhysTBD{' in tab('tab_phys_deploy.tex') and 'Call log: ' + NR in tab('tab_phys_deploy.tex')
         # a later B0 runs every source: SMS and call log are computed again
         add('b0', 'b0-probe-0900.jsonl', {'probe': 'user_info', 'ok': True, 'excluded_sources': [], 'detail': {}})
         m, _ = write(D, gen); v = {k: x for k, (_, x) in m.items()}
         assert v['PhysSmsReuse'] == '1/1' and v['PhysBoundaryTrials'] == 3 and '\\PhysSmstrue' in tab('physical_macros.tex') and '\\PhysCalllogtrue' in tab('physical_macros.tex')
+        # B9 with the effect in Contacts (AWS): stale from effect_row.number against Dana's number at wall_ms; check2 at
+        # 100 ms, effect 120 to 130 ms, wall 125 ms, truth read 2 ms (c5: 20 ms). c1 change before the check, written
+        # number right; c2 change before wall_ms inside the residual, wrong number although the client's flag says not
+        # stale; c3 change spans wall_ms and c5 starts inside the truth read: undetermined; c4 change after the read;
+        # c6 control; c10 observation check, change before the action. Excluded: c7 control whose VERSION moved, c8 no
+        # effect row, c9 change not made. A pilot trial stays out.
+        bc = lambda mode, change, ms=None, me=None, num='B', truth='B', read_ns=2e6, **k: {
+            'mode': mode, 'change': change, 'effect_store': 'contacts', 'mut': {'mut_start': ms, 'mut_end': me} if ms else {'ok': False} if change else None,
+            'effect_row': {'number': num, 'id': 'r', 'wall_ms': 125, 'raw_contact_id': '9'}, 'dana_version_before': '7',
+            'dana_version_after': '7', 'dana_version_unchanged': True, '_file': 'boundary-1800.jsonl',
+            'res': {'stale': False, 'check2_start': 100, 'check2_end': 118, 'effect_start': 120, 'effect_end': 130, 'truth_after_effect': truth,
+                    'truth_read_ns': read_ns, 'effect_store': 'contacts'}, **k}
+        recs = [bc('bnd', 1, 50, 60), bc('bnd', 1, 105, 112, num='A'), bc('bnd', 1, 122, 128), bc('bnd', 1, 200, 205, num='A', truth='A'),
+                bc('bnd', 1, 131, 140, read_ns=20e6), bc('bnd', 0), bc('obs', 0, dana_version_after='8', dana_version_unchanged=False),
+                bc('bnd', 0, effect_row={'raw': 'No result found.'}), bc('bnd', 1), bc('obs', 1, 50, 60, num='A'),
+                bc('bnd', 1, 105, 112, num='A', _file='boundary-pilot-1800.jsonl')]
+        m, _ = write(dict(empty, boundary=recs), gen); w = {k: x for k, (_, x) in m.items()}
+        assert w['PhysBoundaryTrials'] == 7 and w['PhysCteMs'] == '30.0' and w['PhysBndBeforeCheckStale'] == '0/1', (w['PhysBoundaryTrials'], w['PhysCteMs'])
+        assert w['PhysBndOverlapStale'] == '1/1' and w['PhysBndObsStale'] == '1/1' and '\\PhysBoundarytrue' in tab('physical_macros.tex')
+        bt = tab('tab_phys_boundary.tex')
+        assert 'separate raw contact' in bt and 'after the effect & 0/1' in bt and 'no change (control) & 0/1' in bt and 'change spans the effect: undetermined & 2' in bt
+        assert "VERSION moved in a control & 1" in bt and 'no effect row & 1' in bt and 'change not made & 1' in bt
+        m, _ = write(dict(empty, boundary=[r for r in recs if r['mode'] == 'bnd' and not r['change']][1:]), gen)   # every trial excluded
+        assert m['PhysBoundaryTrials'][1] is None and '\\PhysBoundaryfalse' in tab('physical_macros.tex')
+        m, _ = write(dict(empty, boundary=[r for r in recs if r['mode'] == 'bnd']), gen)   # no observation trial: TBD, not 0/0
+        assert m['PhysBndObsStale'][1] is None and m['PhysBndOverlapStale'][1] == '1/1'
         # the real AWS sequence: an older partial B0 lists nothing, the valid later one lists calllog and sms
         b0 = lambda f, ex: {'probe': 'identity', 'ok': True, 'excluded_sources': ex, 'detail': {}, '_file': f}
         write(dict(empty, b0=[b0('b0-probe-1533.jsonl', []), b0('b0-probe-1551.jsonl', ['calllog', 'sms'])]), gen)
