@@ -84,7 +84,10 @@ def client_reply(s, cmd, rid, extras):
     elif cmd == "PING":
         r.update(last_start={"pid": pid, "epoch": "fakeep01"}, n_events=0)
     elif cmd == "ACT":
-        r.update(effect_start=t + 2500, effect_end=t + 2510, used="+15551110000", stale=False, mode=extras.get("mode"))
+        r.update(effect_start=t + 2500, effect_end=t + 2510, used="+15551110000", stale=False, mode=extras.get("mode"),
+                 effect_store=extras.get("effect", "calllog"))
+        if extras.get("effect") == "contacts":           # the effect row of "P06 Effect Log", as the client writes it
+            s.setdefault("effects", {})[rid] = ["+15551110000", t + 2510]
     return r
 
 
@@ -300,6 +303,12 @@ def one(s, c):
             s["role"] = None
         return s["role"] or "" if sub == "get-role-holders" else ""
     if c.startswith("content query --user %d" % USER):
+        m = re.search(r"leasemem\.effect' AND data2='([^']+)'", c)
+        if m:
+            e = s.get("effects", {}).get(m.group(1))
+            return "Row: 0 data1=%s, data2=%s, data3=%d, raw_contact_id=9" % (e[0], m.group(1), e[1]) if e else "No result found."
+        if "raw_contacts --projection _id:version" in c:
+            return "Row: 0 _id=1, version=%d" % s.get("dana_version", 3)
         return "No result found." if ("NOT LIKE" in c or "IS NOT" in c) else "Row: 0 _id=1\nRow: 1 _id=2"
     return None
 

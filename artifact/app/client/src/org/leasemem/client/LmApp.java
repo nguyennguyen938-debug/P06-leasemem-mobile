@@ -661,10 +661,36 @@ public class LmApp extends Application {
 
     // ---------------- action-boundary experiment (v3) ----------------
     /** ACT: validate at receipt (check1); at absolute device time `at` optionally re-validate (check2, mode bnd), then
-     *  perform an external effect: insert an outgoing call-log row carrying the value used. Timestamps of every step
-     *  are recorded so a host can place injected changes relative to the boundary check and the effect. */
+     *  perform an external effect carrying the value used: an outgoing call-log row (effect "calllog", the emulator
+     *  default) or, where the call log cannot be written (AWS Device Farm), a Data row of the separate raw contact
+     *  "P06 Effect Log" (effect "contacts"). That raw contact has aggregation disabled and a custom MIME type, so it never
+     *  joins Dana's contact and never changes Dana's VERSION; it is created at receipt, so the timed effect is one insert
+     *  in both stores. Timestamps of every step are recorded so a host can place injected changes relative to the
+     *  boundary check and the effect. */
+    static final String EFFECT_MIME = "vnd.android.cursor.item/vnd.org.leasemem.effect", EFFECT_SOURCE_ID = "p06-effect-log";
+
+    long effectRawContact() throws Exception {
+        List<String[]> r = q(ContactsContract.RawContacts.CONTENT_URI, new String[]{"_id"},
+                ContactsContract.RawContacts.SOURCE_ID + "=? AND " + ContactsContract.RawContacts.DELETED + "=0", new String[]{EFFECT_SOURCE_ID}, "_id");
+        if (!r.isEmpty()) return Long.parseLong(r.get(0)[0]);
+        android.content.ContentValues v = new android.content.ContentValues();
+        v.putNull(ContactsContract.RawContacts.ACCOUNT_TYPE); v.putNull(ContactsContract.RawContacts.ACCOUNT_NAME);
+        v.put(ContactsContract.RawContacts.SOURCE_ID, EFFECT_SOURCE_ID);
+        v.put(ContactsContract.RawContacts.AGGREGATION_MODE, ContactsContract.RawContacts.AGGREGATION_MODE_DISABLED);
+        long raw = android.content.ContentUris.parseId(cr.insert(ContactsContract.RawContacts.CONTENT_URI, v));
+        android.content.ContentValues n = new android.content.ContentValues();
+        n.put(ContactsContract.Data.RAW_CONTACT_ID, raw); n.put(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE);
+        n.put(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, "P06 Effect Log");
+        cr.insert(ContactsContract.Data.CONTENT_URI, n);
+        return raw;
+    }
+
     void act(Intent it, JSONObject out, String id) throws Exception {
-        if (EXCLUDED.contains("calllog")) throw new IllegalStateException("ACT writes its effect to the call log, excluded on this device");
+        final String store = it.getStringExtra("effect") == null ? "calllog" : it.getStringExtra("effect");
+        if (store.equals("calllog") && EXCLUDED.contains("calllog")) throw new IllegalStateException("ACT writes its effect to the call log, excluded on this device");
+        if (!store.equals("calllog") && !store.equals("contacts")) throw new IllegalArgumentException("effect store " + store);
+        final long effRaw = store.equals("contacts") ? effectRawContact() : -1;
+        out.put("effect_store", store); out.put("effect_raw_contact", effRaw);
         final String fid = it.getStringExtra("fact"); final String mode = it.getStringExtra("mode");
         final long at = it.getLongExtra("at", System.currentTimeMillis() + it.getLongExtra("delay", 3000));
         final String src = srcOf(fid);
@@ -686,12 +712,21 @@ public class LmApp extends Application {
                     out.put("st2", st2.get(fid)); out.put("c2", c2);
                 }
                 long tc1 = System.currentTimeMillis();
-                // external effect: a call-log row recording whom the agent contacted, with the number it used
+                // external effect: a record of whom the agent contacted, with the number it used
+                String num = u.isEmpty() ? "none" : u.split(",")[0];
                 android.content.ContentValues v = new android.content.ContentValues();
-                v.put(CallLog.Calls.NUMBER, u.isEmpty() ? "none" : u.split(",")[0]); v.put(CallLog.Calls.TYPE, CallLog.Calls.OUTGOING_TYPE);
-                v.put(CallLog.Calls.DATE, System.currentTimeMillis()); v.put(CallLog.Calls.DURATION, 0);
+                Uri target;
+                if (store.equals("contacts")) {   // a Data row of "P06 Effect Log": DATA1 number, DATA2 command id, DATA3 wall ms
+                    v.put(ContactsContract.Data.RAW_CONTACT_ID, effRaw); v.put(ContactsContract.Data.MIMETYPE, EFFECT_MIME);
+                    v.put(ContactsContract.Data.DATA1, num); v.put(ContactsContract.Data.DATA2, id); v.put(ContactsContract.Data.DATA3, String.valueOf(System.currentTimeMillis()));
+                    target = ContactsContract.Data.CONTENT_URI;
+                } else {
+                    v.put(CallLog.Calls.NUMBER, num); v.put(CallLog.Calls.TYPE, CallLog.Calls.OUTGOING_TYPE);
+                    v.put(CallLog.Calls.DATE, System.currentTimeMillis()); v.put(CallLog.Calls.DURATION, 0);
+                    target = CallLog.Calls.CONTENT_URI;
+                }
                 long te0 = System.currentTimeMillis();
-                Uri ef = null; try { ef = cr.insert(CallLog.Calls.CONTENT_URI, v); } catch (Exception e) { out.put("effect_err", e.toString()); }
+                Uri ef = null; try { ef = cr.insert(target, v); } catch (Exception e) { out.put("effect_err", e.toString()); }
                 long te1 = System.currentTimeMillis();
                 Res truth = read(fid);
                 out.put("check2_start", tc0); out.put("check2_end", tc1); out.put("effect_start", te0); out.put("effect_end", te1);

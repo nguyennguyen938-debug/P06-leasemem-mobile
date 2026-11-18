@@ -85,8 +85,8 @@ def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=No
                           "--out-dir", str(out), "--suffix=" + sfx], [], f)]
     if task == "B7":
         return [("continuous", [PY, P + "/b7_continuous.py", serial, o("continuous"), "--n", str(n(30))], [], o("continuous"))]
-    if task == "B9":     # the boundary effect is a call-log row: needs the call log
-        return [] if "calllog" in excluded else [
+    if task == "B9":     # the effect is a call-log row, or a Contacts Data row where the call log is excluded (AWS)
+        return [
             ("boundary", [PY, D + "/e3v2_boundary.py", serial, str(n(100)), sd(2611901), o("boundary")], [stop_fgs], o("boundary")),
             ("boundary-band", [PY, D + "/e3v2_boundary.py", serial, str(n(100)), sd(2611902), o("boundary-band"), "band"],
              [stop_fgs], o("boundary-band"))]

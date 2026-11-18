@@ -83,7 +83,7 @@ def timings():
 PLAN = {"B1": {"B1/bg_unfrozen": 20 + 20, "B1/bg_freezer": 20, "B1/fg": 20 + 20, "B1/assistant": 20},   # Contacts + MediaStore
         "B3": {"B3": 30},
         "B2": {"B2/" + g: 25 for g in ["none", "freeze", "dozeidle", "bucket", "unregister", "kill", "forcestop", "perm"]},
-        "B4": {"B4": 20}, "B10": {"B10/mtime": 50, "B10/clock": 50}, "B5": {"B5": 10},
+        "B4": {"B4": 20}, "B9": {"B9": 165 + 100}, "B10": {"B10/mtime": 50, "B10/clock": 50}, "B5": {"B5": 10},
         "B13": {"B1/bg_unfrozen": 10, "B1/bg_freezer": 10, "B1/fg": 10, "B1/assistant": 10,
                 **{"B2/" + g: 10 for g in ["none", "freeze", "dozeidle", "kill", "forcestop"]}},
         "B6": {"B6": 30}, "B7": {"B6": 30}}     # B7 has no emulator run; its trials resemble B6's continuous case
@@ -116,7 +116,7 @@ if __name__ == "__main__":
         print(json.dumps({"timings": {k: [v[0], v[1], v[2]] for k, v in T.items()}, "estimate": E}, indent=1)); sys.exit(0)
     print("| Task | Trial time, min | Runs (<= %d min) | Device min incl. %.0f min/run | USD at %.2f/min |" % (RUN_TIMEOUT_MIN, RUN_OVERHEAD_MIN, USD_PER_MIN))
     print("|---|---|---|---|---|")
-    order = ["B0", "B1", "B3", "B2", "B4", "B10", "B5", "B13", "B6", "B7"]
+    order = ["B0", "B1", "B3", "B2", "B4", "B9", "B10", "B5", "B13", "B6", "B7"]
     for k in order:
         e = E[k]; print("| %s | %.1f | %d | %.1f | %.2f |" % (k, e["trial_min"], e["runs"], e["device_min"], e["usd"]))
     core = sum(E[k]["device_min"] for k in ["B0", "B1", "B3", "B2", "B4"]); allm = sum(E[k]["device_min"] for k in order)
