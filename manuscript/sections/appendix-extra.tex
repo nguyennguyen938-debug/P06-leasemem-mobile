@@ -9,6 +9,8 @@ These tables come from one phone model (\S\ref{sec:phys-setup}). They apply the 
 \input{generated/tab_phys_boundary}
 \input{generated/tab_phys_pitfalls}
 \input{generated/tab_phys_frozen}
+\input{generated/tab_phys_host}
+\input{generated/tab_phys_continuous}
 
 \section{Additional Results}
 \label{app:extra}
@@ -17,6 +19,8 @@ These tables come from one phone model (\S\ref{sec:phys-setup}). They apply the 
 
 \paragraph{Hold-distribution sensitivity.} For one quiescent write, an unfrozen process, a deterministic callback delay $D$ and a decision at $H+2$ seconds, silence persists with probability $P(H<D-2)$. With $D=10$ and $H\sim U[0,h]$, this is $\min(1,8/h)$: \HoldSensFour, \HoldSensTen, \HoldSensThirty and \HoldSensSixty for $h=4,10,30,60$ seconds. At +14 seconds it is zero under these assumptions. This analytic sensitivity explains why the chosen hold distribution changes event-only rates; it excludes freezing, lost coverage, setup callbacks and concurrent writes, and is not a field-frequency estimate.
 
+\input{generated/tab_latency}
+\input{generated/tab_cost}
 \input{generated/tab_policy}
 \input{generated/fig_miss}
 \input{generated/tab_trial}
