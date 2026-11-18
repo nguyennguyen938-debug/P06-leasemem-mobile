@@ -167,11 +167,14 @@ def boundary(rows):
 def pitfalls(rows):
     reuse = [r for r in rows if r.get('exp') == 'sms_reuse' and r['res'].get('ok')]
     mt = [r for r in rows if r.get('exp') == 'mtime' and all(x.get('ok') for x in r['res'])]
+    # clock set-back (driver/e6_pitfalls.py): valid only if the clock really went back (about 1 h; 50 min suffices);
+    # affected = the client's Contacts stamp (lm) kept FRESH although the cached number was stale (scripts/analyze.py e6)
+    ck = [r for r in rows if r.get('exp') == 'clock' and 'error' not in r and r.get('clock_moved_back_ms', 0) >= 3000000]
     same = lambda did: did.split('->')[0] == did.split('->')[1]
-    if not (reuse or mt):
+    if not (reuse or mt or ck):
         return {}
     return {'sms': (sum(same(r['res']['did']) for r in reuse), len(reuse)), 'mtime': (sum(same(r['res'][1]['did']) for r in mt), len(mt)),
-            'clock': sum(r.get('exp') == 'clock' for r in rows)}
+            'clock': (sum(r['lm'] == 'FRESH' and bool(r['stale_if_used']) for r in ck), len(ck))}
 
 
 def frozen(rows):
@@ -243,7 +246,7 @@ def analyze(D):
         'PhysDeployBgMedian': ('B1 Contacts background unfrozen median callback delay', med('contacts', 'bg_unfrozen')),
         'PhysDeployFgMedian': ('B1 Contacts FGS median callback delay', med('contacts', 'fg')),
         'PhysDeployAssistMedian': ('B1 Contacts bound assistant median callback delay', med('contacts', 'assistant')),
-        'PhysDeployFrozenBeforeThaw': ('B1 Contacts frozen trials with a callback before thaw', kn(frz['before_thaw'], frz['valid']) if frz else None),
+        'PhysDeployFrozenBeforeThaw': ('B1 Contacts frozen trials with a callback before thaw', kn(frz['before_thaw'], frz['valid']) if frz and frz['valid'] else None),
         'PhysDeployMediaBgMedian': ('B1 MediaStore background unfrozen median callback delay', med('media', 'bg_unfrozen')),
         'PhysDeployMediaFgMedian': ('B1 MediaStore FGS median callback delay', med('media', 'fg')),
         'PhysDeployCalllogBgMedian': ('B1 call log background unfrozen median callback delay', nr('calllog', med('calllog', 'bg_unfrozen'))),
@@ -269,6 +272,8 @@ def analyze(D):
         'PhysBndOverlapStale': ('B9 boundary check, change overlaps check or residual: stale/n', nr('calllog', kn(*BD['k']('bnd', 'overlaps')) if BD else None)),
         'PhysSmsReuse': ('B10 SMS id reuse trials', nr('sms', pf('sms'))),
         'PhysMtimeSame': ('B10 same-second mtime trials', pf('mtime')),
+        'PhysClockTrials': ('B10 valid clock set-back trials', PF['clock'][1] if PF and PF['clock'][1] else None),
+        'PhysClockStale': ('B10 clock set-back: stale number accepted/trials', pf('clock')),
         'PhysFrozenHolds': ('B5 valid frozen holds', F.get('valid')),
         'PhysFrozenStayed': ('B5 holds that stayed frozen', F.get('stayed')),
         'PhysFrozenKilled': ('B5 holds ended by a kill', kn(F['died'], F['valid']) if F else None),
@@ -305,8 +310,9 @@ def tables(gen, R):
         if src != last:
             rows.append(r'\mgroup{5}{%s}' % SOURCES[src]); last = src
         d = z['delays_ms']
-        rows.append(f"{NAMES[mode]} & {z['valid']}/{z['attempted']} & {dur(st.median(d)) if d else 'held' if mode == 'bg_freezer' else 'n/a'} & "
-                    f"{'[%s, %s]' % (dur(min(d)), dur(max(d))) if d else 'n/a'} & {z['before_thaw']}/{z['valid']}\\\\")
+        held = 'held' if mode == 'bg_freezer' and z['valid'] else 'n/a'     # no valid trial: nothing was held
+        rows.append(f"{NAMES[mode]} & {z['valid']}/{z['attempted']} & {dur(st.median(d)) if d else held} & "
+                    f"{'[%s, %s]' % (dur(min(d)), dur(max(d))) if d else 'n/a'} & {kn(z['before_thaw'], z['valid']) if z['valid'] else 'n/a'}\\\\")
     table(gen, 'tab_phys_deploy.tex', "Phone (B1): callbacks per source and deployment, counted only for the trial's own source; valid/attempted trials, median and range of the delay, trials with a callback before thaw.",
           'lrrrr', 'Deployment & Trials & Median & Range & Before thaw', rows, 'B1 deployment trials',
           extra=[r'\mgroup{5}{%s: %s}' % (SOURCES[x], NR) for x in SOURCES if x in NOT_RUN])
@@ -351,7 +357,7 @@ def tables(gen, R):
     if PF:
         cell = lambda k: wil(*PF[k]) if PF[k][1] else r'\PhysTBD{B10 %s trials}' % k     # no trials of that kind yet
         rows = [f"SMS \\texttt{{\\_id}} reused after delete and insert & {NR if 'sms' in NOT_RUN else cell('sms')}\\\\", f"second append in the same second leaves mtime & {cell('mtime')}\\\\",
-                'wall-clock rollback & ' + (f"{PF['clock']} records" if PF['clock'] else 'not run on this phone') + r'\\']
+                'clock set back 1\\,h, \\stamp keeps a stale number & ' + (wil(*PF['clock']) if PF['clock'][1] else 'not run on this phone') + r'\\']
     table(gen, 'tab_phys_pitfalls.tex', 'Phone (B10): evidence pitfalls, trials affected out of trials (Wilson 95\\% interval).',
           'lr', 'Pitfall & Trials affected', rows, 'B10 pitfall trials',
           extra=[r'SMS \texttt{\_id} reuse & %s\\' % NR] if 'sms' in NOT_RUN and not PF else [])
@@ -375,6 +381,7 @@ def write(D, gen):
     for src, sw in (('calllog', 'Calllog'), ('sms', 'Sms')):      # true unless the latest B0 excludes the source
         lines.append(r'\newif\ifPhys%s\Phys%s%s' % (sw, sw, 'false' if src in R['not_run'] else 'true'))
     lines.append(r'\newif\ifPhysReboot\PhysReboot%s' % ('true' if R['gaps'].get('reboot', {}).get('n') else 'false'))   # valid B2 reboot trials
+    lines.append(r'\newif\ifPhysClock\PhysClock%s' % ('true' if R['pitfalls'].get('clock', (0, 0))[1] else 'false'))   # valid B10 clock trials
     for name, (what, val) in macros.items():
         lines.append('\\newcommand{\\%s}{%s\\xspace}' % (name, val if val is not None else '\\PhysTBD{%s}' % what))
     (gen / 'physical_macros.tex').write_text('\n'.join(lines) + '\n', encoding='utf-8', newline='\n')
@@ -398,7 +405,7 @@ def self_check():
         tex = tab('physical_macros.tex')
         assert all(v is None for k, (_, v) in m.items() if k not in DROPPED) and all(m[k][1] == NR for k in DROPPED), 'no data: TBD except dropped B11/B12'
         assert tex.count('\\PhysTBD{') == len(m) - len(DROPPED)
-        assert all(s in tex for s in ('\\PhysCalllogtrue', '\\PhysSmstrue', '\\PhysRebootfalse')), 'before B0: SMS and call log run, no reboot'
+        assert all(s in tex for s in ('\\PhysCalllogtrue', '\\PhysSmstrue', '\\PhysRebootfalse', '\\PhysClockfalse')), 'before B0: SMS and call log run, no reboot or clock'
         assert '\\renewcommand{\\PhysTBD}' in tex
         assert '%' not in tex.split('\n', 1)[1], 'a % in a macro would comment out the rest of its line'
         tabs = sorted(p.name for p in gen.glob('tab_phys_*.tex'))
@@ -491,6 +498,19 @@ def self_check():
         # B10 with mtime trials only: the SMS cell is TBD, never 0/0
         m, _ = write(dict(empty, pitfalls=[r for r in D['pitfalls'] if r['exp'] == 'mtime']), gen); w = {k: x for k, (_, x) in m.items()}
         assert w['PhysSmsReuse'] is None and w['PhysMtimeSame'] == '0/1' and '\\PhysTBD{B10 sms trials}' in tab('tab_phys_pitfalls.tex')
+        assert '\\PhysClockfalse' in tab('physical_macros.tex') and w['PhysClockTrials'] is None
+        # B10 clock set-back only (AWS schema): one stale number kept, one edit detected, one unchanged number; a trial whose clock did not move
+        # back and an error record are invalid
+        ck = lambda lm, stale, back=3599500, **k: {'exp': 'clock', 'variant': 'transient', 'lm': lm, 'stale_if_used': stale, 'clock_jump': False,
+                                                  'clock_method': 'cmd alarm set-time', 'clock_moved_back_ms': back, **k}
+        m, _ = write(dict(empty, pitfalls=[dict(r, _file='pitfalls-1700.jsonl') for r in (ck('FRESH', True), ck('CHANGED', True), ck('FRESH', False), ck('FRESH', True, back=0),
+                                                                                          ck('FRESH', True, error='adb lost'))]), gen)
+        w = {k: x for k, (_, x) in m.items()}
+        assert w['PhysClockStale'] == '1/3' and w['PhysClockTrials'] == 3 and w['PhysMtimeSame'] is None, (w['PhysClockStale'], w['PhysClockTrials'])
+        assert '\\PhysClocktrue' in tab('physical_macros.tex') and 'stale number & 1/3 [' in tab('tab_phys_pitfalls.tex')
+        # B1 frozen trials that all failed: no 0/0 and no "held" claim
+        m, _ = write(dict(empty, deploy=[{'mode': 'bg_freezer', 'source': 'contacts', 'error': 'AssertionError', '_file': 'deploy-contacts-1700.jsonl'}]), gen)
+        assert m['PhysDeployFrozenBeforeThaw'][1] is None and 'Background, frozen & 0/1 & n/a & n/a & n/a' in tab('tab_phys_deploy.tex')
         # B0 says the call log runs: call-log macros and B9 are computed (latest B0 record wins)
         add('b0', 'b0-probe-0600.jsonl', {'probe': 'user_info', 'ok': True, 'excluded_sources': ['sms', 'calllog'], 'detail': {}})
         add('b0', 'b0-probe-0700.jsonl', {'probe': 'user_info', 'ok': True, 'excluded_sources': ['sms'], 'detail': {}})
@@ -516,6 +536,10 @@ def self_check():
         add('b0', 'b0-probe-0900.jsonl', {'probe': 'user_info', 'ok': True, 'excluded_sources': [], 'detail': {}})
         m, _ = write(D, gen); v = {k: x for k, (_, x) in m.items()}
         assert v['PhysSmsReuse'] == '1/1' and v['PhysBoundaryTrials'] == 3 and '\\PhysSmstrue' in tab('physical_macros.tex') and '\\PhysCalllogtrue' in tab('physical_macros.tex')
+        # the real AWS sequence: an older partial B0 lists nothing, the valid later one lists calllog and sms
+        b0 = lambda f, ex: {'probe': 'identity', 'ok': True, 'excluded_sources': ex, 'detail': {}, '_file': f}
+        write(dict(empty, b0=[b0('b0-probe-1533.jsonl', []), b0('b0-probe-1551.jsonl', ['calllog', 'sms'])]), gen)
+        assert '\\PhysSmsfalse' in tab('physical_macros.tex') and '\\PhysCalllogfalse' in tab('physical_macros.tex')
     print('analyze_phys self-check ok')
 
 
