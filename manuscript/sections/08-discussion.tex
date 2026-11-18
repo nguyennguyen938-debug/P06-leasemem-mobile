@@ -4,14 +4,14 @@ The evidence map supports the deployment-specific choices in Table~\ref{tab:guid
 
 \begin{table}[t]
 \centering\mtab
-\caption{Conditional strategy guidance and its evidence: emulator (Android 13 and 15 emulators), phone (the physical phone of \S\ref{sec:phys-setup}) or inferred (from Theorem~\ref{thm:sound} with emulator positive controls). Every read retains a later action-boundary race.}
+\caption{Conditional strategy guidance and its evidence: emulator (Android 13 and 15 emulators), phone (the rented phones of \S\ref{sec:phys-setup}) or inferred (from Theorem~\ref{thm:sound} with emulator positive controls). Every read retains a later action-boundary race.}
 \label{tab:guidance}
 \begin{tabular}{p{1.9cm}p{4.1cm}p{1.6cm}}\toprule
 \mhead Source & Appropriate strategy and condition & Evidence\\\midrule
-Cheap provider facts & Batch current-value queries; retain read intervals. & Emulator; \PhysEvidCheap\\
+Cheap provider facts & Refresh current values in the client; retain read intervals. & Emulator; \PhysEvidCheap\\
 LLM-derived facts & Read current inputs; memoize equal-input outputs. & Emulator only\\
 Bound service/FGS & Treat notifications as hints; handle epoch breaks. & Emulator; \PhysEvidBound\\
-Host controller & Match batching, helper residency and privileges. & Emulator only\\
+Host controller & Batch reads; batched stamp checks and relays save time but are hints. & Emulator; \PhysEvidHost\\
 Cooperative provider & Use transactional snapshots and managed writes/reset. & Inferred; emulator\\
 Weak/absent evidence & Return \Unknown; refresh, re-observe or stop. & Emulator; \PhysEvidWeak\\\bottomrule
 \end{tabular}
@@ -19,6 +19,6 @@ Weak/absent evidence & Return \Unknown; refresh, re-observe or stop. & Emulator;
 
 \paragraph{Derived outputs.} Current inputs do not make a generated output current. Reusing an output for equal inputs is safe only if the input keys capture every dependency and the output asserts nothing beyond them; a draft with current structured fields can still carry stale text from context outside the keys. The task oracle (\S\ref{sec:agent-tasks}) checks structured inputs, task identity and nonempty text, not whether the text reflects the new facts.
 
-\paragraph{External validity.} Emulators on one host, with scripted mutations, supply the source map, policy campaigns and counterexamples. Physical results come from one phone model (\PhysDevice) rented on Device Farm and describe that model, not every vendor or release; where phone and emulators differ, we report both, and experiments not run on the phone keep emulator results (\S\ref{sec:phys-setup}). Even units of that model differ (the cached-app freezer was already off on \PhysFreezerOffUnits), so a client should not assume its deployment's lifecycle behavior. The rented phones stay on the charger and their Doze is forced, so we have measured neither how often gaps occur in real use nor battery drain on a physical phone. The summed-call model and measured draft tasks have different workloads. Unsupported stock contracts remain disabled, and selected query inspection is not population coverage. Ambiguous temporal overlaps are not counted as successes.
+\paragraph{External validity.} Emulators on one host, with scripted mutations, supply the source map, policy campaigns and counterexamples. Physical results come from one phone model (\PhysDevice) rented on Device Farm and describe that model, not every vendor or release. Where the phones differ from the emulators (slower foreground and assistant callbacks, a longer check-to-effect interval, finer file mtimes), we report both; experiments not run on the phone keep emulator results (\S\ref{sec:phys-setup}). Units of the model differ even in build (\PhysBuilds builds) and freezer setting (off on \PhysFreezerOffUnits units with a recorded state), so a client should not assume its deployment's lifecycle behavior. The rented phones stay on the charger and their Doze is forced, so we have measured neither how often gaps occur in real use nor battery drain on a physical phone. The summed-call model and measured draft tasks have different workloads. Unsupported stock contracts remain disabled, and selected query inspection is not population coverage. Ambiguous temporal overlaps are not counted as successes.
 
 \paragraph{Platform opportunities.} Useful APIs would return values and sequence counters atomically, expose reset-safe epochs and complete changes including deletions, and support conditional effects. Public counters alone would not repair an inconsistent observation. Such APIs could make reuse worthwhile for expensive sources, but the present measurements do not establish a general performance advantage.

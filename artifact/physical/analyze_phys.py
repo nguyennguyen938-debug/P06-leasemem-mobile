@@ -505,6 +505,8 @@ def analyze(D):
         **{k: ('B11/B12 dropped', NR) for k in DROPPED},
         'PhysHostTrials': ('B6 matched host trials', sum(z['n'] for z in R['host'].values()) or None),
         **{'PhysHostStampGain' + c.title(): ('B6 %s writes: refresh minus StampCheck, mean ms [CI]' % c, gain(c)) for c in ('none', 'one', 'continuous')},
+        **{'PhysHostStampGain' + k: ('B6 %s over write cases of refresh minus StampCheck, mean ms' % k.lower(),
+                                     '%.1f' % f(z['gain'][0] for z in HO.values()) if HO else None) for k, f in (('Min', min), ('Max', max))},
         'PhysContTrials': ('B7 continuous-write trials', len(M['continuous']) or None),
         'PhysContStaleCert': ('B7 arm trials stale at certification / determined', cont('stale_at_certification')),
         'PhysContActionOnly': ('B7 arm trials fresh at certification, stale at the action / determined', cont('stale_at_action_only')),
@@ -751,7 +753,7 @@ def self_check():
         add('continuous', 'continuous-1500.jsonl', {'truth0': {'values': {'c.dana': 'A'}}, 'mutations': [{'t_pre': 1000, 't_dev': 1010, 'tag': 'B'}],
                                                     'arms': {'refresh': b7(500, 600), 'stamp': b7(1500, 1600), 'relay': b7(900, 1100), 'x': b7(1005, 1100)}})
         m, _ = write(D, gen); v = {k: x for k, (_, x) in m.items()}
-        assert v['PhysEvidCheap'] == 'phone' and v['PhysEvidHost'] == 'phone' and v['PhysHostTrials'] == 2 and v['PhysHostStampGainNone'] == '50.0 [50.0, 50.0]' and v['PhysHostStampGainOne'] is None
+        assert v['PhysEvidCheap'] == 'phone' and v['PhysEvidHost'] == 'phone' and v['PhysHostTrials'] == 2 and v['PhysHostStampGainNone'] == '50.0 [50.0, 50.0]' and v['PhysHostStampGainOne'] is None and v['PhysHostStampGainMin'] == v['PhysHostStampGainMax'] == '50.0'
         assert 'none & 2 & 200.0 & 150.0 & 50.0 & 50.0 [50.0, 50.0] & 11.0 / 4.0' in tab('tab_phys_host.tex'), tab('tab_phys_host.tex')
         assert v['PhysContTrials'] == 1 and v['PhysContStaleCert'] == '1/3' and v['PhysContActionOnly'] == '1/3' and v['PhysContAmbiguous'] == '1/4'
         assert 'refresh & 1 & 0 & 0 & 0' in tab('tab_phys_continuous.tex') and 'relay & 0 & 0 & 1 & 0' in tab('tab_phys_continuous.tex')
@@ -929,6 +931,10 @@ def self_check():
         b0 = lambda f, ex: {'probe': 'identity', 'ok': True, 'excluded_sources': ex, 'detail': {}, '_file': f}
         write(dict(empty, b0=[b0('b0-probe-1533.jsonl', []), b0('b0-probe-1551.jsonl', ['calllog', 'sms'])]), gen)
         assert '\\PhysSmsfalse' in tab('physical_macros.tex') and '\\PhysCalllogfalse' in tab('physical_macros.tex')
+        # B6 over two write cases (gains 50 and 10 ms): the smallest and largest mean gain
+        h2 = [dict(hr, _file='host-X-1400.jsonl'), dict(hr, case='one', arms=dict(hr['arms'], stamp=arm(190, 7)), _file='host-X-1400.jsonl')]
+        m, _ = write(dict(empty, host=h2), gen)
+        assert (m['PhysHostStampGainMin'][1], m['PhysHostStampGainMax'][1]) == ('10.0', '50.0')
     print('analyze_phys self-check ok')
 
 
