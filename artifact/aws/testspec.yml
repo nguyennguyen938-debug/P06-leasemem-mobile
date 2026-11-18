@@ -8,7 +8,8 @@ version: 0.1
 # which Device Farm returns as the Customer Artifacts zip; devicefarm.py fetch copies them into
 # artifact/results/physical-<date>/ with create-only writes.
 
-android_test_host: amazon_linux_2023
+# amazon_linux_2: the Android host of Device Farm's current curated Appium Python test specs (2026-05-15, 2026-08-03)
+android_test_host: amazon_linux_2
 
 phases:
   install:
