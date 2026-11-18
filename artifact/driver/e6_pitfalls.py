@@ -52,7 +52,10 @@ with lmdrv.open_new(out) as fo:
         f = dec["facts"]["c.dana"]
         rec = {**d.meta(), "exp": "clock", "i": i, "variant": variant, "wm_obs": dec["wm_obs"].get("contacts"), "wm_now": dec["wm_now"].get("contacts"),
                "clock_jump": dec.get("clock_jump"), "lm": f["lm"], "stale_if_used": f["mem"] != f["truth"], "reason": dec["lm_cost"]["contacts"]["reason"], "mut": m,
-               "clock_method": "cmd alarm set-time" if d.aws else "date", "clock_moved_back_ms": now - t_back}
+               "clock_method": "cmd alarm set-time" if d.aws else "date", "clock_moved_back_ms": now - t_back,
+               # the timestamp adapter with its clock guard on the same decision, as in e6v2_clock.py (\ClockTs*)
+               "lm_ts": f.get("lmts"), "reason_ts": ((dec.get("lmts_cost") or {}).get("c.dana")
+                                                     or (dec.get("lmts_cost") or {}).get("contacts") or {}).get("reason")}
         fo.write(json.dumps(rec) + "\n"); fo.flush()
         print(rec["variant"], rec["lm"], rec["reason"], rec["stale_if_used"], flush=True)
     finally:

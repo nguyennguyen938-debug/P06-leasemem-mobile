@@ -70,7 +70,8 @@ source (Contacts, SMS, call log, MediaStore, calendar, Settings, files).
   minus 4, so no step starts too late). Each driver flushes after every trial, so a run cut short keeps its trials.
 - **Every run prepares the wiped phone itself** (`physical/b0_setup.py` through `campaign.py`): install the four APKs
   in user 0 with all runtime permissions (`adb install --user 0 -r -g`), appops `MANAGE_EXTERNAL_STORAGE` and
-  `WRITE_SMS`, grants, and the fixtures of all seven sources through the mutator app.
+  `WRITE_SMS` (only where SMS is not excluded), grants, and the fixtures of every source not in `excluded_sources`
+  (on AWS: Contacts, MediaStore, Calendar, Settings, files) through the mutator app.
 - **Records carry the run's identity.** `device_instance` (`$DEVICEFARM_DEVICE_UDID`), `device_arn`
   (`$DEVICEFARM_DEVICE_ARN`) and `run_arn` (`$DEVICEFARM_RUN_ARN`), read by `lmdrv` on the test host.
 - **Minutes: free minutes only, never the card** (the user's rule of 2026-11-18, 16:04, replacing the earlier
@@ -111,7 +112,7 @@ python aws/devicefarm.py stop <run ARN>                 # stop-run and read the 
   `build/aws-b0-e035a924*`. The second run `7a89358f` (16:56, package `7df021f7`) got past the install (Device Farm's
   copy uninstalled, all four APKs installed) and stopped 37 s into the test phase in `ensure_base()`:
   `TimeoutError("mut ensure")`. Logcat shows the mutator received the broadcast and finished within 1 s, and its
-  receiver always writes `files/done_<id>`, so the driver's `run-as --user 0 org.leasemem.mut cat files/done_m1`
+  receiver always writes `files/done_<id>`, so the driver's `run-as --user 0 org.leasemem.mut cat files/done_m1` (the old argument order)
   returned nothing; `run-as`'s own message was lost because `lmdrv` drops the stderr of shell commands. 1.00 device
   minute (metered 0.69); logs in `build/aws-b0-7a89358f*`. Before the next B0 the timeout path must record why
   `run-as` fails. The next B0 run is sent only with the Orchestrator's approval, from `artifact/`:
@@ -173,10 +174,10 @@ Root-only emulator steps and their replacements (unchanged from the emulator por
 
 | On the emulators (adbd as root) | On a rented phone | Code |
 |---|---|---|
-| `cat /data/data/<pkg>/files/...` | `run-as --user 0 <pkg> sh -c '...'` (all P06 apps are debuggable) | `Dev.app_sh`, `Dev.cat`, `Dev.rm` |
+| `cat /data/data/<pkg>/files/...` | `run-as <pkg> --user 0 sh -c '...'` (all P06 apps are debuggable; Android 15 takes `--user` after the package) | `Dev.app_sh`, `Dev.cat`, `Dev.rm` |
 | cgroup `cgroup.freeze` via `/proc/<pid>/cgroup` | same files if readable; otherwise `isFrozen=` in `dumpsys activity processes <pkg>` | `Dev.frozen`, `frozen_method` |
-| `kill -9 <pid>` from the shell | `run-as --user 0 <pkg> kill -9 <pid>` | `Dev.kill9` |
-| clock rollback (B10) | run only if B0 shows the shell can set the time without root; else the emulator result stays | B0 probe `clock_set_back` |
+| `kill -9 <pid>` from the shell | `run-as <pkg> --user 0 kill -9 <pid>` | `Dev.kill9` |
+| clock rollback (B10) | `cmd alarm set-time <ms>` in AWS mode (B0: `date` is refused, `cmd alarm set-time` works unrooted); `date @t` only on a rooted emulator; refused on any other device by the guard; automatic time back on at the end of the driver and in every AWS restore | B0 probe `clock_set_back`, `driver/e6_pitfalls.py` |
 | Contacts reset (`pm clear com.android.providers.contacts`, used by `revision/supplement.py`) | in user 0 of a wiped rented phone no root is needed; B0 probes it. The guard allows exactly `pm clear --user 0 com.android.providers.contacts` in AWS mode and refuses every other `pm clear` in every mode. If it works, the reset scenario can run on the phone; otherwise the emulator result stays | B0 probe `pm_clear_contacts`; `lmdrv.PM_CLEAR_AWS_OK` |
 | persistent system app | not run; emulator result stays | |
 
@@ -225,11 +226,11 @@ split by `devicefarm.py plan`: B2 by gap (labels packed into runs), single-step 
 |---|---|---|---|---|
 | B0 | `physical/b0_probe.py`; `driver/e2v3_gaps.py none 1` | probes of section 5; one full trial | 2611000 | `b0-probe-HHMM.jsonl`, `b0-trial-none-HHMM.jsonl` |
 | B1 | `followup/deployment.py` | Contacts: background unfrozen, background frozen (debounce 2 s), FGS, bound assistant, 20 each; MediaStore and call log: background unfrozen and FGS, 20 each | | `deploy-<source>-HHMM.jsonl` |
-| B3 | `driver/e1_coverage.py` | 30 trials, all seven sources (SMS included), insert, update, delete or unchanged | 2611301 | `coverage-HHMM.jsonl` |
-| B2 | `driver/e2v3_gaps.py` | 25 trials for each of: none, freeze, dozeidle (emulated), bucket, unregister, kill, forcestop, perm, reboot (only if B0 shows the run survives a reboot); decisions at +2 s and +14 s | 2611201 to 2611209 | `gaps-<gap>[-pK]-HHMM.jsonl` |
-| B4 | `revision/run.py stock` | 20 trials for each of the seven sources | 20261115 (driver) | `stock-<udid>[-pK]-HHMM.jsonl` |
-| B9 | `driver/e3v2_boundary.py` | 100 changes over the window, 25 without boundary check, 20 + 20 no-change controls; then 100 changes in [-10, +40] ms | 2611901, 2611902 | `boundary-HHMM.jsonl`, `boundary-band-HHMM.jsonl` |
-| B10 | `driver/e6_pitfalls.py` | SMS `_id` reuse 50, same-second mtime 50; clock rollback only on a rooted P06 emulator, so it stays emulator-only unless the driver gains a non-root path after B0 | 2611001 | `pitfalls-HHMM.jsonl` |
+| B3 | `driver/e1_coverage.py` | 30 trials, the sources not in `excluded_sources` (on AWS: Contacts, MediaStore, Calendar, Settings, files), insert, update, delete or unchanged | 2611301 | `coverage-HHMM.jsonl` |
+| B2 | `driver/e2v3_gaps.py` | 25 trials for each of: none, freeze, dozeidle (emulated), bucket, unregister, kill, forcestop, perm; reboot not run on AWS (`adb reboot` is not permitted, B0); decisions at +2 s and +14 s | 2611201 to 2611209 | `gaps-<gap>[-pK]-HHMM.jsonl` |
+| B4 | `revision/run.py stock` | 20 trials for each source not in `excluded_sources` | 20261115 (driver) | `stock-<udid>[-pK]-HHMM.jsonl` |
+| B9 | `driver/e3v2_boundary.py` | 100 changes over the window, 25 without boundary check, 20 + 20 no-change controls; then 100 changes in [-10, +40] ms. Effect on AWS: a Data row of the separate, non-aggregated raw contact "P06 Effect Log" (`effect_store: "contacts"`, `effect_row`), not a call-log row; `dana_version_before/after` show the effect never touches Dana | 2611901, 2611902 | `boundary-HHMM.jsonl`, `boundary-band-HHMM.jsonl` |
+| B10 | `driver/e6_pitfalls.py` | same-second mtime 50; clock rollback 50 (25 transient, 25 persistent) through `cmd alarm set-time` on AWS, each record with `clock_method`, `clock_moved_back_ms`, `lm`, `lm_ts`, `reason`, `reason_ts`; SMS `_id` reuse not run (SMS excluded on AWS) | 2611001 | `pitfalls-HHMM.jsonl` |
 | B5 | `driver/e9_frozen.py` | 10 holds, each frozen for 600 s after the first change, debounce 2 s; 2 runs of 5 | 2611501 + 1000 K: 2612501 (part 1), 2613501 (part 2) | `frozen-p1-HHMM.jsonl`, `frozen-p2-HHMM.jsonl` |
 | B13 | `followup/deployment.py`, `driver/e2v3_gaps.py` | second manufacturer: B1 Contacts, 4 deployments, 10 trials; B2 none, freeze, dozeidle, kill, forcestop, 10 trials each | 2621301 to 2621305 | `b13-deploy-contacts-HHMM.jsonl`, `b13-gaps-<gap>-HHMM.jsonl` |
 | B6 | `revision/run.py host --arms refresh,validate,stamp,relay,memo` | 30 trials for each write pattern: none, one, continuous | 20261115 (driver) | `host-<udid>-HHMM.jsonl` |
@@ -317,7 +318,7 @@ the table multiplies them by 1.1.
 | `device_arn` | AWS: `$DEVICEFARM_DEVICE_ARN`; null elsewhere |
 | `run_arn` | AWS: `$DEVICEFARM_RUN_ARN`, the Device Farm run; null elsewhere |
 | `user_id` | Android user the experiment ran in (0 on AWS and on the emulators) |
-| `excluded_sources` | sources the drivers and apps never touch on this device. Empty on a rented phone: all seven sources run, SMS and call log included. `analyze_phys.py` reads it from the latest B0 record and prints "not run on phone" (and sets `\ifPhysSms`, `\ifPhysCalllog` false) for every source it lists |
+| `excluded_sources` | sources the drivers and apps never touch on this device. On a rented Device Farm phone `["calllog", "sms"]` (`lmdrv.AWS_EXCLUDED`): the mutator cannot hold the SMS role and its SMS inserts are dropped, and call-log inserts are dropped too (B0 runs 97a66c65 and 1c18f498: no row seen by the shell's `content query`). `analyze_phys.py` reads it from the latest B0 record and prints "not run on phone" (and sets `\ifPhysSms`, `\ifPhysCalllog` false) for every source it lists |
 | `user_no_sms`, `user_no_outgoing_calls` | only meaningful in the superseded personal-phone mode; false on a rented phone |
 | `serial` | adb serial used |
 | `rooted` | adbd ran as uid 0 (always false on a rented phone) |
@@ -376,28 +377,44 @@ below plus the 9 dropped ones) and 3 switches; every name in this section was ch
 adds or renames a macro, the registry wins. `analyze_phys.py` reads only top-level
 `artifact/results/physical-*/*.jsonl` and leaves out files with `pilot` in the name. SMS and the call log follow the
 same rule: a source listed in `excluded_sources` of the latest B0 record prints "not run on phone"; on a rented phone
-nothing is listed, so both run.
+both are listed (`["calllog", "sms"]`, see section 7), so both print "not run on phone". B9 still runs: its effect
+goes to Contacts (`effect_store`).
 
 | Switch | True when |
 |---|---|
 | `\ifPhysSms` | SMS is not in `excluded_sources` of the latest B0 record |
-| `\ifPhysCalllog` | the call log is not in `excluded_sources` of the latest B0 record |
+| `\ifPhysCalllog` | the call log is not in `excluded_sources` of the latest B0 record (B9 no longer depends on it) |
+| `\ifPhysBoundary` | B9 has at least one valid, non-pilot trial (`boundary*.jsonl`), whatever its effect store |
 | `\ifPhysReboot` | B2 has at least one valid, non-pilot reboot trial (needs a B0 `reboot` record with `survived: true` and B2 run with `--allow-reboot`) |
 
 | Macro(s) | Task | Raw file pattern under `results/physical-<YYYYMMDD>/` |
 |---|---|---|
 | `PhysDevice`, `PhysFingerprint`, `PhysRooted`, `PhysSdk` | all | `*.jsonl` (common fields) |
-| `PhysInstances` | all | `*.jsonl`, distinct `device_instance` |
+| `PhysInstances` | all experiment files of the main model | distinct `device_instance` over the experiment files (`deploy*`, `gaps-*`, `coverage-*`, `stock-*`, `boundary*`, `pitfalls-*`, `frozen-*`, `host-*`), without pilot files, B0 files or `b13-*` |
 | `PhysAndroid` | B0 | `b0-probe-*.jsonl` (`identity` probe) |
 | `PhysDeployTrials`, `PhysDeployBgMedian`, `PhysDeployFgMedian`, `PhysDeployAssistMedian`, `PhysDeployFrozenBeforeThaw`, `PhysDeployMediaBgMedian`, `PhysDeployMediaFgMedian`, `PhysDeployCalllogBgMedian`, `PhysDeployCalllogFgMedian` | B1 | `deploy*.jsonl` (filtered on `source`) |
 | `PhysCoverageTrials` | B3 | `coverage-*.jsonl` |
 | `PhysGapTrials`, `PhysGapNoneFcl`, `PhysGapFreezeFcl`, `PhysGapDozeFcl`, `PhysGapBucketFcl`, `PhysGapLostEv`, `PhysGapLostEvr`, `PhysGapLostLm`, `PhysGapInEpochEv`, `PhysGapInEpochEvr`, `PhysGapInEpochLm`, `PhysCostGl`, `PhysCostGlCi`, `PhysCostLm`, `PhysCostLmCi`, `PhysCostN` | B2 | `gaps-*.jsonl` (all parts) |
 | `PhysRaceTrials`, `PhysRaceStale` | B4 | `stock-*.jsonl` |
-| `PhysBoundaryTrials`, `PhysCteMs`, `PhysBndObsStale`, `PhysBndBeforeCheckStale`, `PhysBndOverlapStale` | B9 | `boundary*.jsonl` |
+| `PhysBoundaryTrials`, `PhysCteMs`, `PhysBndObsStale`, `PhysBndBeforeCheckStale`, `PhysBndOverlapStale` | B9 | `boundary*.jsonl` (rules below) |
 | `PhysSmsReuse`, `PhysMtimeSame` | B10 | `pitfalls-*.jsonl` (`exp`) |
+| `\ifPhysClock`, `PhysClockTrials`, `PhysClockStale` | B10 clock | `pitfalls-*.jsonl` records with `exp` = `clock`; a trial is valid when it has no `error` and `clock_moved_back_ms` >= 3,000,000 |
 | `PhysFrozenHolds`, `PhysFrozenStayed`, `PhysFrozenKilled`, `PhysFrozenLastUnseen` | B5 | `frozen-*.jsonl` (both parts) |
 | `PhysHostTrials` | B6 | `host-*.jsonl` |
 | `PhysEvidCheap`, `PhysEvidBound`, `PhysEvidWeak` | B2; B1 and B2; B4 and B10 | as above |
+
+B9 rules (what Results' `analyze_phys.py` applies; driver `driver/e3v2_boundary.py`, client `LmApp.act`):
+
+- Effect store: `effect_store` is "contacts" on AWS (a Data row of the non-aggregated raw contact "P06 Effect Log",
+  read back as `effect_row` = number, command id, `wall_ms`, raw contact id) and "calllog" on the emulators (records
+  without the field are "calllog"). B9 does not depend on `excluded_sources`.
+- Stale (store contacts): `effect_row.number` differs from Dana's true number at `effect_row.wall_ms`. Dana's number
+  before the command is `dana_number_before`; the mutation's own start and end stamps (`mut.mut_start`,
+  `mut.mut_end`) say when it changed.
+- Undetermined: trials whose change interval covers `wall_ms` (the change neither clearly before nor after the effect).
+- Check to effect: `res.effect_end - res.check2_start`, as on the emulator.
+- Excluded trials, with the reason recorded: a no-change control whose `dana_version_unchanged` is not true; an effect
+  row that could not be read back; a planned change that did not run.
 
 Dropped (B11, B12; always "not run on phone", with the reason that rented phones are always charging and a run
 lasts at most 150 min): `PhysStateHours`, `PhysStateAlivePct`, `PhysStateFrozenPct`, `PhysStateDozePct`,
@@ -405,5 +422,5 @@ lasts at most 150 min): `PhysStateHours`, `PhysStateAlivePct`, `PhysStateFrozenP
 `PhysBatteryBgBlocks`.
 
 Notes for Results: B13 files (`b13-*`) match none of the B1 or B2 patterns, so the main-model macros never read them;
-they do match `*.jsonl`, so `PhysDevice` and `PhysInstances` would count the second model's records once B13 runs.
+they are not experiment files of the main model, so `PhysInstances` leaves them out; only `PhysDevice` (the models) reads them.
 B7 (`continuous-*`) has no macro.

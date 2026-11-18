@@ -1,0 +1,80 @@
+bg_unfrozen 0 ok
+bg_unfrozen 1 ok
+bg_unfrozen 2 ok
+bg_unfrozen 3 ok
+bg_unfrozen 4 ok
+bg_unfrozen 5 ok
+bg_unfrozen 6 ok
+bg_unfrozen 7 ok
+bg_unfrozen 8 ok
+bg_unfrozen 9 ok
+bg_unfrozen 10 ok
+bg_unfrozen 11 ok
+bg_unfrozen 12 ok
+bg_unfrozen 13 ok
+bg_unfrozen 14 ok
+bg_unfrozen 15 ok
+bg_unfrozen 16 ok
+bg_unfrozen 17 ok
+bg_unfrozen 18 ok
+bg_unfrozen 19 ok
+bg_freezer 0 AssertionError({'pid': '26226', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 1028
+bg_freezer 1 AssertionError({'pid': '26680', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 1028
+bg_freezer 2 AssertionError({'pid': '27098', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 1028
+bg_freezer 3 AssertionError({'pid': '27504', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 1028
+bg_freezer 4 AssertionError({'pid': '27924', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 1028
+bg_freezer 5 AssertionError({'pid': '28331', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 1028
+bg_freezer 6 AssertionError({'pid': '28716', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 1028
+bg_freezer 7 AssertionError({'pid': '29136', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 1028
+bg_freezer 8 AssertionError({'pid': '29514', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 1028
+bg_freezer 9 AssertionError({'pid': '29918', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 1028
+bg_freezer 10 AssertionError({'pid': '30352', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 1028
+bg_freezer 11 AssertionError({'pid': '30728', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 1028
+bg_freezer 12 AssertionError({'pid': '31122', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 1028
+bg_freezer 13 AssertionError({'pid': '31542', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 1028
+bg_freezer 14 AssertionError({'pid': '31941', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 1028
+bg_freezer 15 AssertionError({'pid': '32331', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 1028
+bg_freezer 16 AssertionError({'pid': '32750', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 1028
+bg_freezer 17 AssertionError({'pid': '1232', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 10282
+bg_freezer 18 AssertionError({'pid': '1846', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 10282
+bg_freezer 19 AssertionError({'pid': '2796', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 10282
+fg 0 ok
+fg 1 ok
+fg 2 ok
+fg 3 ok
+fg 4 ok
+fg 5 ok
+fg 6 ok
+fg 7 ok
+fg 8 ok
+fg 9 ok
+fg 10 ok
+fg 11 ok
+fg 12 ok
+fg 13 ok
+fg 14 ok
+fg 15 ok
+fg 16 ok
+fg 17 ok
+fg 18 ok
+fg 19 ok
+assistant 0 ok
+assistant 1 ok
+assistant 2 ok
+assistant 3 ok
+assistant 4 ok
+assistant 5 ok
+assistant 6 ok
+assistant 7 ok
+assistant 8 ok
+assistant 9 ok
+assistant 10 ok
+assistant 11 ok
+assistant 12 ok
+assistant 13 ok
+assistant 14 ok
+assistant 15 ok
+assistant 16 ok
+assistant 17 ok
+assistant 18 ok
+assistant 19 ok

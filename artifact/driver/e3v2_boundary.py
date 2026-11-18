@@ -11,6 +11,7 @@ where call-log inserts are dropped) a Data row of the separate, non-aggregated r
 ACT with `--es effect contacts`). Every record carries effect_store, the effect row read back from the provider
 (effect_row: number, command id, wall ms) and Dana's raw-contact VERSION before the command and after the result
 (dana_version_before/after): on trials without a change they must be equal, i.e. the effect never touches Dana.
+dana_number_before is Dana's phone number read from the provider just before the command.
 Usage: e3v2_boundary.py SERIAL N_BND_CHANGE SEED OUT.jsonl
 """
 import json, os, random, re, sys, time
@@ -27,10 +28,24 @@ EFFECT_MIME = "vnd.android.cursor.item/vnd.org.leasemem.effect"
 
 
 def dana_version():
+    return dana_raw()[1]
+
+
+def dana_raw():
+    """(raw contact ids, versions) of LM Dana, comma-joined, or (None, None)."""
     o = d.sh(d.u("content query --uri content://com.android.contacts/raw_contacts --projection _id:version "
                  "--where \"display_name='LM Dana' AND deleted=0\""), timeout=30)
-    v = re.findall(r"version=(\d+)", o)
-    return ",".join(v) if v else None
+    rows = re.findall(r"_id=(\d+), version=(\d+)", o)
+    return (",".join(r[0] for r in rows), ",".join(r[1] for r in rows)) if rows else (None, None)
+
+
+def dana_number(raw_ids):
+    if not raw_ids:
+        return None
+    o = d.sh(d.u("content query --uri content://com.android.contacts/data --projection data1 "
+                 "--where \"mimetype='vnd.android.cursor.item/phone_v2' AND raw_contact_id IN (%s)\"" % raw_ids), timeout=30)
+    n = re.findall(r"data1=([^,\n]*)", o)
+    return ",".join(x.strip() for x in n) if n else None
 
 
 def effect_row(rid):
@@ -52,7 +67,8 @@ with lmdrv.open_new(out) as fo:
             d.cmd("OBSERVE")
             rid = "e3v2_%d_%d" % (seed, i)
             d.rm(lmdrv.CPKG, "files/res_%s.json" % rid)
-            rec["dana_version_before"] = dana_version()
+            ids, rec["dana_version_before"] = dana_raw()
+            rec["dana_number_before"] = dana_number(ids)
             at = d.now_ms() + LEAD
             rec["at"] = at
             d.sh(d.u("am broadcast -n %s/.Cmd --es cmd ACT --es id %s --es fact c.dana --es mode %s --el at %d --es effect %s"

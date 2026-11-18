@@ -309,6 +309,8 @@ def one(s, c):
             return "Row: 0 data1=%s, data2=%s, data3=%d, raw_contact_id=9" % (e[0], m.group(1), e[1]) if e else "No result found."
         if "raw_contacts --projection _id:version" in c:
             return "Row: 0 _id=1, version=%d" % s.get("dana_version", 3)
+        if "phone_v2' AND raw_contact_id IN" in c:
+            return "Row: 0 data1=+15551110000"
         return "No result found." if ("NOT LIKE" in c or "IS NOT" in c) else "Row: 0 _id=1\nRow: 1 _id=2"
     return None
 
