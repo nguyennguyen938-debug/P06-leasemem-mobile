@@ -148,6 +148,8 @@ def restore(d, snap):
         v = v if v not in ("",) else "null"
         todo.append(("settings delete global %s" % k if v == "null" else "settings put global %s %s" % (k, v),
                      "settings get global %s" % k, is_(v), v))
+    if d.aws:   # B10 moves the clock on AWS phones (cmd alarm set-time): automatic time is always back on at the end
+        todo.append(("settings put global auto_time 1", "settings get global auto_time", is_("1"), "1"))
     for p, b in snap["buckets"].items():
         if b in BUCKET and p in pkgs:
             todo.append(("{u:am set-standby-bucket %s %s}" % (p, BUCKET[b]), "{u:am get-standby-bucket %s}" % p, is_(b), b))

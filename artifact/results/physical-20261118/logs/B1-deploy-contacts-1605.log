@@ -1,0 +1,8 @@
+bg_unfrozen 0 ok
+bg_unfrozen 1 ok
+bg_freezer 0 AssertionError({'pid': '24060', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 1028
+bg_freezer 1 AssertionError({'pid': '24151', 'activity': 'ACTIVITY MANAGER RUNNING PROCESSES (dumpsys activity processes)\n  All known processes:\n  *APP* UID 1028
+fg 0 ok
+fg 1 ok
+assistant 0 ok
+assistant 1 ok

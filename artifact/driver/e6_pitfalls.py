@@ -22,30 +22,39 @@ with lmdrv.open_new(out) as fo:
         r2 = d.mut("file_touch_same_second", extra="--es tag %db" % i)
         fo.write(json.dumps({**d.meta(), "exp": "mtime", "i": i, "res": [r, r2]}) + "\n")
         time.sleep(rng.uniform(0.05, 1.2))
-    if not (d.emulator and d.rooted):   # clock changes run only on P06's rooted emulators, never on the phone
+    # Clock changes run on P06's rooted emulators (`date @`) and on rented AWS phones, where B0 (run 1c18f498) showed
+    # that the unrooted shell sets the time with `cmd alarm set-time` (`date` is refused). Never on a personal phone:
+    # the runtime guard refuses clock commands outside AWS mode. Automatic time is always switched back on at the end.
+    def set_clock(ms):
+        d.sh("cmd alarm set-time %d" % ms) if d.aws else d.sh("date @%d" % (ms // 1000))
+    if not ((d.emulator and d.rooted) or d.aws):
         n_clock = 0
-        print("clock rollback skipped: not a rooted P06 emulator", flush=True)
+        print("clock rollback skipped: neither a rooted P06 emulator nor an AWS phone", flush=True)
     else:
         n_clock = n
         d.sh("settings put global auto_time 0")
-    for i in range(n_clock):
+    try:
+      for i in range(n_clock):
         variant = "transient" if i % 2 == 0 else "persistent"
         w.ensure_base(); time.sleep(1.0)
         ob = d.cmd("OBSERVE")
         now = d.now_ms()
         back = now - 3600 * 1000                         # one hour back
-        d.sh("date @%d" % (back // 1000))
+        set_clock(back)
+        t_back = d.now_ms()
         m = w.mutate("contacts", "update")
         if variant == "transient":
-            d.sh("date @%d" % ((d.now_ms() + 3600 * 1000) // 1000 + 1))
+            set_clock(d.now_ms() + 3600 * 1000 + 1000)
         time.sleep(0.5)
         dec = d.cmd("DECIDE")
         if variant == "persistent":
-            d.sh("date @%d" % ((d.now_ms() + 3600 * 1000) // 1000 + 1))
+            set_clock(d.now_ms() + 3600 * 1000 + 1000)
         f = dec["facts"]["c.dana"]
         rec = {**d.meta(), "exp": "clock", "i": i, "variant": variant, "wm_obs": dec["wm_obs"].get("contacts"), "wm_now": dec["wm_now"].get("contacts"),
-               "clock_jump": dec.get("clock_jump"), "lm": f["lm"], "stale_if_used": f["mem"] != f["truth"], "reason": dec["lm_cost"]["contacts"]["reason"], "mut": m}
+               "clock_jump": dec.get("clock_jump"), "lm": f["lm"], "stale_if_used": f["mem"] != f["truth"], "reason": dec["lm_cost"]["contacts"]["reason"], "mut": m,
+               "clock_method": "cmd alarm set-time" if d.aws else "date", "clock_moved_back_ms": now - t_back}
         fo.write(json.dumps(rec) + "\n"); fo.flush()
         print(rec["variant"], rec["lm"], rec["reason"], rec["stale_if_used"], flush=True)
-    if n_clock:
-        d.sh("settings put global auto_time 1")
+    finally:
+        if n_clock:
+            d.sh("settings put global auto_time 1")

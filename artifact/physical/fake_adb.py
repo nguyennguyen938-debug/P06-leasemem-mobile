@@ -176,8 +176,10 @@ def one(s, c):
         return "    Uid u%da123: 0.42 ( cpu=0.40 )" % USER
     if re.match(r"date @\d+", c):                     # an unrooted phone: the shell may not set the clock
         return "date: cannot set date: Operation not permitted"
-    if c.startswith("cmd alarm set-time"):
-        return "Security exception: Caller is not allowed to set the time"
+    if c.startswith("cmd alarm set-time"):           # allowed on Device Farm's Pixel 8 (B0 run 1c18f498)
+        if not AWS:
+            return "Security exception: Caller is not allowed to set the time"
+        s["clock_ms"] = int(c.split()[-1]) - int(time.time() * 1000); return ""
     m = re.fullmatch(r"device_config (get|put|delete) (\S+) (\S+)(?: (\S+))?", c)
     if m:
         k = m.group(2) + "/" + m.group(3)

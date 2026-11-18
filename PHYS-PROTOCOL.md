@@ -22,7 +22,7 @@ stays in `lmdrv.py` (personal mode) but no run uses it.
 | Main model | Google Pixel 8, Android 15 (`arn:aws:devicefarm:us-west-2::device:DE5BD47FF3BD42C3A14BF7A6EFB1BFE7`), the Android version of the paper's emulator | chosen by the Orchestrator from `list-devices`, 2026-11-18 |
 | Backup model (if the main one is busy; never mixed within one task) | Google Pixel 9, Android 15 (`arn:aws:devicefarm:us-west-2::device:BCDA2B2CE0B54ABEA1F8B34A54A2752C`) | same |
 | Second-manufacturer model (B13, only if minutes remain) | Samsung Galaxy S25, Android 15 (`arn:aws:devicefarm:us-west-2::device:69977E819F314BD481F194580E8EFC16`) | same |
-| `ro.build.fingerprint`, SDK, security patch | not yet probed | B0 probe `identity`; `fingerprint`, `sdk` in every record |
+| `ro.build.fingerprint`, SDK, security patch | `google/shiba/shiba:15/AP3A.241005.015/12366759:user/release-keys`, SDK 35, patch 2024-10-05 (B0 runs 97a66c65, 1c18f498) | B0 probe `identity`; `fingerprint`, `sdk` in every record |
 | Root | no; the drivers refuse a rooted adbd | `rooted` in every record |
 | Physical units | a run may land on another unit of the same model | `device_instance` in every record |
 | Test host | Device Farm `amazon_linux_2` (the Android host of Device Farm's current curated Appium Python specs), Python 3.12 (`devicefarm-cli use python 3.12`), the host's adb | B0 probe `host` |
@@ -187,30 +187,30 @@ Root-only emulator steps and their replacements (unchanged from the emulator por
 
 | Probe | Command(s) | Needed by | If it fails | Result |
 |---|---|---|---|---|
-| `identity` | `getprop` model, fingerprint, release, SDK, patch, build type | all | | not yet probed |
-| `host` (AWS) | Python and adb versions, platform of the test host | all | | not yet probed |
-| `user_info` | `am get-current-user`, `am get-started-user-state 0` | all | stop | not yet probed |
-| `install_user` | `pm list packages --user 0 org.leasemem` | all | stop | not yet probed |
-| `run_as_user` | `run-as --user 0 org.leasemem.client id` | all | stop: no driver can read results | not yet probed |
-| `read_app_files` | client command round trip; `files/mem.json` | all | stop | not yet probed |
-| `content_user` | `content query --user 0` fixture raw contacts | fixtures | stop | not yet probed |
-| `appops` | `appops get --user 0 org.leasemem.mut MANAGE_EXTERNAL_STORAGE` | files | drop files | not yet probed |
-| `fixtures_ensure_base` | mutator `ensure` (seven sources) | all | drop the failing source | not yet probed |
-| `mutations_all_kinds` | mutator `mutate` for every source and kind, SMS and call log included | B2, B3, B4, B5, B9, B10 | drop that source or kind | not yet probed |
-| `sms_role` (AWS) | `cmd role add-role-holder --user 0 android.app.role.SMS org.leasemem.mut 0`, then removed | SMS writes if appops alone is not enough | SMS kept only if `mutations_all_kinds` wrote SMS | not yet probed |
-| `client_probe_candidates` | client `PROBE` | B3 | ERR candidates dropped | not yet probed |
-| `process_user` | uid of the client process, `oom_score_adj` | B1, B2 | | not yet probed |
-| `proc_cgroup_read`, `dumpsys_isFrozen` | cgroup freeze file; `dumpsys activity processes` | freezer state | if both fail: cut B1 frozen mode, B2 freezer, B5 | not yet probed |
-| `freezer_debounce_2s` | `device_config put activity_manager_native_boot freeze_debounce_timeout 2000` (sync disabled until reboot), client frozen | B1 frozen, B2 freezer, B5 | cut those | not yet probed |
-| `am_kill`, `am_force_stop`, `sigkill_kill9` | `am kill`, `am force-stop`, `run-as ... kill -9` | B2 kill, force-stop | cut gap | not yet probed |
-| `pm_revoke_grant` | `pm revoke` / `pm grant --user 0 ... READ_CONTACTS` | B2 revoke | cut gap | not yet probed |
-| `battery_unplug`, `doze_force_idle_deep` | `dumpsys battery unplug`, `dumpsys deviceidle force-idle deep`, `unforce`, `reset` | B2 Doze (emulated; the phone is always charging) | cut Doze gap | not yet probed |
-| `standby_bucket` | `am set-standby-bucket --user 0 <pkg> restricted` | B2 bucket | cut gap | not yet probed |
-| `assistant_role` | `cmd role add-role-holder --user 0 android.app.role.ASSISTANT org.leasemem.assist 0`, `mBound=true` | B1 assistant | cut assistant mode | not yet probed |
-| `clock_set_back` (AWS) | `settings put global auto_time 0`; `date @t` or `cmd alarm set-time`; restore | B10 clock | clock part keeps the emulator result | not yet probed |
-| `charge_counter`, `batterystats_uid`, `screen_sleep_wake` | `dumpsys battery`, client uid lines of `dumpsys batterystats --charged`, `input keyevent` | records only (no battery experiment) | | not yet probed |
-| `pm_clear_contacts` (AWS) | `pm clear --user 0 com.android.providers.contacts`, then fixtures again | Contacts reset scenario | emulator result stays | not yet probed |
-| `reboot` (with `--allow-reboot`) | `adb reboot`, `adb wait-for-device`, boot time, foreground user after boot; the record carries `survived: true` only if the run outlived the reboot | B2 reboot (and `\ifPhysReboot`) | the reboot gap keeps the emulator result | not yet probed |
+| `identity` | `getprop` model, fingerprint, release, SDK, patch, build type | all | | ok: Google Pixel 8 `shiba`, `google/shiba/shiba:15/AP3A.241005.015/12366759:user/release-keys`, SDK 35, patch 2024-10-05, build type user |
+| `host` (AWS) | Python and adb versions, platform of the test host | all | | ok: Python 3.12.12, Amazon Linux 2 (kernel 5.10), adb 1.0.39 (reports install errors on stderr; `lmdrv.adb` reads them) |
+| `user_info` | `am get-current-user`, `am get-started-user-state 0` | all | stop | ok: user 0 current, RUNNING_UNLOCKED, no restrictions |
+| `install_user` | `pm list packages --user 0 org.leasemem` | all | stop | ok after the fix (Android 15 takes `pm list packages --user 0`; run 97a66c65 failed with `pm list --user 0 packages`) |
+| `run_as_user` | `run-as org.leasemem.client --user 0 id` | all | stop: no driver can read results | ok after the fix: Android 15 takes `run-as <pkg> --user 0 <cmd>` (`run-as --user 0 <pkg>` read "--user" as the package, run 19ba952e); uid u0_a28x, context `runas_app` |
+| `read_app_files` | client command round trip; `files/mem.json` | all | stop | ok: `mem.json` read, exclusion file `calllog sms` |
+| `content_user` | `content query --user 0` fixture raw contacts | fixtures | stop | ok: 2 fixture raw contacts |
+| `appops` | `appops get --user 0 org.leasemem.mut MANAGE_EXTERNAL_STORAGE` | files | drop files | ok: MANAGE_EXTERNAL_STORAGE allow |
+| `fixtures_ensure_base` | mutator `ensure` (seven sources) | all | drop the failing source | ok for contacts, media, calendar, settings, files; SMS and call log excluded (below) |
+| `mutations_all_kinds` | mutator `mutate` for every source and kind, SMS and call log included | B2, B3, B4, B5, B9, B10 | drop that source or kind | ok for contacts, media, calendar, settings, files; SMS and call log: inserts return but no row is stored (run 97a66c65: updates n=0, IndexOutOfBounds), so both are excluded in AWS mode (`lmdrv.AWS_EXCLUDED`) |
+| `sms_role` (AWS) | `cmd role add-role-holder --user 0 android.app.role.SMS org.leasemem.mut 0`, then removed | SMS writes if appops alone is not enough | SMS kept only if `mutations_all_kinds` wrote SMS | no: the mutator cannot hold the SMS role; SMS not run on the phone |
+| `client_probe_candidates` | client `PROBE` | B3 | ERR candidates dropped | ok except `calendar.count`, `media.count`, `files.media_count` (ERR: COUNT(*) projections refused), the same 3 as in the emulator data (`raw/e1api35_bg.jsonl`, 60 of 60) |
+| `process_user` | uid of the client process, `oom_score_adj` | B1, B2 | | ok: uid of the client process, `oom_score_adj` 905 in the background |
+| `proc_cgroup_read`, `dumpsys_isFrozen` | cgroup freeze file; `dumpsys activity processes` | freezer state | if both fail: cut B1 frozen mode, B2 freezer, B5 | ok: cgroup v2 `/uid_<uid>/pid_<pid>`, `cgroup.freeze` readable; `isFrozen` in `dumpsys activity processes` |
+| `freezer_debounce_2s` | `device_config put activity_manager_native_boot freeze_debounce_timeout 2000` (sync disabled until reboot), client frozen | B1 frozen, B2 freezer, B5 | cut those | ok: debounce 2000 read back, client frozen (cgroup) after 3.9 s |
+| `am_kill`, `am_force_stop`, `sigkill_kill9` | `am kill`, `am force-stop`, `run-as ... kill -9` | B2 kill, force-stop | cut gap | ok: all three end the process |
+| `pm_revoke_grant` | `pm revoke` / `pm grant --user 0 ... READ_CONTACTS` | B2 revoke | cut gap | ok (granted=false after revoke, true after grant; read through `dumpsys -t 60 package <pkg> 2>&1`, a plain `dumpsys package` came back empty for 2 of 4 read-backs in run 1c18f498) |
+| `battery_unplug`, `doze_force_idle_deep` | `dumpsys battery unplug`, `dumpsys deviceidle force-idle deep`, `unforce`, `reset` | B2 Doze (emulated; the phone is always charging) | cut Doze gap | ok: unplugged read false then true after reset; deep state IDLE |
+| `standby_bucket` | `am set-standby-bucket --user 0 <pkg> restricted` | B2 bucket | cut gap | partial: setting works (logcat "AppStandbyController: org.leasemem.client restricted by user"), but `am get-standby-bucket` prints nothing, even with 2>&1; the bucket gap runs, its bucket value is not read back |
+| `assistant_role` | `cmd role add-role-holder --user 0 android.app.role.ASSISTANT org.leasemem.assist 0`, `mBound=true` | B1 assistant | cut assistant mode | ok: org.leasemem.assist holds ASSISTANT, `mBound=true` |
+| `clock_set_back` (AWS) | `settings put global auto_time 0`; `date @t` or `cmd alarm set-time`; restore | B10 clock (runs on AWS since B0, `driver/e6_pitfalls.py`; automatic time back on at the end of the driver and in every AWS restore) | clock part keeps the emulator result | ok: `date` is refused, `cmd alarm set-time` moves the clock back one hour; restored within 70 ms |
+| `charge_counter`, `batterystats_uid`, `screen_sleep_wake` | `dumpsys battery`, client uid lines of `dumpsys batterystats --charged`, `input keyevent` | records only (no battery experiment) | | ok |
+| `pm_clear_contacts` (AWS) | `pm clear --user 0 com.android.providers.contacts`, then fixtures again | Contacts reset scenario | emulator result stays | ok: `pm clear` Success, fixtures written again |
+| `reboot` (with `--allow-reboot`) | `adb reboot`, `adb wait-for-device`, boot time, foreground user after boot; the record carries `survived: true` only if the run outlived the reboot | B2 reboot (and `\ifPhysReboot`) | the reboot gap keeps the emulator result | no: Device Farm answers "`adb reboot` is not permitted." and boot_id is unchanged (run 1c18f498; run 97a66c65 had wrongly said survived). The probe now records `rebooted`, and `survived` only with a new boot_id. The reboot gap keeps the emulator result |
 
 The seconds per trial and the minutes of setup are read from the B0 run (RUNLOG and record time stamps) and replace
 the estimates of section 6.
@@ -240,59 +240,52 @@ Pre-commands applied by `campaign.py`: B2 and B13 set the freezer debounce to 20
 every other gap (DeviceConfig sync disabled until reboot) and stop the FGS; B5 sets 2000 ms; B0, B3, B9, B10 stop
 the FGS. All are restored after the step.
 
-### Estimated device minutes (`python aws/estimate.py`)
+### Estimated device minutes (`python aws/estimate.py`, redone from B0)
 
 How: the seconds per trial are the median gap between the start stamps of consecutive trials in the emulator raw
-files (gaps over 10 times the median dropped as host sleep), so they include every wait of a trial; the planned trial
-counts of the table above multiply them. Each run adds 6 min of preparation (an assumption until B0 measures it), and
-a task is split so that a run holds at most 110 min of trials. Phone trials may be faster or slower than emulator
-trials; B0 replaces these numbers.
+files (gaps over 10 times the median dropped as host sleep), so they include every wait of a trial, multiplied by
+`PHONE_PACE` = 1.1: B0's one phone trial (gap none, run 1c18f498) took 36 s as a whole step against 34.2 s per
+emulator trial, and 1.1 keeps a margin until the pilot B1 gives more phone trials. Each run adds `RUN_OVERHEAD_MIN` =
+1.0: the device minutes outside the probe and trial steps were 0.73 (run 97a66c65) and 0.70 (run 1c18f498). What
+Device Farm cannot do is left out (section 5): the call log (B1's call log trials, all of B9), SMS (B10 SMS reuse) and
+the reboot gap of B2. A task is split so that a run holds at most 110 min of trials.
 
-| Task | Trial time, min | Runs (<= 150 min) | Device min incl. 6 min/run | USD at 0.17/min |
-|---|---|---|---|---|
-| B0 | 20.0 (assumption) | 1 | 20.0 | 3.40 |
-| B1 | 27.8 | 1 | 33.8 | 5.75 |
-| B3 | 13.8 | 1 | 19.8 | 3.37 |
-| B2 | 137.8 | 2 | 149.8 | 25.46 |
-| B4 | 0.5 | 1 | 6.5 | 1.11 |
-| B9 | 17.9 | 1 | 23.9 | 4.07 |
-| B10 | 0.8 | 1 | 6.8 | 1.15 |
-| B5 | 123.5 | 2 | 135.5 | 23.03 |
-| B13 | 36.6 | 1 | 42.6 | 7.23 |
-| B6 | 0.6 | 1 | 6.6 | 1.12 |
-| B7 | 0.6 | 1 | 6.6 | 1.12 |
-| core B0 to B4 | | | 229.9 | 39.08 |
-| all tasks | | | 451.9 | 76.82 |
-
-Runs from `devicefarm.py plan` (with `--allow-reboot`): B2 in two runs (none, freeze, dozeidle, forcestop, reboot,
-perm: about 104 min; unregister, bucket, kill: about 45 min), B5 in two runs of 5 holds (about 68 min each), every
-other task in one run. A pilot B1 run (2 trials per condition) is about 7 min. These figures are before any free
-minutes the account may have, and they do not include reruns of failed runs.
+| Task | Trial time, min | Runs (<= 150 min) | Device min incl. 1 min/run |
+|---|---|---|---|
+| B0 | 2.6 (measured) | 1 | 2.6 |
+| B1 (Contacts, MediaStore) | 23.1 | 1 | 24.1 |
+| B3 | 15.2 | 1 | 16.2 |
+| B2 (8 gaps, no reboot) | 125.8 | 2 | 127.8 |
+| B4 | 0.6 | 1 | 1.6 |
+| B10 (mtime; clock rollback through `cmd alarm set-time`, 25 transient and 25 persistent) | 2.6 | 1 | 3.6 |
+| B5 | 135.8 | 2 | 137.8 |
+| B13 (Galaxy S25) | 40.2 | 1 | 41.2 |
+| B6 | 0.7 | 1 | 1.7 |
+| B7 | 0.7 | 1 | 1.7 |
+| B9 | cut: needs the call log | | |
+| core B0 to B4 | | | 172.3 |
+| all tasks | | | 358.3 |
 
 ### Full campaign within the free minutes
 
-Every experiment of the plan runs (the user's rule of 2026-11-18, section 2), paid only with the account's free
-minutes: 988.37 left at 16:10 on 2026-11-18, shared with other projects. The table is still paced by the emulator:
-B0 has not completed (its first run stopped in setup, section 2), so neither the real seconds per trial nor the real
-preparation time of a run is known; it is redone from B0's numbers before B1. The Orchestrator approves each wave.
-Timeouts are what `run` holds against the free minutes while a run is open; the estimate is what a run is expected
-to use.
+Every experiment of the plan that Device Farm can run is run (the user's rules of 2026-11-18, section 2), paid only
+with the account's free minutes: 967.18 left after B0 run 1c18f498. At most two P06 runs are open at a time, both on
+the Pixel 8 Android 15 ARN (they may land on two physical units; every record carries `device_instance`). Runs from
+`devicefarm.py plan`; the timeout is 20 % and 3 min over the estimate, at least 10 min. The Orchestrator approved the
+campaign after B0 on 2026-11-18; it is told at the pilot B1 and after each group.
 
 | Wave | Runs (Pixel 8 unless named) | Estimate, device min | Timeouts |
 |---|---|---|---|
-| 0 | B0 again (fixed package) | 15.0 | 25 |
-| 1 (S2) | B1 pilot | 7.4 | 12 |
-| 2 | B1 and B3 in parallel | 33.8 + 19.8 = 53.6 | 44, 27 |
-| 3 | B2 in two runs in parallel (the reboot gap only if B0's `reboot` probe has `survived: true`), then B4 | 104 + 45 + 6.5 = 156.2 | 129, 58, 11 |
-| 4 | B9 and B10 in parallel | 23.9 + 6.8 = 30.7 | 32, 12 |
-| 5 | B5 in two parts of 5 holds, in parallel | 135.5 | 85, 85 |
-| 6 | B13 on the Galaxy S25, then B6 and B7 | 42.6 + 6.6 + 6.6 = 55.8 | 55, 11, 11 |
-| **All** | 14 runs | **454.2** | **597** |
+| 1 (S2) | B1 pilot (2 trials per condition) | 3 | 10 |
+| 2 | B1 and B3 in parallel | 24 + 16 | 32, 23 |
+| 3 | B2 in two runs in parallel (`--only` forcestop, dozeidle, freeze, none, perm, unregister; then bucket, kill), then B4 | 99 + 29 + 2 | 122, 38, 10 |
+| 4 | B10, and B5 in two parts of 5 holds (two runs open at most) | 4 + 69 + 69 | 10, 86, 86 |
+| 5 | B13 on the Galaxy S25, B6 and B7 | 41 + 2 + 2 | 53, 10, 10 |
+| **All** | 12 runs | **about 360** | **490** |
 
-Against 988.37 free minutes this leaves about 534 if every run takes its estimate and about 391 if every run took
-its full timeout, before reruns of failed runs and before what other projects use. Without the reboot gap B2 is 126.3
-instead of 149.7. B0's first run used 0.53 device minutes. If the free minutes fall short of a wave (the check before
-each run), the wave is not sent and the Orchestrator decides what to cut, in the order of plan section 9.
+Against 967.18 free minutes this leaves about 607 if every run takes its estimate and about 477 if every run took
+its full timeout, before reruns and before what other projects use. A task that fails in two runs in a row, a refusal
+of the free-minute check, or a free-minute drop that does not match stops the campaign and goes to the Orchestrator.
 
 Seconds per trial behind the table (emulator, median):
 
@@ -307,8 +300,9 @@ Seconds per trial behind the table (emulator, median):
 | B9 | 4.1 | `raw/e3v2_boundary.jsonl` | `at`, device ms |
 | B10 SMS reuse, mtime | 0.1, 0.8 | `raw/e6_pitfalls.jsonl` | `res.t_pre`, device ms |
 
-Order (plan section 8, waves above): B0, pilot B1, then B1 and B3, B2 and B4 (two P06 runs in parallel at most), B9
-and B10, B5, then B13, B6, B7.
+Order (plan section 8, waves above): B0, pilot B1, then B1 and B3, B2 and B4 (two P06 runs in parallel at most),
+B10 and B5, then B13, B6, B7. B9 is cut on Device Farm (no call log). The seconds per trial above are the emulator's;
+the table multiplies them by 1.1.
 
 ## 7. JSONL schema
 

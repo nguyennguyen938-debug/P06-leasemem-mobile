@@ -38,10 +38,13 @@ EMULATOR_ONLY = [
     ("physical/b0_probe.py", "settings get global auto_time", "clock_set_back: probed only if d.aws"),
     ("physical/campaign.py", "pm uninstall %s", "cleanup: goes through d.u() and the runtime guard, which allows only org.leasemem.*"),
     ("driver/e2v3_gaps.py", "appops set root WRITE_SMS allow", "inside `if d.emulator:`"),
-    ("driver/e6_pitfalls.py", "settings put global auto_time", "clock part: n_clock = 0 unless d.emulator and d.rooted"),
-    ("driver/e6_pitfalls.py", "date @", "clock part: n_clock = 0 unless d.emulator and d.rooted"),
+    ("driver/e6_pitfalls.py", "settings put global auto_time", "clock part: n_clock = 0 unless (d.emulator and d.rooted) or d.aws; the runtime guard refuses clock commands outside AWS mode"),
+    ("driver/e6_pitfalls.py", "date @", "clock part: `date` only off AWS, i.e. on a rooted emulator"),
+    ("driver/e6_pitfalls.py", "cmd alarm set-time", "clock part: only if d.aws; the runtime guard refuses cmd alarm outside AWS mode"),
     ("physical/campaign.py", "settings delete global %s", "restore: keys from the fixed tuple (lm_mode, lm_target)"),
     ("physical/campaign.py", "settings put global %s %s", "restore: keys from the fixed tuple (lm_mode, lm_target)"),
+    ("physical/campaign.py", "settings put global auto_time 1", "restore: only if d.aws (the runtime guard refuses clock settings outside AWS mode)"),
+    ("physical/campaign.py", "settings get global auto_time", "restore read-back: only if d.aws"),
     ("physical/campaign.py", "settings get global ", "snapshot: keys from the fixed tuple (lm_mode, lm_target)"),
 ]
 

@@ -40,6 +40,10 @@ with lmdrv.open_new(out) as f:
     d.sh(d.u(f'am start -W -n {pkg}/org.leasemem.client.Main'));time.sleep(.4)
     if mode=='fg':d.sh(d.u('am start-foreground-service -n org.leasemem.client/.FgService'))
     w.ensure_base();time.sleep(.5);d.home();time.sleep(3 if mode=='bg_freezer' else .5)
+    # Pixel 8 on Device Farm froze 3.9 s after going home with a 2 s debounce (B0 run 1c18f498), so 3 s was too
+    # short there (pilot B1 run 5ec38290): wait until frozen, at most 25 s as in b0_probe
+    t_home=time.monotonic()
+    while mode=='bg_freezer' and d.frozen(pkg)!='1' and time.monotonic()-t_home<22:time.sleep(.5)
     r['before']=state(pkg);r['config']=d.sh('dumpsys activity settings');r['binding']=d.sh("dumpsys voiceinteraction | grep -E 'leasemem|mBound'") if mode=='assistant' else None
     assert r['before'].get('frozen')==('1' if mode=='bg_freezer' else '0'),r['before']
     if mode=='assistant':assert 'mBound=true' in r['binding']

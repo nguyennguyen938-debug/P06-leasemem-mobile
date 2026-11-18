@@ -72,15 +72,18 @@ def timings():
                           "raw/e6_pitfalls.jsonl", "res.t_pre, device ms")
     T["B10/mtime"] = (per_trial_s(field([r for r in p6 if r.get("exp") == "mtime"], lambda r: ((r.get("res") or [{}])[0] or {}).get("t_pre")), 1e-3),
                       "raw/e6_pitfalls.jsonl", "res[0].t_pre, device ms")
+    T["B10/clock"] = (per_trial_s(field([r for r in p6 if r.get("exp") == "clock"], lambda r: (r.get("mut") or {}).get("t_pre")), 1e-3),
+                      "raw/e6_pitfalls.jsonl", "mut.t_pre, device ms")
     return {k: ((v[0] * PHONE_PACE if v[0] else v[0]),) + tuple(v[1:]) for k, v in T.items()}
 
 
 # planned trials per step (PLAN-dien-thoai-that.md section 5); B9: 100 changes + 25 + 20 + 20 controls, then 100 in band
 # On Device Farm: no call log (B1's call log trials, B9), no SMS (B10 SMS reuse), no reboot gap (B0 runs 97a66c65, 1c18f498)
+# B10 clock rollback runs on AWS through `cmd alarm set-time` (B0 run 1c18f498)
 PLAN = {"B1": {"B1/bg_unfrozen": 20 + 20, "B1/bg_freezer": 20, "B1/fg": 20 + 20, "B1/assistant": 20},   # Contacts + MediaStore
         "B3": {"B3": 30},
         "B2": {"B2/" + g: 25 for g in ["none", "freeze", "dozeidle", "bucket", "unregister", "kill", "forcestop", "perm"]},
-        "B4": {"B4": 20}, "B10": {"B10/mtime": 50}, "B5": {"B5": 10},
+        "B4": {"B4": 20}, "B10": {"B10/mtime": 50, "B10/clock": 50}, "B5": {"B5": 10},
         "B13": {"B1/bg_unfrozen": 10, "B1/bg_freezer": 10, "B1/fg": 10, "B1/assistant": 10,
                 **{"B2/" + g: 10 for g in ["none", "freeze", "dozeidle", "kill", "forcestop"]}},
         "B6": {"B6": 30}, "B7": {"B6": 30}}     # B7 has no emulator run; its trials resemble B6's continuous case

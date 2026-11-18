@@ -81,9 +81,10 @@ PERM_SOURCE = {"READ_SMS": "sms", "READ_CALL_LOG": "calllog", "WRITE_CALL_LOG": 
 # role and its inserts are dropped; the call log, because rows the mutator inserts are not returned by its own queries
 # (b0_probe calllog_diag looks for the cause). Every record carries excluded_sources; the analysis reads it from there.
 AWS_EXCLUDED = ("sms", "calllog")
-# Package dump (runtime permission state): dumpsys's 10 s default can run out on a busy phone, and its notices go to
-# stderr; on Device Farm the plain command came back empty for 2 of 4 read-backs (B0 run 1c18f498).
-DUMP_PKG = "dumpsys -t 60 package %s 2>&1"
+# Package dump (runtime permission state). On Device Farm's Pixel 8 only this exact form read back: `dumpsys package
+# <pkg> 2>&1` worked in the B0 probes (runs 1c18f498 and before), the plain form and `dumpsys -t 60 package <pkg> 2>&1`
+# came back empty in every restore read-back (runs 1c18f498, 5ec38290).
+DUMP_PKG = "dumpsys package %s 2>&1"
 
 if os.environ.get("P06_FAKE_TIME"):     # E7 dry run against the fake adb: a virtual clock, so waits cost ~nothing
     _off, _sleep, _time, _mono = [0.0], time.sleep, time.time, time.monotonic
