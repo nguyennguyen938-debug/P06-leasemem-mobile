@@ -136,7 +136,7 @@ def snapshot(d):
             **({"freezer_setting": g("settings get global cached_apps_freezer")} if d.aws else {})}
 
 
-def restore(d, snap):
+def restore(d, snap, final=True):
     """Put every recorded device-wide value back, reset battery and Doze overrides, remove the test user's assistant
     role and re-grant READ_CONTACTS. Each command runs with its exit status checked; each restored value is then read
     back and compared with the snapshot (battery and Doze resets have no recorded value, so only their exit status is
@@ -160,7 +160,9 @@ def restore(d, snap):
         v = v if v not in ("",) else "null"
         todo.append(("settings delete global %s" % k if v == "null" else "settings put global %s %s" % (k, v),
                      "settings get global %s" % k, is_(v), v))
-    if d.aws and "freezer_setting" in snap:   # campaign turned the freezer on where the unit had it off
+    # campaign turned the freezer on where the unit had it off: put the setting back only at the end of the run. A
+    # restore between steps turned it off again before B2's freeze gap (run c3579ab2, 2026-11-19 18:53 device time).
+    if d.aws and final and "freezer_setting" in snap:
         fs = snap["freezer_setting"] if snap["freezer_setting"] not in ("",) else "null"
         todo.append(("settings delete global cached_apps_freezer" if fs == "null" else "settings put global cached_apps_freezer %s" % fs,
                      "settings get global cached_apps_freezer", is_(fs), fs))
@@ -334,7 +336,7 @@ def main():
                 try:
                     rc, stopped = run_step(d, argv, log, env)
                 finally:
-                    failed = restore(d, snap)
+                    failed = restore(d, snap, final=False)
                 status = status or rc or (1 if stopped else 0) or (3 if failed else 0)
                 try:
                     plugged = d.plugged()

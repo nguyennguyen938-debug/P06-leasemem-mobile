@@ -1,0 +1,26 @@
+INVALID not frozen freeze 0
+INVALID not frozen freeze 1
+INVALID not frozen freeze 2
+INVALID not frozen freeze 3
+INVALID not frozen freeze 4
+INVALID not frozen freeze 5
+INVALID not frozen freeze 6
+INVALID not frozen freeze 7
+INVALID not frozen freeze 8
+INVALID not frozen freeze 9
+INVALID not frozen freeze 10
+INVALID not frozen freeze 11
+INVALID not frozen freeze 12
+INVALID not frozen freeze 13
+INVALID not frozen freeze 14
+INVALID not frozen freeze 15
+INVALID not frozen freeze 16
+INVALID not frozen freeze 17
+run-as diagnosis for org.leasemem.mut: {"run-as org.leasemem.mut --user 0 id 2>&1": "uid=10283(u0_a283) gid=10283(u0_a283) groups=10283(u0_a283),1004(input),1007(log),1011(adb),1015(sdcard_rw),1028(sdcard_r),1078(ext_data_rw),1079(ext_obb_rw),3001(net_bt_admin),3002(net_bt),3003(inet),3006(net_bw_stats),3009(readproc),3011(uhid),3012(readtracefs),50283(all_a283) context=u:r:runas_app:s0:c27,c257,c512,c768", "run-as org.leasemem.mut id 2>&1": "uid=10283(u0_a283) gid=10283(u0_a283) groups=10283(u0_a283),1004(input),1007(log),1011(adb),1015(sdcard_rw),1028(sdcard_r),1078(ext_data_rw),1079(ext_obb_rw),3001(net_bt_admin),3002(net_bt),3003(inet),3006(net_bw_stats),3009(readproc),3011(uhid),3012(readtracefs),50283(all_a283) context=u:r:runas_app:s0:c27,c257,c512,c768", "run-as org.leasemem.mut --user 0 ls -la files 2>&1": "total 10\ndrwxrwxrwx 2 u0_a283 u0_a283 3452 2026-11-18 19:01 .\ndrwx------ 5 u0_a283 u0_a283 3452 2026-11-18 18:34 ..\n-rw-rw-rw- 1 u0_a283 u0_a283   12 2026-11-18 18:34 p06_exclude", "getprop ro.debuggable": "0", "dumpsys package org.leasemem.mut 2>&1": "codePath=/data/app/~~B8btyyDfcA9fin19bjXhyg==/org.leasemem.mut-EsDVnlM5rRNTndKqiEwrhA== flags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ] pkgFlags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ] flags=[ USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED|RESTRICTION_INSTALLER_EXEMPT]"}
+ERR freeze 18 TimeoutError('mut ensure; run-as diagnosis: {"run-as org.leasemem.mut --user 0 id 2>&1": "uid=10283(u0_a283) gid=10283(u0_a283) groups=10283(u0_a283),1004(input),1007(log),1011(adb),1015(sdcard_rw),1028(sdcard_r),1078(ext_data_rw),1079(ext_obb_rw),3001(net_bt_admin),3002(net_bt),3003(inet),3006(net_bw_stats),3009(readproc),3011(uhid),3012(readtracefs),50283(all_a283) context=u:r:runas_app:s0:c27,c257,c512,c768", "run-as org.leasemem.mut id 2>&1": "uid=10283(u0_a283) gid=10283(u0_a283) groups=10283(u0_a283),1004(input),1007(log),1011(adb),1015(sdcard_rw),1028(sdcard_r),1078(ext_data_rw),1079(ext_obb_rw),3001(net_bt_admin),3002(net_bt),3003(inet),3006(net_bw_stats),3009(readproc),3011(uhid),3012(readtracefs),50283(all_a283) context=u:r:runas_app:s0:c27,c257,c512,c768", "run-as org.leasemem.mut --user 0 ls -la files 2>&1": "total 10\\ndrwxrwxrwx 2 u0_a283 u0_a283 3452 2026-11-18 19:01 .\\ndrwx------ 5 u0_a283 u0_a283 3452 2026-11-18 18:34 ..\\n-rw-rw-rw- 1 u0_a283 u0_a283   12 2026-11-18 18:34 p06_exclude", "getprop ro.debuggable": "0", "dumpsys package org.leasemem.mut 2>&1": "codePath=/data/app/~~B8btyyDfcA9fin19bjXhyg==/org.leasemem.mut-EsDVnlM5rRNTndKqiEwrhA== flags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ] pkgFlags=[ DEBUGGABLE HAS_CODE ALLOW_CLEAR_USER_DATA ] flags=[ USER_SENSITIVE_WHEN_GRANTED|USER_SENSITIVE_WHEN_DENIED|RESTRICTION_INSTALLER_EXEMPT]"}')
+INVALID not frozen freeze 19
+INVALID not frozen freeze 20
+INVALID not frozen freeze 21
+INVALID not frozen freeze 22
+INVALID not frozen freeze 23
+INVALID not frozen freeze 24
