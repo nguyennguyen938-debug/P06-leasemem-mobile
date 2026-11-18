@@ -9,6 +9,8 @@
    because it would mean the user is in use or shares data with the owner.
 4. Install the P06 apps with --user, grant permissions and appops in that user, write each app's excluded sources,
    and write the fixtures through the mutator app inside the test user.
+On AWS Device Farm (lmdrv AWS mode) the phone is wiped before every run: the same steps run in user 0 with every
+source, the foreign-row counts are recorded but do not stop the setup, and nothing personal exists on the device.
 Usage (through campaign.py): b0_setup.py SERIAL OUT_DIR
 """
 import hashlib, json, random, re, sys, time
@@ -41,7 +43,8 @@ def setup(d, out_dir):
     w = lmdrv.World(d, random.Random(20261119))
     rec = {**d.meta(), "kind": "setup", "t": time.time(), "restrictions": sorted(d.restrictions)}
     rec["foreign_before"] = foreign_rows(d) if not d.emulator else None
-    if rec["foreign_before"] and any(v != 0 for v in rec["foreign_before"].values()):
+    # a personal phone's test user must be empty; a wiped rented phone (AWS) holds nothing personal, counts are kept
+    if not d.aws and rec["foreign_before"] and any(v != 0 for v in rec["foreign_before"].values()):
         raise RuntimeError("the test user holds rows P06 did not write %s; stop (PHYS-PROTOCOL.md section 3)"
                            % rec["foreign_before"])
     rec["install"] = d.provision([(p, A / apk) for p, apk in APPS])

@@ -1,0 +1,39 @@
+version: 0.1
+
+# P06 LeaseMem-Mobile on AWS Device Farm, custom test environment (Android). The Linux test host runs the P06 Python
+# drivers, which reach the phone only through adb; no Appium. One Device Farm run = one campaign.py invocation of at
+# most 150 min (jobTimeoutMinutes). The run's task comes from two run-level environment variables that
+# artifact/aws/devicefarm.py sets at ScheduleRun: P06_TASK (B0, B1, ...) and P06_ARGS (--pilot, --only, --trials,
+# --part, --budget-min, --allow-reboot). Raw JSONL, driver logs and the run's RUNLOG go to $DEVICEFARM_LOG_DIR/p06,
+# which Device Farm returns as the Customer Artifacts zip; devicefarm.py fetch copies them into
+# artifact/results/physical-<date>/ with create-only writes.
+
+android_test_host: amazon_linux_2023
+
+phases:
+  install:
+    commands:
+      - devicefarm-cli use python 3.12
+      - python --version
+      - adb version
+
+  pre_test:
+    commands:
+      # the test package is unzipped at $DEVICEFARM_TEST_PACKAGE_PATH; package.py puts the artifact tree under tests/P06
+      - export P06_ARTIFACT=$DEVICEFARM_TEST_PACKAGE_PATH/tests/P06/artifact
+      # AWS mode in lmdrv: user 0, every source, device_instance and run_arn in every record
+      - export P06_TARGET=aws
+      - export P06_OUT=$DEVICEFARM_LOG_DIR/p06
+      - mkdir -p $P06_OUT
+      - adb -s $DEVICEFARM_DEVICE_UDID wait-for-device
+
+  test:
+    commands:
+      - cd $P06_ARTIFACT && python physical/campaign.py $P06_TASK --serial $DEVICEFARM_DEVICE_UDID --out-root $P06_OUT $P06_ARGS
+
+  post_test:
+    commands:
+      - ls -lR $P06_OUT || true
+
+artifacts:
+  - $DEVICEFARM_LOG_DIR

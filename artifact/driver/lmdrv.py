@@ -1,10 +1,20 @@
 #!/usr/bin/env python3
-"""Host-side driver for LeaseMem-Mobile experiments (Android emulators and one test phone, adb only).
+"""Host-side driver for LeaseMem-Mobile experiments (Android emulators and rented phones, adb only).
 
 Deterministic scripted "agent": no LLM. All randomness is seeded and logged.
 
-The phone is the user's personal phone (PHYS-PROTOCOL.md sections 3 and 4). On any device other than P06's two
-emulators, Dev enforces:
+Device classes (PHYS-PROTOCOL.md):
+- P06's two emulators (emulator-5620, emulator-5622): the historical runs, unchanged.
+- AWS mode (P06_TARGET=aws, or DEVICEFARM_DEVICE_UDID set by the Device Farm test host): a freshly wiped rented
+  phone. Experiments run in user 0 with every source (SMS and call log included); the guard below still applies,
+  except that clock changes are allowed so B0 can probe them. The device is the one Device Farm names in
+  DEVICEFARM_DEVICE_UDID; records carry device_instance, device_arn and run_arn.
+- The user's personal Galaxy A35 (serial RFCXA0TTMPP) is blocked in every mode: Dev refuses it before any adb call
+  and refuses any device whose ro.serialno is that serial.
+- Any other allowlisted phone (P06_SERIALS) uses the personal-phone isolation of E5, described next. It is kept
+  for completeness; no personal phone is used (the user's phone cannot create a second user).
+
+On a non-emulator device that is not in AWS mode, Dev enforces:
 - every experiment runs in the Android user named "P06 Test" (never user 0); Dev refuses to start otherwise, refuses
   a phone whose adbd runs as root, and refuses unless that user is in the foreground;
 - every user-scoped command (am, pm, appops, content, cmd role, run-as, install) is built by Dev.u() or
@@ -54,7 +64,16 @@ EMULATORS = {"emulator-5620", "emulator-5622"}
 TEST_USER = "P06 Test"
 # P06's emulators, plus test phones named in $P06_SERIALS (comma separated). An entry matches the adb serial or the
 # device's ro.serialno, so one entry covers a phone over USB and over wireless debugging (whose adb serial changes).
-ALLOWED = EMULATORS | {x.strip() for x in os.environ.get("P06_SERIALS", "").split(",") if x.strip()}
+# The user's personal phone: never used for any experiment, in any mode (it cannot create a second user).
+BLOCKED_SERIALS = {"RFCXA0TTMPP"}
+AWS = os.environ.get("P06_TARGET") == "aws" or bool(os.environ.get("DEVICEFARM_DEVICE_UDID"))
+ALLOWED = (EMULATORS | {x.strip() for x in os.environ.get("P06_SERIALS", "").split(",") if x.strip()}
+           | ({os.environ["DEVICEFARM_DEVICE_UDID"]} if os.environ.get("DEVICEFARM_DEVICE_UDID") else set()))
+
+
+def blocked(serial):
+    """True for the user's personal phone, also inside a longer adb serial (mDNS or wireless names)."""
+    return any(b in (serial or "") for b in BLOCKED_SERIALS)
 PERMS = ["READ_CONTACTS", "WRITE_CONTACTS", "READ_CALL_LOG", "WRITE_CALL_LOG", "READ_CALENDAR", "WRITE_CALENDAR",
          "READ_MEDIA_IMAGES", "READ_EXTERNAL_STORAGE", "POST_NOTIFICATIONS", "READ_SMS", "WRITE_SECURE_SETTINGS"]
 PERM_SOURCE = {"READ_SMS": "sms", "READ_CALL_LOG": "calllog", "WRITE_CALL_LOG": "calllog"}
@@ -70,12 +89,17 @@ if os.environ.get("P06_FAKE_TIME"):     # E7 dry run against the fake adb: a vir
 _AT = r"(?:^|[;&|(`]|\$\(|\bdo\s|\bthen\s|-c\s+')\s*"         # a command position inside a shell string
 SCOPED = re.compile(_AT + r"(am|pm|appops|content|run-as|cmd)\s([^;&|`)]*)")
 USER_ADMIN = re.compile(r"(pm list users|am get-current-user|am get-started-user-state \d+)\s*")
-BANNED = re.compile(r"batterystats\s+--reset|/sdcard|/storage/|/data/|\bauto_time|" + _AT + r"("
-    r"pm\s+(clear|create-user|remove-user|disable\S*|hide|suspend|set-user-restriction|reset-permissions)\b"
+BANNED = re.compile(r"batterystats\s+--reset|/sdcard|/storage/|/data/|" + _AT + r"("
+    r"pm\s+(create-user|remove-user|disable\S*|hide|suspend|set-user-restriction|reset-permissions)\b"
     r"|pm\s+uninstall\s+(?!--user\s+\d+\s+org\.leasemem\.\w+\s*$)|am\s+(switch-user|stop-user|start-user)\b"
-    r"|date\s+(-s|@|\d)|cmd\s+(alarm|time)\b|locksettings\b|svc\b|su\b|setprop\b|reboot\b|wipe\b|recovery\b"
-    r"|content\s+(insert|update|delete)\b|settings\s+(?!(get|put|delete)\s+global\s+lm_(mode|target)\b)"
+    r"|locksettings\b|svc\b|su\b|setprop\b|reboot\b|wipe\b|recovery\b"
+    r"|content\s+(insert|update|delete)\b|settings\s+(?!(get|put|delete)\s+global\s+(lm_mode|lm_target|auto_time)\b)"
     r"|device_config\s+(?!((get|put|delete)\s+activity_manager_native_boot\s+freeze_debounce_timeout|(set|get)_sync_disabled_for_tests)\b))")
+# pm clear: refused everywhere except one exact command in AWS mode, clearing the Contacts provider of user 0 on a
+# wiped rented phone (B0 probe; the Contacts reset of revision/supplement.py). Never on a personal phone.
+PM_CLEAR_AWS_OK = re.compile(r"pm clear --user 0 com\.android\.providers\.contacts\s*")
+# Clock changes: refused on a personal phone; allowed in AWS mode, where B0 probes whether the shell can set the time.
+CLOCK = re.compile(r"\bauto_time|" + _AT + r"(date\s+(-s|@|\d)|cmd\s+(alarm|time)\b)")
 DUMPSYS_OK = [re.compile(p + r"\s*") for p in (
     r"battery( unplug| reset)?( \| grep .*)?", r"deviceidle (get (deep|light)|force-idle( deep)?|force-inactive|unforce|step( deep)?)",
     r"activity settings( \| grep .*)?", r"activity (processes|services) org\.leasemem\S*", r"(package|meminfo) org\.leasemem\S*",
@@ -87,15 +111,20 @@ class GuardError(RuntimeError):
     pass
 
 
-def phone_violation(cmd, user):
-    """Why `cmd` may not reach the personal phone with test user `user`, or None. Used by Dev.sh() and the tests."""
-    m = BANNED.search(cmd)
+def phone_violation(cmd, user, aws=False):
+    """Why `cmd` may not reach a non-emulator device whose experiment user is `user`, or None. aws=True: a rented
+    Device Farm phone (user 0; clock changes allowed). Used by Dev.sh(), the fake adb and the tests."""
+    m = BANNED.search(cmd) or (None if aws else CLOCK.search(cmd))
     if m:
         return "banned: %r" % m.group(0)
     for m in SCOPED.finditer(cmd):
         tool, seg = m.group(1), (m.group(1) + " " + m.group(2)).strip()
         if USER_ADMIN.fullmatch(seg):
             continue
+        if tool == "pm" and re.match(r"pm\s+clear\b", seg) and not (aws and PM_CLEAR_AWS_OK.fullmatch(seg)):
+            return "banned: %r" % seg
+        if tool == "cmd" and aws and seg.startswith("cmd alarm "):
+            continue                                       # AWS: B0 probes setting the clock (not user-scoped)
         if tool == "cmd" and not seg.startswith("cmd role "):
             return "cmd other than role: %r" % seg
         users = re.findall(r"--user\s+(\S+)", seg)
@@ -137,6 +166,10 @@ def open_new(path):
 
 class Dev:
     def __init__(self, serial):
+        if blocked(serial):
+            raise GuardError("%s is the user's personal phone; P06 never uses it" % serial)
+        if serial not in ALLOWED:
+            raise RuntimeError("%s is not in the allowlist (P06's emulators, P06_SERIALS, or the Device Farm UDID)" % serial)
         if not os.path.isfile(ADB) and not shutil.which(ADB):
             raise RuntimeError("adb not found (%s); set ANDROID_HOME or ADB" % ADB)
         try:
@@ -148,12 +181,17 @@ class Dev:
                                % (serial, (state.stdout + state.stderr).strip()))
         self.s, self.seq, self._root, self.frozen_method = serial, 0, None, None
         self.emulator = serial in EMULATORS
-        self.user, self.excluded, self.restrictions = (0 if self.emulator else None), set(), set()
-        hw = self.sh("getprop ro.serialno", timeout=15).strip()
-        if serial not in ALLOWED and hw not in ALLOWED:
-            raise RuntimeError("%s (ro.serialno %s) is not in the allowlist; add it to P06_SERIALS only if it is the "
-                               "test phone" % (serial, hw))
-        if not self.emulator:
+        self.aws = AWS and not self.emulator
+        self.user, self.excluded, self.restrictions = (0 if self.emulator or self.aws else None), set(), set()
+        if blocked(self.sh("getprop ro.serialno", timeout=15).strip()):
+            raise GuardError("%s reports the serial of the user's personal phone; P06 never uses it" % serial)
+        if self.aws:
+            if not os.environ.get("P06_CAMPAIGN"):
+                raise RuntimeError("in AWS mode, run drivers through physical/campaign.py")
+            if self.rooted:
+                raise RuntimeError("adbd runs as root on this device; P06 runs unrooted")
+            self.require_fg()
+        elif not self.emulator:
             if not os.environ.get("P06_CAMPAIGN"):
                 raise RuntimeError("on the phone, run drivers through physical/campaign.py (it records and restores "
                                    "device-wide settings)")
@@ -174,9 +212,9 @@ class Dev:
     # ---------- adb ----------
     def sh(self, cmd, timeout=60, check=False, retries=2):
         if not self.emulator:
-            why = phone_violation(cmd, self.user)
+            why = phone_violation(cmd, self.user, self.aws)
             if why:
-                raise GuardError("refused on the personal phone (%s)" % why)
+                raise GuardError("refused on %s (%s)" % ("the rented phone" if self.aws else "the personal phone", why))
         for attempt in range(retries + 1):          # adb occasionally hangs under host load: retry, then give up
             try:
                 r = subprocess.run(ADB_CMD + ["-s", self.s, "shell", cmd], capture_output=True, text=True,
@@ -206,7 +244,7 @@ class Dev:
             if a0 in ("uninstall", "push", "pull", "sideload", "restore", "backup", "disable-verity", "remount", "unroot"):
                 raise GuardError("adb %s refused on the personal phone" % a0)
             if a0 == "shell":
-                why = phone_violation(" ".join(args[1:]), self.user)
+                why = phone_violation(" ".join(args[1:]), self.user, self.aws)
                 if why:
                     raise GuardError("refused on the personal phone (%s)" % why)
         if a0 in ("root", "unroot", "reboot"):
@@ -227,8 +265,8 @@ class Dev:
         return ("%s --user %d %s" % (head, self.user, rest)).rstrip()
 
     def install(self, apk):
-        if self.emulator:     # P06's emulators: as in the emulator runs (all runtime permissions granted)
-            return self.adb("install", "--user", "0", "-r", "-g", apk)
+        if self.emulator or self.aws:     # emulators and wiped rented phones: all runtime permissions granted
+            return self.adb("install", "--user", str(self.user), "-r", "-g", apk)
         return self.adb("install", "--user", str(self.user), "-r", apk)
 
     @property
@@ -255,14 +293,16 @@ class Dev:
         block = self.sh("dumpsys user | awk '/UserInfo\\{/{p=index($0,\"UserInfo{%d:\")>0} p'" % self.user, timeout=20)
         return set(re.findall(r"\b(no_[a-z_]+)\b", block))
 
-    def after_reboot(self, timeout=1800):
-        """Wait for boot, then for the user to switch to the test user (the driver never unlocks or switches users)."""
+    def after_reboot(self, timeout=None):
+        """Wait for boot, then until the experiment user is in the foreground and unlocked (user 0 on AWS; on a personal
+        phone the user switches back to P06 Test). The driver never unlocks or switches users."""
         pause = os.environ.get("P06_FG_PAUSE_FILE")
         try:
             self.wait_boot()
             if self.emulator:
                 return
-            print("rebooted: waiting for the user to switch the phone to %r" % TEST_USER, flush=True)
+            timeout = timeout or (600 if self.aws else 1800)   # AWS: user 0 comes back by itself; do not burn minutes
+            print("rebooted: waiting for user %s in the foreground and unlocked" % self.user, flush=True)
             t0 = time.time()
             while time.time() - t0 < timeout:
                 try:
@@ -271,7 +311,7 @@ class Dev:
                 except Exception:
                     pass
                 time.sleep(5)
-            raise GuardError("the phone did not return to %r within %d s after the reboot" % (TEST_USER, timeout))
+            raise GuardError("user %s was not back in the foreground within %d s after the reboot" % (self.user, timeout))
         finally:
             if pause and os.path.exists(pause):
                 os.remove(pause)
@@ -281,7 +321,10 @@ class Dev:
         touch (files/p06_exclude). Returns install records. pkg_apks: [(package, apk path)]."""
         recs = []
         for pkg, apk in pkg_apks:
-            r = self.install(apk); recs.append({"pkg": pkg, "apk": str(apk), "result": r.strip()[-200:]})
+            r = self.install(apk)
+            if self.aws and "INSTALL_FAILED_UPDATE_INCOMPATIBLE" in r:   # Device Farm installed its re-signed copy
+                self.sh(self.u("pm uninstall %s" % pkg)); r = self.install(apk)
+            recs.append({"pkg": pkg, "apk": str(apk), "result": r.strip()[-200:]})
             if "Success" not in r:
                 raise RuntimeError(recs)
             self.sh(self.u("appops set %s MANAGE_EXTERNAL_STORAGE allow" % pkg))
@@ -351,6 +394,10 @@ class Dev:
             g = lambda k: self.sh("getprop " + k, timeout=15).strip()
             self._meta = {"device": "%s %s" % (g("ro.product.manufacturer"), g("ro.product.model")),
                           "fingerprint": g("ro.build.fingerprint"), "sdk": g("ro.build.version.sdk"),
+                          # which physical unit and which Device Farm run (a run may land on another unit of the model)
+                          "device_instance": os.environ.get("DEVICEFARM_DEVICE_UDID") if self.aws else self.s,
+                          "device_arn": os.environ.get("DEVICEFARM_DEVICE_ARN") if self.aws else None,
+                          "run_arn": os.environ.get("DEVICEFARM_RUN_ARN") if self.aws else None,
                           "user_id": self.user, "excluded_sources": sorted(self.excluded),
                           "user_no_sms": "no_sms" in self.restrictions,
                           "user_no_outgoing_calls": "no_outgoing_calls" in self.restrictions}

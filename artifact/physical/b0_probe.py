@@ -6,6 +6,11 @@ Runs through campaign.py after b0_setup.py prepared the test user. Every probe s
 a device-wide setting that it restores itself (and campaign.py restores again from its snapshot). Nothing here
 clears app data, changes the clock, uses root, or touches another user. The reboot probe runs only with
 --allow-reboot (the user's consent for this run); after it the probe waits for the user to switch back to P06 Test.
+On AWS Device Farm (lmdrv AWS mode) the same probes run in user 0 and three more run: host (Python and adb versions of
+the Device Farm test host), clock_set_back (can the shell set the time without root? the time and auto_time are put
+back), sms_role (can org.leasemem.mut hold the SMS role; the role is removed again) and pm_clear_contacts (clear the
+Contacts provider of user 0, then write the fixtures again). The reboot probe records `survived: true` when the run
+outlives `adb reboot` and `adb wait-for-device`; if not, the probe fails and the reboot gap keeps the emulator result.
 Usage: b0_probe.py SERIAL OUT.jsonl [--allow-reboot]
 """
 import json, os, re, sys, time, traceback, random
@@ -217,6 +222,47 @@ def wireless():
     return any(":" in t or "_adb-tls-connect" in t for t in res["transports"]), res
 
 
+def host():
+    import platform
+    v = lmdrv.subprocess.run(lmdrv.ADB_CMD + ["version"], capture_output=True, text=True, timeout=15).stdout
+    return True, {"python": sys.version.split()[0], "platform": platform.platform(), "adb": v.strip().splitlines()[:2]}
+
+
+def clock_set_back():
+    """AWS only. Moves the clock back one hour with `date` (needs root) or `cmd alarm set-time`, then restores it."""
+    auto = d.sh("settings get global auto_time").strip(); d.sh("settings put global auto_time 0")
+    t0 = d.now_ms(); res = {"auto_time": auto, "date": d.sh("date @%d 2>&1" % (t0 // 1000 - 3600)).strip()[:120]}
+    moved = d.now_ms() < t0 - 1800 * 1000
+    if not moved:
+        res["alarm_set_time"] = d.sh("cmd alarm set-time %d 2>&1" % (t0 - 3600 * 1000)).strip()[:120]
+        moved = d.now_ms() < t0 - 1800 * 1000
+    res["moved_back"] = moved
+    if moved:
+        d.sh("cmd alarm set-time %d" % int(time.time() * 1000))
+    d.sh("settings put global auto_time %s" % (auto if auto in ("0", "1") else "1"))
+    res["skew_after_restore_ms"] = d.now_ms() - int(time.time() * 1000)
+    return moved, res
+
+
+def sms_role():
+    """AWS only. Can the mutator hold the SMS role (needed if SMS writes fail with appops WRITE_SMS alone)?"""
+    role = "android.app.role.SMS"
+    before = d.sh(d.u("cmd role get-role-holders %s" % role)).strip()
+    o = d.sh(d.u("cmd role add-role-holder %s %s 0" % (role, lmdrv.MPKG))).strip()
+    held = lmdrv.MPKG in d.sh(d.u("cmd role get-role-holders %s" % role))
+    d.sh(d.u("cmd role remove-role-holder %s %s 0" % (role, lmdrv.MPKG)))
+    return held, {"holders_before": before, "add": o[:150], "held": held}
+
+
+def pm_clear_contacts():
+    """AWS only. Clear the Contacts provider of user 0 on the wiped rented phone, then write the fixtures again."""
+    o = d.sh(d.u("pm clear com.android.providers.contacts")).strip(); time.sleep(3)
+    r = w.ensure_base()
+    n = len(re.findall(r"^Row: ", d.sh(d.u("content query --uri content://com.android.contacts/raw_contacts --projection _id "
+                                          "--where \"display_name LIKE 'LM %'\"")), re.M))
+    return "Success" in o and bool(r.get("ok")) and n >= 2, {"pm_clear": o, "refixtured": r, "fixture_raw_contacts": n}
+
+
 def reboot():
     """Needs the user's consent for this run. After boot the phone shows the owner's lock screen; the probe records
     what it sees, then waits (without unlocking or switching anything) until the user switches to P06 Test."""
@@ -225,11 +271,12 @@ def reboot():
     seen = {"current_user_after_boot": d.current_user(),
             "test_user_state_after_boot": d.sh("am get-started-user-state %d" % d.user).strip()}
     t0 = time.time(); d.after_reboot()
-    return True, {"boot_s": round(s, 1), "t_reboot": t, **seen, "user_back_after_s": round(time.time() - t0, 1),
-                  "client_pid_after": d.pid()}
+    # reaching this line means the run survived `adb reboot` and `adb wait-for-device` (otherwise the probe fails)
+    return True, {"survived": True, "boot_s": round(s, 1), "t_reboot": t, **seen,
+                  "user_back_after_s": round(time.time() - t0, 1), "client_pid_after": d.pid()}
 
 
-for name, fn in [("identity", identity), ("user_info", user_info), ("install_user", install_user),
+for name, fn in ([("identity", identity), ("user_info", user_info), ("install_user", install_user),
                  ("run_as_user", run_as_user), ("read_app_files", read_files), ("content_user", content_user),
                  ("appops", appops), ("fixtures_ensure_base", fixtures), ("mutations_all_kinds", mutations),
                  ("client_probe_candidates", client_probe), ("process_user", process_user),
@@ -238,7 +285,9 @@ for name, fn in [("identity", identity), ("user_info", user_info), ("install_use
                  ("sigkill_kill9", sigkill), ("pm_revoke_grant", revoke_grant), ("battery_unplug", battery_unplug),
                  ("doze_force_idle_deep", doze), ("standby_bucket", bucket), ("assistant_role", assistant),
                  ("charge_counter", charge_counter), ("batterystats_uid", batterystats),
-                 ("screen_sleep_wake", screen), ("wireless_debugging", wireless)]:
+                 ("screen_sleep_wake", screen), ("wireless_debugging", wireless)]
+                + ([("host", host), ("clock_set_back", clock_set_back), ("sms_role", sms_role),
+                    ("pm_clear_contacts", pm_clear_contacts)] if d.aws else [])):
     probe(name, fn)
 if "--allow-reboot" in sys.argv:
     probe("reboot", reboot)

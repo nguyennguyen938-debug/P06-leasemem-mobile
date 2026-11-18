@@ -2,7 +2,7 @@
 """E7: a fake `adb` for dry runs of physical/campaign.py without a phone. Not a model of Android: it answers the
 commands the drivers send with fixed, plausible values, keeps a little device state (users, installed apps, running
 processes, app files, settings, battery and Doze overrides) in $FAKE_ADB_STATE, and logs every command to
-$FAKE_ADB_LOG together with the verdict of the personal-phone guard (lmdrv.phone_violation) for user 10, so a dry
+$FAKE_ADB_LOG together with the verdict of the guard (lmdrv.phone_violation) for user 10 (user 0 with FAKE_MODE=aws), so a dry
 run shows exactly what would reach the phone. `adb forward` starts a small TCP server (this file with --serve) that
 answers the client's loopback ops used by revision/run.py and b7_continuous.py. Failure injection for the restore
 checks: a shell command matching $FAKE_FAIL exits 1 with an error and changes nothing; one matching $FAKE_IGNORE
@@ -15,14 +15,16 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "driver"))
 os.environ.pop("P06_FAKE_TIME", None)     # the fake device keeps real time (plus its own clock offset)
 import lmdrv
 
-SERIAL, USER, APPID = "FAKE0001", 10, 10123
+# FAKE_MODE=aws: a wiped Device Farm phone (only user 0, no restrictions); otherwise a personal phone with user 10.
+AWS = os.environ.get("FAKE_MODE") == "aws"
+SERIAL, USER, APPID = os.environ.get("FAKE_SERIAL", "FAKE0001"), 0 if AWS else 10, 10123
 UID = USER * 100000 + APPID
 STATE = Path(os.environ.get("FAKE_ADB_STATE", "fake-adb-state.json"))
 LOG = Path(os.environ.get("FAKE_ADB_LOG", "fake-adb-log.jsonl"))
 LOCK = STATE.with_suffix(".lock")
 PKGS = {"LeaseMemClient-v4": "org.leasemem.client", "LeaseMemMut": "org.leasemem.mut",
         "LeaseMemTrig": "org.leasemem.trig", "LeaseMemAssist": "org.leasemem.assist"}
-PROPS = {"ro.serialno": SERIAL, "ro.product.manufacturer": "Fake", "ro.product.model": "P06Phone", "ro.product.device": "p06",
+PROPS = {"ro.serialno": os.environ.get("FAKE_SERIALNO", SERIAL), "ro.product.manufacturer": "Fake", "ro.product.model": "P06Phone", "ro.product.device": "p06",
          "ro.build.fingerprint": "fake/p06/p06:14/FAKE.1/1:user/release-keys", "ro.build.version.sdk": "34",
          "ro.build.version.release": "14", "ro.build.type": "user", "ro.debuggable": "0",
          "ro.build.version.security_patch": "2026-10-01", "sys.boot_completed": "1", "service.adb.tls.port": "37000"}
@@ -108,7 +110,7 @@ def one(s, c):
     if c in ("id -u",):
         return "2000"
     if c == "pm list users":
-        return "Users:\n\tUserInfo{0:Owner:c13} running\n\tUserInfo{10:P06 Test:410} running"
+        return "Users:\n\tUserInfo{0:Owner:c13} running" + ("" if AWS else "\n\tUserInfo{10:P06 Test:410} running")
     if c == "am get-current-user":
         if s["cur"] != USER and s["back_after"] > 0:
             s["back_after"] -= 1
@@ -141,6 +143,8 @@ def one(s, c):
     if c.startswith("dumpsys package"):
         g = s["grants"].get(c.split()[-1] + "/android.permission.READ_CONTACTS", True)
         return "    runtime permissions:\n      android.permission.READ_CONTACTS: granted=%s" % ("true" if g else "false")
+    if c.startswith("dumpsys batterystats --charged"):  # before "dumpsys battery", which is its prefix
+        return "    Uid u%da123: 0.42 ( cpu=0.40 )" % USER
     if c.startswith("dumpsys battery"):
         if c == "dumpsys battery unplug":
             s["battery_override"] = "unplug"; return ""
@@ -162,7 +166,11 @@ def one(s, c):
     if c.startswith("dumpsys voiceinteraction"):
         return "    mBound=true\n    mComponent=org.leasemem.assist/.Svc" if s["role"] else ""
     if c.startswith("dumpsys batterystats --charged"):
-        return "    Uid u10a123: 0.42 ( cpu=0.40 )"
+        return "    Uid u%da123: 0.42 ( cpu=0.40 )" % USER
+    if re.match(r"date @\d+", c):                     # an unrooted phone: the shell may not set the clock
+        return "date: cannot set date: Operation not permitted"
+    if c.startswith("cmd alarm set-time"):
+        return "Security exception: Caller is not allowed to set the time"
     m = re.fullmatch(r"device_config (get|put|delete) (\S+) (\S+)(?: (\S+))?", c)
     if m:
         k = m.group(2) + "/" + m.group(3)
@@ -195,7 +203,7 @@ def one(s, c):
             s["frozen"] = s["dc"].get("activity_manager_native_boot/freeze_debounce_timeout") == "2000" and not s["fgs"]
         s["awake"] = {"KEYCODE_SLEEP": False, "KEYCODE_WAKEUP": True}.get(k, s["awake"])
         return ""
-    m = re.match(r"am (\S+) --user 10 (.*)", c)
+    m = re.match(r"am (\S+) --user %d (.*)" % USER, c)
     if m:
         sub, rest = m.groups(); pkg = re.search(r"(org\.leasemem\.\w+)", rest); pkg = pkg and pkg.group(1)
         if sub == "start":
@@ -222,7 +230,7 @@ def one(s, c):
                 s["files"]["%s/files/done_%s" % (pkg, e.get("id"))] = "R:" + json.dumps(mut_reply(s, e.get("op"), e.get("a"), e.get("b")))
             return "Broadcast completed: result=0"
         return ""
-    m = re.match(r"run-as --user 10 (\S+) (.*)", c)
+    m = re.match(r"run-as --user %d (\S+) (.*)" % USER, c)
     if m:
         pkg, inner = m.groups()
         if inner == "id":
@@ -248,20 +256,22 @@ def one(s, c):
         if pkg + "/files/mem.json" not in s["files"] and inner.startswith("cat files/mem.json"):
             return json.dumps({"events": [{"src": "contacts", "t": now(s), "flags": 0}], "last_start": {}})
         return "".join(out)
-    m = re.match(r"pm (\S+) --user 10 (.*)", c)
+    m = re.match(r"pm (\S+) --user %d (.*)" % USER, c)
     if m:
         sub, rest = m.groups()
         if sub == "list":
             return "\n".join("package:" + p for p in s["installed"])
         if sub in ("grant", "revoke"):
             pkg, perm = rest.split()[:2]; s["grants"][pkg + "/" + perm] = sub == "grant"; return ""
+        if sub == "clear":
+            return "Success"
         if sub == "uninstall":
             s["installed"] = [p for p in s["installed"] if p != rest.strip()]; return "Success"
         return ""
-    m = re.match(r"appops (set|get) --user 10 (\S+) (\S+)", c)
+    m = re.match(r"appops (set|get) --user %d (\S+) (\S+)" % USER, c)
     if m:
         return "%s: allow" % m.group(3) if m.group(1) == "get" else ""
-    m = re.match(r"cmd role (\S+) --user 10 (.*)", c)
+    m = re.match(r"cmd role (\S+) --user %d (.*)" % USER, c)
     if m:
         sub, rest = m.groups()
         if sub == "add-role-holder":
@@ -269,7 +279,7 @@ def one(s, c):
         elif sub == "remove-role-holder":
             s["role"] = None
         return s["role"] or "" if sub == "get-role-holders" else ""
-    if c.startswith("content query --user 10"):
+    if c.startswith("content query --user %d" % USER):
         return "No result found." if ("NOT LIKE" in c or "IS NOT" in c) else "Row: 0 _id=1\nRow: 1 _id=2"
     return None
 
@@ -346,14 +356,16 @@ def main(argv):
     lock()
     try:
         s = load(); entry = {"t": time.time(), "serial": serial, "argv": argv}; out, rc, err = "", 0, ""
-        if argv[:1] == ["devices"]:
+        if argv[:1] == ["version"]:
+            out = "Android Debug Bridge version 1.0.41 (fake adb of E7)"
+        elif argv[:1] == ["devices"]:
             out = "List of devices attached\n%s device product:p06 model:P06Phone\n" % SERIAL
         elif serial != SERIAL:
             out, rc = "error: device '%s' not found" % serial, 1
         elif argv[0] == "get-state":
             out = "device"
         elif argv[0] == "shell":
-            cmd = " ".join(argv[1:]); entry["violation"] = lmdrv.phone_violation(cmd, USER)
+            cmd = " ".join(argv[1:]); entry["violation"] = lmdrv.phone_violation(cmd, USER, AWS)
             fail, ignore = os.environ.get("FAKE_FAIL"), os.environ.get("FAKE_IGNORE")
             if fail and re.search(fail, cmd):          # loud failure: exit 1, nothing changes
                 rc, err, entry["injected"] = 1, "Error: injected failure for %s\n" % cmd, "fail"
@@ -365,7 +377,7 @@ def main(argv):
                     entry["unknown"] = True; r = ""
                 out = r
         elif argv[0] == "install":
-            entry["violation"] = None if argv[1:3] == ["--user", str(USER)] else "install without --user 10"
+            entry["violation"] = None if argv[1:3] == ["--user", str(USER)] else "install without --user %d" % USER
             name = Path(argv[-1]).stem
             if name in PKGS and PKGS[name] not in s["installed"]:
                 s["installed"].append(PKGS[name])

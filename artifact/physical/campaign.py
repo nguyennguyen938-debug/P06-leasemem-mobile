@@ -17,9 +17,14 @@ to physical-<YYYYMMDD>/logs/; one line per command is appended to <out-root>/RUN
 those of PLAN-dien-thoai-that.md section 4 and PHYS-PROTOCOL.md.
 
 Usage: python physical/campaign.py TASK --serial SERIAL [--pilot] [--dry-run] [--night 1|2] [--allow-reboot]
-                                   [--out-root DIR]
+                                   [--out-root DIR] [--only LABELS] [--trials N] [--part K] [--budget-min M]
        python physical/campaign.py --restore --serial SERIAL
-  TASK: setup B0 B1 B2 B3 B4 B5 B6 B7 B9 B10 B11 B12 cleanup   (--pilot: 2 trials per condition, for S2)
+  TASK: setup B0 B1 B2 B3 B4 B5 B6 B7 B9 B10 B11 B12 B13 cleanup   (--pilot: 2 trials per condition, for S2)
+On AWS Device Farm (P06_TARGET=aws) one invocation is one Device Farm run of at most 150 min: artifact/aws/
+devicefarm.py splits a task into runs with --only (step labels), --trials (trials per step), --part (seed offset
+and file tag, so parts never share seeds or file names) and --budget-min (no new step starts after that many
+minutes). Every run prepares the wiped phone itself (b0_setup.py). B11 and B12 are dropped on AWS: the phones are
+always charging and a run lasts at most 150 min.
 Environment: ANDROID_HOME (finds adb); P06_SERIALS = the phone's ro.serialno (lmdrv allowlist).
 """
 import argparse, hashlib, json, os, re, subprocess, sys, time
@@ -42,36 +47,38 @@ DEBOUNCE = ("device_config set_sync_disabled_for_tests until_reboot; "
             "device_config put activity_manager_native_boot freeze_debounce_timeout %d")
 
 
-def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot):
-    """[(label, argv, pre-commands, main output file)] for one task; pre-commands are user-scoped via {u:...}."""
+def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=None, part=0):
+    """[(label, argv, pre-commands, main output file)] for one task; pre-commands are user-scoped via {u:...}.
+    trials overrides the trials per step; part K > 0 adds 1000*K to every seed and "-pK" to every file name."""
     D, P, R = str(A / "driver"), str(A / "physical"), str(A / "revision")
-    n = lambda full: 2 if pilot else full
+    n = lambda full: 2 if pilot else trials if trials else full
+    sd = lambda base: str(base + 1000 * part)
     # --pilot files carry "pilot" in their name (gaps-pilot-none-HHMM...): analyze_phys.py keeps them out of the main numbers
-    t = lambda name: name.replace("-", "-pilot-", 1) if pilot and "-" in name else name + "-pilot" if pilot else name
+    t = lambda name: (name.replace("-", "-pilot-", 1) if pilot and "-" in name else name + "-pilot" if pilot else name) + ("-p%d" % part if part else "")
     o = lambda name: str(out / ("%s-%s.jsonl" % (t(name), hm)))
-    sfx = ("-pilot-" if pilot else "-") + hm   # passed as --suffix=<sfx>: a value starting with "-pilot" would read as an option
+    sfx = ("-pilot-" if pilot else "-") + ("p%d-" % part if part else "") + hm   # passed as --suffix=<sfx>: a value starting with "-" would read as an option
     stop_fgs = "{u:am stopservice -n %s/.FgService}" % lmdrv.CPKG
     if task in ("setup", "cleanup"):
         return []
     if task == "B0":
         return [("probe", [PY, P + "/b0_probe.py", serial, o("b0-probe")] + (["--allow-reboot"] if allow_reboot else []), [], o("b0-probe")),
-                ("trial", [PY, D + "/e2v3_gaps.py", serial, "none", "1", "2611000", o("b0-trial-none")],
+                ("trial", [PY, D + "/e2v3_gaps.py", serial, "none", "1", sd(2611000), o("b0-trial-none")],
                  [stop_fgs, DEBOUNCE % 600000], o("b0-trial-none"))]
     if task == "B1":
         return [("deploy-" + src, [PY, str(A / "followup/deployment.py"), serial, "--out", o("deploy-" + src),
                                    "--source", src, "--n", str(n(20))] + (["--modes", "bg_unfrozen,fg"] if src != "contacts" else []),
                  [], o("deploy-" + src)) for src in ("contacts", "media", "calllog") if src not in excluded]
     if task == "B2":
-        return [("gap-" + g, [PY, D + "/e2v3_gaps.py", serial, g, str(n(25)), str(2611201 + i), o("gaps-" + g)],
+        return [("gap-" + g, [PY, D + "/e2v3_gaps.py", serial, g, str(n(25)), sd(2611201 + i), o("gaps-" + g)],
                  [stop_fgs, DEBOUNCE % (2000 if g == "freeze" else 600000)], o("gaps-" + g))
                 for i, g in enumerate(GAPS) if g != "reboot" or allow_reboot]
     if task == "B3":
-        return [("coverage", [PY, D + "/e1_coverage.py", serial, str(n(30)), "2611301", o("coverage")], [stop_fgs], o("coverage"))]
+        return [("coverage", [PY, D + "/e1_coverage.py", serial, str(n(30)), sd(2611301), o("coverage")], [stop_fgs], o("coverage"))]
     if task == "B4":
         f = str(out / ("stock-%s%s.jsonl" % (serial.replace(":", "_"), sfx)))
         return [("stock", [PY, R + "/run.py", serial, "stock", "--n", str(n(20)), "--out-dir", str(out), "--suffix=" + sfx], [], f)]
     if task == "B5":
-        return [("frozen", [PY, D + "/e9_frozen.py", serial, str(n(10)), "2611501", o("frozen"), "600"], [DEBOUNCE % 2000], o("frozen"))]
+        return [("frozen", [PY, D + "/e9_frozen.py", serial, str(n(10)), sd(2611501), o("frozen"), "600"], [DEBOUNCE % 2000], o("frozen"))]
     if task == "B6":
         f = str(out / ("host-%s%s.jsonl" % (serial.replace(":", "_"), sfx)))
         return [("host", [PY, R + "/run.py", serial, "host", "--n", str(n(30)), "--arms", "refresh,validate,stamp,relay,memo",
@@ -80,11 +87,18 @@ def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot):
         return [("continuous", [PY, P + "/b7_continuous.py", serial, o("continuous"), "--n", str(n(30))], [], o("continuous"))]
     if task == "B9":     # the boundary effect is a call-log row: needs the call log
         return [] if "calllog" in excluded else [
-            ("boundary", [PY, D + "/e3v2_boundary.py", serial, str(n(100)), "2611901", o("boundary")], [stop_fgs], o("boundary")),
-            ("boundary-band", [PY, D + "/e3v2_boundary.py", serial, str(n(100)), "2611902", o("boundary-band"), "band"],
+            ("boundary", [PY, D + "/e3v2_boundary.py", serial, str(n(100)), sd(2611901), o("boundary")], [stop_fgs], o("boundary")),
+            ("boundary-band", [PY, D + "/e3v2_boundary.py", serial, str(n(100)), sd(2611902), o("boundary-band"), "band"],
              [stop_fgs], o("boundary-band"))]
     if task == "B10":
-        return [("pitfalls", [PY, D + "/e6_pitfalls.py", serial, str(n(50)), "2611001", o("pitfalls")], [stop_fgs], o("pitfalls"))]
+        return [("pitfalls", [PY, D + "/e6_pitfalls.py", serial, str(n(50)), sd(2611001), o("pitfalls")], [stop_fgs], o("pitfalls"))]
+    if task == "B13":    # second model: B1 Contacts (4 deployments, 10 trials) and B2 with 5 main gaps (10 trials each);
+        # files start with "b13-" so B1 and B2 analyses of the main model never read them
+        return [("b13-deploy-contacts", [PY, str(A / "followup/deployment.py"), serial, "--out", o("b13-deploy-contacts"),
+                                         "--source", "contacts", "--n", str(n(10))], [], o("b13-deploy-contacts"))] + [
+            ("b13-gap-" + g, [PY, D + "/e2v3_gaps.py", serial, g, str(n(10)), sd(2621301 + i), o("b13-gaps-" + g)],
+             [stop_fgs, DEBOUNCE % (2000 if g == "freeze" else 600000)], o("b13-gaps-" + g))
+            for i, g in enumerate(["none", "freeze", "dozeidle", "kill", "forcestop"])]
     if task == "B11":
         return [("statelog", [PY, P + "/b11_statelog.py", serial, o("statelog"), "--hours", "0.05" if pilot else "24"], [], o("statelog"))]
     if task == "B12":
@@ -209,15 +223,22 @@ def main():
     ap.add_argument("--pilot", action="store_true"); ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--night", type=int, default=1, choices=[1, 2]); ap.add_argument("--allow-reboot", action="store_true")
     ap.add_argument("--restore", action="store_true"); ap.add_argument("--out-root", default=str(A / "results"))
-    a = ap.parse_args()
+    ap.add_argument("--only", help="comma-separated step labels to run (one Device Farm run of a split task)")
+    ap.add_argument("--trials", type=int, help="trials per step, overriding the plan (one part of a split task)")
+    ap.add_argument("--part", type=int, default=0, help="part number: seed offset 1000*K and file tag -pK")
+    ap.add_argument("--budget-min", type=float, help="start no new step after this many minutes (Device Farm timeout)")
+    a = ap.parse_args(); t_start = time.time()
     out_root = Path(a.out_root).resolve()
     if ADB_IS_FAKE and out_root == (A / "results").resolve():
         raise SystemExit("the fake adb never writes to artifact/results; pass --out-root <scratch dir>")
     out = out_root / ("physical-" + time.strftime("%Y%m%d")); hm = time.strftime("%H%M")
     if a.dry_run:
-        for label, argv, pre, f in steps(a.task, a.serial, out, hm, a.pilot, a.night, {"sms"}, a.allow_reboot):
-            print("[%s] pre: %s\n    run: %s\n    out: %s" % (label, "; ".join(pre) or "-", " ".join(argv), f))
-        print("(dry run assumes only SMS excluded; the call log is excluded too unless the test user has no_outgoing_calls)")
+        for label, argv, pre, f in steps(a.task, a.serial, out, hm, a.pilot, a.night, set() if lmdrv.AWS else {"sms"},
+                                         a.allow_reboot, a.trials, a.part):
+            if not a.only or label in a.only.split(","):
+                print("[%s] pre: %s\n    run: %s\n    out: %s" % (label, "; ".join(pre) or "-", " ".join(argv), f))
+        print("(dry run: AWS mode excludes nothing)" if lmdrv.AWS else
+              "(dry run assumes only SMS excluded; the call log is excluded too unless the test user has no_outgoing_calls)")
         return 0
     try:
         d = lmdrv.Dev(a.serial)
@@ -234,12 +255,19 @@ def main():
         return 1 if failed else 0
     if not a.task:
         raise SystemExit("give a TASK or --restore")
+    if d.aws and a.task in ("B11", "B12"):
+        runlog(out_root, "- %s %s dropped: AWS Device Farm phones are always charging and a run lasts at most 150 min "
+               "(no unplugged day, no battery drain); driver files kept" % (time.strftime("%H:%M"), a.task))
+        print(a.task, "dropped on AWS", flush=True)
+        return 0
     missing = [k for k, v in APKS.items() if not (A / v).exists()]
     if missing:
         raise SystemExit("APKs not built: %s (run app/*/build.sh with JAVA_HOME and ANDROID_HOME)" % missing)
     if STATE.exists():
         raise SystemExit("an earlier run did not restore the phone's settings (%s); run `campaign.py --restore` first" % STATE)
-    plan = steps(a.task, a.serial, out, hm, a.pilot, a.night, d.excluded, a.allow_reboot)
+    plan = steps(a.task, a.serial, out, hm, a.pilot, a.night, d.excluded, a.allow_reboot, a.trials, a.part)
+    if a.only:
+        plan = [p for p in plan if p[0] in a.only.split(",")]
     meta = d.meta(); apk = " ".join("%s %s" % (k, sha(v)) for k, v in APKS.items())
     STATE.parent.mkdir(parents=True, exist_ok=True)
     STATE.write_text(json.dumps(snapshot(d)), encoding="utf-8"); snap = json.loads(STATE.read_text(encoding="utf-8"))
@@ -264,7 +292,12 @@ def main():
                 if v:
                     runlog(out_root, "- %s %s skipped: %s" % (time.strftime("%H:%M"), a.task, k))
             (out / "logs").mkdir(parents=True, exist_ok=True)
-            for label, argv, pre, f in plan:
+            for k, (label, argv, pre, f) in enumerate(plan):
+                if a.budget_min is not None and (time.time() - t_start) / 60 > a.budget_min:
+                    runlog(out_root, "- %s %s budget: %.0f min used of %.0f; not started: %s" % (time.strftime("%H:%M"),
+                           a.task, (time.time() - t_start) / 60, a.budget_min, ", ".join(p[0] for p in plan[k:])))
+                    status = status or 4
+                    break
                 d.require_fg()
                 for cmd in pre:
                     run_pre(d, cmd)
@@ -278,12 +311,13 @@ def main():
                     plugged = d.plugged()
                 except Exception as e:
                     plugged = "unknown (%s)" % type(e).__name__
-                runlog(out_root, "- %s %s %s%s: `%s` on %s (`%s`, user %s, rooted=%s, plugged=%s); APK sha256 %s; %.1f min; exit %s; %s%s; restore %s; output `%s`, log `%s`" % (
+                runlog(out_root, "- %s %s %s%s: `%s` on %s (`%s`, user %s, rooted=%s, plugged=%s%s); APK sha256 %s; %.1f min; exit %s; %s%s; restore %s; output `%s`, log `%s`" % (
                     time.strftime("%H:%M"), a.task, label, " (pilot)" if a.pilot else "", " ".join(Path(x).name if i < 2 else x for i, x in enumerate(argv)),
-                    meta["device"], meta["fingerprint"], d.user, meta["rooted"], plugged, apk, (time.time() - t0) / 60, rc,
+                    meta["device"], meta["fingerprint"], d.user, meta["rooted"], plugged,
+                    ", instance %s, run %s" % (meta["device_instance"], meta["run_arn"]) if d.aws else "", apk, (time.time() - t0) / 60, rc,
                     counts(f), "; " + stopped if stopped else "", "ok" if not failed else "FAILED %s" % failed, Path(f).name, log.name))
                 print(label, "exit", rc, counts(f), stopped or "", flush=True)
-                if stopped or failed:
+                if stopped or (failed and not d.aws):     # a rented phone is wiped after the run: keep going, failure is logged
                     break
     finally:
         failed = restore(d, snap)
