@@ -434,7 +434,11 @@ class Dev:
                           "run_arn": os.environ.get("DEVICEFARM_RUN_ARN") if self.aws else None,
                           "user_id": self.user, "excluded_sources": sorted(self.excluded),
                           "user_no_sms": "no_sms" in self.restrictions,
-                          "user_no_outgoing_calls": "no_outgoing_calls" in self.restrictions}
+                          "user_no_outgoing_calls": "no_outgoing_calls" in self.restrictions,
+                          # AWS: the cached-apps freezer state of this unit as campaign.py found it and after it turned
+                          # the freezer on (off on some Device Farm units, B1 runs 106d9bc0, 5ec38290); None elsewhere
+                          "use_freezer_before": os.environ.get("P06_USE_FREEZER_BEFORE") if self.aws else None,
+                          "use_freezer": os.environ.get("P06_USE_FREEZER") if self.aws else None}
         return dict(self._meta, serial=self.s, rooted=self.rooted, plugged=self.plugged())
 
     def now_ms(self):

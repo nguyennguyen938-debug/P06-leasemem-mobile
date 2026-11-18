@@ -304,6 +304,7 @@ def main():
                 runlog(out_root, "- %s %s freezer on %s: use_freezer %s -> %s (cached_apps_freezer was %r)%s" % (
                     time.strftime("%H:%M"), a.task, meta.get("device_instance"), fz["use_freezer_before"], fz["use_freezer_after"],
                     fz["setting_before"], "; turned on by campaign.py" if fz["turned_on"] else ""))
+                env.update(P06_USE_FREEZER_BEFORE=fz["use_freezer_before"], P06_USE_FREEZER=fz["use_freezer_after"])   # into every record
             runlog(out_root, "- %s %s setup: `campaign.py %s` on %s (`%s`, user %s, excluded %s, foreign rows %s); APK sha256 %s" % (
                 time.strftime("%H:%M"), a.task, a.task, meta["device"], meta["fingerprint"], d.user, sorted(d.excluded),
                 rec["foreign_before"], apk))

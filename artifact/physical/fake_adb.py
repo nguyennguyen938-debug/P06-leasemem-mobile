@@ -76,7 +76,8 @@ def client_reply(s, cmd, rid, extras):
     t = now(s); pid = start(s, "org.leasemem.client")
     r = {"cmd": cmd, "id": rid, "t_recv": t, "epoch": "fakeep01", "pid": pid, "observers": True}
     if cmd == "DECIDE":
-        r.update(facts={f: {"lm": "FRESH", "ev": "FRESH", "gl": "FRESH", "mem": "v", "truth": "v"} for f in FACTS},
+        r.update(facts={f: {"lm": "FRESH", "ev": "FRESH", "gl": "FRESH", "mem": "v", "truth": "v", "lm_hist": "FRESH", "lmts_hist": "FRESH"} for f in FACTS},
+                 lm_hist_cost={"contacts": {"ns": 1000, "reason": "wm_equal"}}, lmts_hist_cost={"contacts": {"ns": 1000, "reason": "wm_equal"}},
                  wm_obs={"contacts": "V1", "contacts@VER": "V1"}, wm_now={"contacts": "V1", "contacts@VER": "V1"},
                  lm_cost={"contacts": {"reason": "wm_equal", "ns": 1}}, events=[], fg=s["fgs"], clock_jump=False, broken=False)
     elif cmd == "PROBE":
@@ -85,6 +86,7 @@ def client_reply(s, cmd, rid, extras):
         r.update(last_start={"pid": pid, "epoch": "fakeep01"}, n_events=0)
     elif cmd == "ACT":
         r.update(effect_start=t + 2500, effect_end=t + 2510, used="+15551110000", stale=False, mode=extras.get("mode"),
+                 validator="hist" if extras.get("validator") == "hist" else "strict",
                  effect_store=extras.get("effect", "calllog"))
         if extras.get("effect") == "contacts":           # the effect row of "P06 Effect Log", as the client writes it
             s.setdefault("effects", {})[rid] = ["+15551110000", t + 2510]

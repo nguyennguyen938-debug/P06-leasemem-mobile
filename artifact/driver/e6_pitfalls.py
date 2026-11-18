@@ -55,7 +55,11 @@ with lmdrv.open_new(out) as fo:
                "clock_method": "cmd alarm set-time" if d.aws else "date", "clock_moved_back_ms": now - t_back,
                # the timestamp adapter with its clock guard on the same decision, as in e6v2_clock.py (\ClockTs*)
                "lm_ts": f.get("lmts"), "reason_ts": ((dec.get("lmts_cost") or {}).get("c.dana")
-                                                     or (dec.get("lmts_cost") or {}).get("contacts") or {}).get("reason")}
+                                                     or (dec.get("lmts_cost") or {}).get("contacts") or {}).get("reason"),
+               # StampCheck as in the emulator data (lm, lmts above are the strict EvCheck of client v4)
+               "lm_hist": f.get("lm_hist"), "lm_ts_hist": f.get("lmts_hist"),
+               "reason_hist": ((dec.get("lm_hist_cost") or {}).get("contacts") or {}).get("reason"),
+               "reason_ts_hist": ((dec.get("lmts_hist_cost") or {}).get("contacts") or {}).get("reason")}
         fo.write(json.dumps(rec) + "\n"); fo.flush()
         print(rec["variant"], rec["lm"], rec["reason"], rec["stale_if_used"], flush=True)
     finally:

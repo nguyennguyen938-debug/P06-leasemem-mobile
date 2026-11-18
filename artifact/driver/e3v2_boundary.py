@@ -61,7 +61,7 @@ rng.shuffle(plan)
 with lmdrv.open_new(out) as fo:
     for i, (mode, change) in enumerate(plan):
         rec = {**d.meta(), "i": i, "fact": "c.dana", "mode": mode, "change": change, "seed": seed, "protocol": "v2", "band": BAND,
-               "effect_store": EFFECT}
+               "effect_store": EFFECT, "validator": "hist"}
         try:
             w.ensure_base(); time.sleep(1.0)
             d.cmd("OBSERVE")
@@ -71,7 +71,8 @@ with lmdrv.open_new(out) as fo:
             rec["dana_number_before"] = dana_number(ids)
             at = d.now_ms() + LEAD
             rec["at"] = at
-            d.sh(d.u("am broadcast -n %s/.Cmd --es cmd ACT --es id %s --es fact c.dana --es mode %s --el at %d --es effect %s"
+            # validator hist: the client's StampCheck, as in the emulator E3 v2 data (res.validator says which ran)
+            d.sh(d.u("am broadcast -n %s/.Cmd --es cmd ACT --es id %s --es fact c.dana --es mode %s --el at %d --es effect %s --es validator hist"
                      % (lmdrv.CPKG, rid, mode, at, EFFECT)))
             if change:
                 if BAND and mode == "bnd":

@@ -320,6 +320,11 @@ the table multiplies them by 1.1.
 | `user_id` | Android user the experiment ran in (0 on AWS and on the emulators) |
 | `excluded_sources` | sources the drivers and apps never touch on this device. On a rented Device Farm phone `["calllog", "sms"]` (`lmdrv.AWS_EXCLUDED`): the mutator cannot hold the SMS role and its SMS inserts are dropped, and call-log inserts are dropped too (B0 runs 97a66c65 and 1c18f498: no row seen by the shell's `content query`). `analyze_phys.py` reads it from the latest B0 record and prints "not run on phone" (and sets `\ifPhysSms`, `\ifPhysCalllog` false) for every source it lists |
 | `user_no_sms`, `user_no_outgoing_calls` | only meaningful in the superseded personal-phone mode; false on a rented phone |
+| `use_freezer_before`, `use_freezer` | AWS, from package 6fa52525: the unit's cached-apps freezer (`use_freezer` in `dumpsys activity settings`) when `campaign.py` started and after it turned the freezer on where it was off; null elsewhere. Earlier AWS records: the `config` text saved by `followup/deployment.py` (B1) and the RUNLOG line "freezer on <instance>: use_freezer X -> Y" (join on `run_arn`) |
+| `facts.<f>.lm`, `facts.<f>.lmts`, `lm_cost`, `lmts_cost` (decisions) | client v4: the strict EvCheck (`Revision.validate` on the v4 certificates). On the phone every fact is UNKNOWN with `lm_cost.<fact>` = {`verdict`, `reason`: "strict_epoch_and_snapshot_unavailable", `fact`, `start_ns`, `end_ns`}, i.e. keyed by fact, not by source |
+| `facts.<f>.lm_hist`, `facts.<f>.lmts_hist`, `lm_hist_cost`, `lmts_hist_cost` (decisions) | from package 6aba808d (client SHA-256 367e5771...): StampCheck as in the emulator v3 data (`lmValidateHistorical(all, true, ...)`; the timestamp adapter with its clock guard for `lmts_hist`), cost keyed by source: {`ns`, `reason`}. Derived facts combine their dependencies as for `lm`. B2 is rerun with this package; only records with `lm_hist` feed the StampCheck column |
+| `res.validator` (B9) | `hist` (StampCheck, as in the emulator E3 v2 data) or `strict` (EvCheck); the B9 driver sends `hist` |
+| `lm_hist`, `lm_ts_hist`, `reason_hist`, `reason_ts_hist` (B10 clock) | StampCheck verdicts of the VERSION and timestamp adapters for c.dana and their reasons, next to the strict `lm`, `lm_ts` |
 | `serial` | adb serial used |
 | `rooted` | adbd ran as uid 0 (always false on a rented phone) |
 | `plugged` | `dumpsys battery` reported a charger when the record was created; true on a rented phone except under `dumpsys battery unplug` |
@@ -348,6 +353,11 @@ trials rejected by the driver keep `invalid` (for example `not_frozen`).
 
 ## 8. Validity and exclusions
 
+- Freezer: a trial that depends on the cached-apps freezer (B1 `bg_freezer`, B2 `freeze`, B5, B13 freeze modes) is
+  valid only when the freezer was on during it. Its state is read from the record's `use_freezer`, otherwise from the
+  `config` text the B1 driver saved (`use_freezer=`), otherwise from the run's RUNLOG "freezer on" line; unknown means
+  excluded. Units seen with the freezer off by default: 3A111FDJH00269 (B1 run 106d9bc0), 43140DLJH00138 (pilot B1
+  5ec38290), 3A111FDJH0026A (B1F, setting `disabled`); on: 3A030DLJH001AT, 39091FDJH00DGA.
 - Raw files are created with `open(..., 'x')` on the test host, and `fetch` copies them with create-only writes;
   nothing is overwritten or deleted. A failed or cut run keeps its files and gets RUNLOG lines; exclusions are listed
   in `artifact/results/RUNLOG.md` and applied by the analysis.
@@ -390,6 +400,7 @@ goes to Contacts (`effect_store`).
 | Macro(s) | Task | Raw file pattern under `results/physical-<YYYYMMDD>/` |
 |---|---|---|
 | `PhysDevice`, `PhysFingerprint`, `PhysRooted`, `PhysSdk` | all | `*.jsonl` (common fields) |
+| `PhysFreezerOffUnits` | all physical files, B0 (`b0-*`) and `diag-*` included | distinct `device_instance` seen with the freezer off (record `use_freezer_before` = false, `config` with `use_freezer=false`, or a RUNLOG "freezer on" line with `use_freezer false`), out of the units whose state is known |
 | `PhysInstances` | all experiment files of the main model | distinct `device_instance` over the experiment files (`deploy*`, `gaps-*`, `coverage-*`, `stock-*`, `boundary*`, `pitfalls-*`, `frozen-*`, `host-*`), without pilot files, B0 files or `b13-*` |
 | `PhysAndroid` | B0 | `b0-probe-*.jsonl` (`identity` probe) |
 | `PhysDeployTrials`, `PhysDeployBgMedian`, `PhysDeployFgMedian`, `PhysDeployAssistMedian`, `PhysDeployFrozenBeforeThaw`, `PhysDeployMediaBgMedian`, `PhysDeployMediaFgMedian`, `PhysDeployCalllogBgMedian`, `PhysDeployCalllogFgMedian` | B1 | `deploy*.jsonl` (filtered on `source`) |

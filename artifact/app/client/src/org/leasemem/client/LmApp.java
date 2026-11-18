@@ -574,6 +574,11 @@ public class LmApp extends Application {
         contactsRule = "TS"; Map<String, String> lmts = lmValidate(Collections.singleton("contacts"), true, lmtsCost); contactsRule = null;
         boolean broken = !(epoch.equals(mem.optString("epoch_obs")) && observersActive && mem.optBoolean("obs_observers"));
         Map<String, String> lms = lmValidate(all, false, lmsCost); // ablation "lme": trust an unbroken observer epoch
+        // StampCheck as in the emulator v3 data (historical watermark validation, cost per source with ns), recorded next
+        // to the strict EvCheck verdicts above so that one trial carries both (physical runs, 2026-11-19)
+        JSONObject lmHistCost = new JSONObject(), lmtsHistCost = new JSONObject();
+        Map<String, String> lmHist = lmValidateHistorical(all, true, lmHistCost);
+        contactsRule = "TS"; Map<String, String> lmtsHist = lmValidateHistorical(Collections.singleton("contacts"), true, lmtsHistCost); contactsRule = null;
         // 2) ground truth / refresh values (timed; this is also each policy's refresh cost)
         JSONObject res = new JSONObject(); Map<String, String> truth = new HashMap<>(), memv = new HashMap<>();
         for (String[] f : FACTS) {
@@ -585,6 +590,7 @@ public class LmApp extends Application {
             o.put("te", ted.optBoolean(f[0]) ? "REFRESH" : "FRESH");
             o.put("lm", lm.get(f[0])); o.put("lme", lms.get(f[0]));
             o.put("lmts", f[1].equals("contacts") ? lmts.get(f[0]) : lm.get(f[0]));
+            o.put("lm_hist", lmHist.get(f[0])); o.put("lmts_hist", f[1].equals("contacts") ? lmtsHist.get(f[0]) : lmHist.get(f[0]));
             o.put("evr", (broken || evd.optBoolean(f[1])) ? "REFRESH" : "FRESH");
             o.put("t_obs", fo.optLong("t_obs"));
             res.put(f[0], o);
@@ -592,13 +598,15 @@ public class LmApp extends Application {
         for (String[] d : DERIVED) {
             JSONObject o = new JSONObject();
             o.put("mem", derivedVal(memv, d)); o.put("truth", derivedVal(truth, d)); o.put("src", "derived");
-            boolean evR = false, lmR = false, lmU = false, lmsR = false, lmsU = false; long rns = 0;
+            boolean evR = false, lmR = false, lmU = false, lmsR = false, lmsU = false, hR = false, hU = false; long rns = 0;
             for (int i = 1; i < d.length; i++) {
                 JSONObject s = res.getJSONObject(d[i]);
                 evR |= s.getString("ev").equals("REFRESH"); rns += s.getLong("refresh_ns");
                 lmR |= s.getString("lm").equals("CHANGED"); lmU |= s.getString("lm").equals("UNKNOWN");
                 lmsR |= s.getString("lme").equals("CHANGED"); lmsU |= s.getString("lme").equals("UNKNOWN");
+                hR |= s.getString("lm_hist").equals("CHANGED"); hU |= s.getString("lm_hist").equals("UNKNOWN");
             }
+            o.put("lm_hist", hR ? "CHANGED" : hU ? "UNKNOWN" : "FRESH");
             o.put("ev", evR ? "REFRESH" : "FRESH"); o.put("te", ted.optBoolean(d[0]) ? "REFRESH" : "FRESH");
             o.put("evr", (broken || evR) ? "REFRESH" : "FRESH");
             boolean tsR = false, tsU = false;
@@ -612,6 +620,7 @@ public class LmApp extends Application {
         out.put("unbroken", epoch.equals(mem.optString("epoch_obs")) && observersActive);
         out.put("clock_jump", clockJumped());
         out.put("facts", res); out.put("lm_cost", lmCost); out.put("lme_cost", lmsCost); out.put("lmts_cost", lmtsCost); out.put("broken", broken);
+        out.put("lm_hist_cost", lmHistCost); out.put("lmts_hist_cost", lmtsHistCost);
         out.put("fg", FgService.running);
         out.put("events", mem.optJSONArray("events")); out.put("last_start", mem.opt("last_start"));
         out.put("wm_obs", mem.opt("wm"));
@@ -692,10 +701,13 @@ public class LmApp extends Application {
         final long effRaw = store.equals("contacts") ? effectRawContact() : -1;
         out.put("effect_store", store); out.put("effect_raw_contact", effRaw);
         final String fid = it.getStringExtra("fact"); final String mode = it.getStringExtra("mode");
+        // validator "hist": StampCheck as in the emulator E3 v2 data; default "strict": EvCheck (Revision.validate)
+        final boolean hist = "hist".equals(it.getStringExtra("validator"));
+        out.put("validator", hist ? "hist" : "strict");
         final long at = it.getLongExtra("at", System.currentTimeMillis() + it.getLongExtra("delay", 3000));
         final String src = srcOf(fid);
         JSONObject c1 = new JSONObject();
-        Map<String, String> st = lmValidate(Collections.singleton(src), true, c1);
+        Map<String, String> st = hist ? lmValidateHistorical(Collections.singleton(src), true, c1) : lmValidate(Collections.singleton(src), true, c1);
         String used = mem.getJSONObject("facts").getJSONObject(fid).optString("val");
         if (!"FRESH".equals(st.get(fid))) used = read(fid).val;
         final String used1 = used;
@@ -707,7 +719,7 @@ public class LmApp extends Application {
                 long tc0 = System.currentTimeMillis();
                 if (mode.equals("bnd")) {
                     JSONObject c2 = new JSONObject();
-                    Map<String, String> st2 = lmValidate(Collections.singleton(src), true, c2);
+                    Map<String, String> st2 = hist ? lmValidateHistorical(Collections.singleton(src), true, c2) : lmValidate(Collections.singleton(src), true, c2);
                     if (!"FRESH".equals(st2.get(fid))) u = read(fid).val;
                     out.put("st2", st2.get(fid)); out.put("c2", c2);
                 }
