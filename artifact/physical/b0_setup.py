@@ -39,7 +39,8 @@ def foreign_rows(d):
     return out
 
 
-def setup(d, out_dir):
+def setup(d, out_dir, strict=True):
+    """strict=False (B0): a failed fixture step is recorded, not raised, so the probes still run and say what fails."""
     w = lmdrv.World(d, random.Random(20261119))
     rec = {**d.meta(), "kind": "setup", "t": time.time(), "restrictions": sorted(d.restrictions)}
     rec["foreign_before"] = foreign_rows(d) if not d.emulator else None
@@ -49,7 +50,13 @@ def setup(d, out_dir):
                            % rec["foreign_before"])
     rec["install"] = d.provision([(p, A / apk) for p, apk in APPS])
     rec["apks"] = {apk: hashlib.sha256((A / apk).read_bytes()).hexdigest() for _, apk in APPS}
-    rec["fixtures"] = w.ensure_base()
+    try:
+        rec["fixtures"] = w.ensure_base()
+    except Exception as e:
+        if strict:
+            raise
+        rec["fixtures"] = {"ok": False, "error": "%s: %s" % (type(e).__name__, str(e)[:1500])}
+        print("fixtures failed, B0 continues: %s" % rec["fixtures"]["error"], flush=True)
     rec["foreign_after"] = foreign_rows(d) if not d.emulator else None
     rec["packages"] = d.sh(d.u("pm list packages org.leasemem")).split()
     with lmdrv.open_new(str(Path(out_dir) / ("setup-%s.json" % time.strftime("%H%M%S")))) as f:

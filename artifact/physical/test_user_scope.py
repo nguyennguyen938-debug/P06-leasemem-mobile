@@ -22,7 +22,7 @@ FILES = ["driver/lmdrv.py", "driver/e1_coverage.py", "driver/e2v3_gaps.py", "dri
          "driver/e6_pitfalls.py", "driver/e9_frozen.py", "revision/run.py", "followup/deployment.py",
          "physical/campaign.py", "physical/b0_setup.py", "physical/b0_probe.py", "physical/b7_continuous.py",
          "physical/b11_statelog.py", "physical/b12_battery.py"]
-GUARD_NAMES = {"_AT", "SCOPED", "USER_ADMIN", "BANNED", "DUMPSYS_OK", "CLOCK", "PM_CLEAR_AWS_OK"}
+GUARD_NAMES = {"_AT", "SCOPED", "USER_ADMIN", "BANNED", "DUMPSYS_OK", "CLOCK", "PM_CLEAR_AWS_OK", "RUNAS_ID_AWS_OK"}
 GUARD_FUNCS = {("driver/lmdrv.py", "u"), ("driver/lmdrv.py", "phone_violation")}
 # Literals that would be refused on the phone but sit in code that runs only on P06's emulators (and the runtime
 # guard refuses them on any other device). Each entry: (file, literal prefix, why it never reaches the phone).
@@ -30,6 +30,7 @@ EMULATOR_ONLY = [
     ("driver/lmdrv.py", "cd /data/data/", "app_sh root path: only if d.rooted and d.emulator"),
     ("driver/lmdrv.py", "/data/data/%s/files", "FILES: used only by the legacy emulator drivers e3, e10, e12"),
     ("driver/lmdrv.py", "pm uninstall %s", "provision (AWS): goes through d.u() and the runtime guard, which allows only org.leasemem.*"),
+    ("driver/lmdrv.py", "run-as %s id 2>&1", "runas_diag: the runtime guard allows `run-as org.leasemem.* id` without --user in AWS mode only (user 0 is run-as's default)"),
     ("physical/b0_probe.py", "cmd alarm set-time", "clock_set_back: probed only if d.aws; the runtime guard allows cmd alarm only in AWS mode"),
     ("physical/b0_probe.py", "pm clear com.android.providers.contacts", "pm_clear_contacts: probed only if d.aws, through d.u(); the runtime guard allows exactly `pm clear --user 0 com.android.providers.contacts` in AWS mode only"),
     ("physical/b0_probe.py", "date @", "clock_set_back: probed only if d.aws (AWS mode allows clock commands)"),
@@ -100,7 +101,7 @@ def scan():
 
 def guard_examples():
     v, u = lmdrv.phone_violation, 10
-    allowed = ["am start --user 10 -W -n org.leasemem.client/.Main", "run-as --user 10 org.leasemem.client sh -c 'cat files/x 2>/dev/null'",
+    allowed = ["am start --user 10 -W -n org.leasemem.client/.Main", "run-as org.leasemem.client --user 10 sh -c 'cat files/x 2>/dev/null'",
                "for p in $(pidof org.leasemem.client); do echo $p $(stat -c %u /proc/$p); done", "pm list users",
                "am get-current-user", "am get-started-user-state 10", "dumpsys battery unplug", "dumpsys activity settings | grep -i freeze",
                "device_config put activity_manager_native_boot freeze_debounce_timeout 2000", "settings delete global lm_mode",
@@ -119,17 +120,20 @@ def guard_examples():
 
 def aws_examples():
     v = lambda c: lmdrv.phone_violation(c, 0, aws=True)
-    allowed = ["am start --user 0 -W -n org.leasemem.client/.Main", "run-as --user 0 org.leasemem.client sh -c 'cat files/x'",
+    allowed = ["am start --user 0 -W -n org.leasemem.client/.Main", "run-as org.leasemem.client --user 0 sh -c 'cat files/x'",
                "date @1700000000", "settings put global auto_time 0", "cmd alarm set-time 5",
                "cmd role add-role-holder --user 0 android.app.role.SMS org.leasemem.mut 0", "pm uninstall --user 0 org.leasemem.client",
-               "content query --user 0 --uri content://sms --projection _id", "pm clear --user 0 com.android.providers.contacts"]
+               "content query --user 0 --uri content://sms --projection _id", "pm clear --user 0 com.android.providers.contacts",
+               "run-as org.leasemem.mut id 2>&1", "run-as org.leasemem.client id"]
     refused = ["am start -W -n x/.Main", "am start --user 10 -n x/.Main", "pm clear org.leasemem.client", "dumpsys batterystats --reset",
                "pm clear --user 0 org.leasemem.client", "pm clear com.android.providers.contacts",
                "pm clear --user 10 com.android.providers.contacts", "pm clear --user 0 com.android.providers.contacts; pm clear --user 0 com.x",
-               "cat /sdcard/x", "pm create-user Foo", "setprop persist.x 1", "reboot", "svc power stayon true"]
+               "cat /sdcard/x", "pm create-user Foo", "setprop persist.x 1", "reboot", "svc power stayon true",
+               "run-as org.leasemem.mut ls files 2>&1", "run-as org.leasemem.mut sh -c 'cat files/x'", "run-as com.android.x id"]
     bad = [c for c in allowed if v(c)] + [c for c in refused if not v(c)]
     # outside AWS mode the Contacts clear stays banned for any user
-    personal = [c for c in ("pm clear --user 10 com.android.providers.contacts", "pm clear --user 0 com.android.providers.contacts")
+    personal = [c for c in ("pm clear --user 10 com.android.providers.contacts", "pm clear --user 0 com.android.providers.contacts",
+                            "run-as org.leasemem.mut id 2>&1")
                 if not lmdrv.phone_violation(c, 10) or not lmdrv.phone_violation(c, 0)]
     return ["AWS guard example misjudged: %r -> %s" % (c, v(c)) for c in bad] + \
            ["pm clear allowed outside AWS mode: %r" % c for c in personal]
@@ -176,17 +180,19 @@ def device_checks():
             problems.append("device reporting RFCXA0TTMPP not refused by the guard: %r" % e)
         if [c for c in fr.calls if "get-state" not in c and "getprop ro.serialno" not in " ".join(c)]:
             problems.append("commands sent after the serial check: %s" % fr.calls)
-        # 3. AWS mode: user 0, nothing excluded (SMS and call log run); records carry the Device Farm identity
+        # 3. AWS mode: user 0, SMS and call log excluded (B0 run 97a66c65); records carry the Device Farm identity
         lmdrv.AWS = True; lmdrv.ALLOWED |= {"UDID1"}
         os.environ.update(DEVICEFARM_DEVICE_UDID="UDID1", DEVICEFARM_RUN_ARN="arn:run", DEVICEFARM_DEVICE_ARN="arn:dev")
         lmdrv.subprocess.run = FakeRun({"get-state": "device", "getprop ro.serialno": "UDID1", "id -u": "2000", "am get-current-user": "0"})
         d = lmdrv.Dev("UDID1"); m = d.meta()
-        if (d.user, d.excluded, d.aws) != (0, set(), True):
+        if (d.user, d.excluded, d.aws) != (0, {"sms", "calllog"}, True):
             problems.append("AWS mode: user %s, excluded %s, aws %s" % (d.user, d.excluded, d.aws))
         if (m["device_instance"], m["run_arn"], m["device_arn"]) != ("UDID1", "arn:run", "arn:dev"):
             problems.append("AWS meta: %s" % m)
-        if d.u("am start -n x") != "am start --user 0 -n x":
-            problems.append("AWS u(): %s" % d.u("am start -n x"))
+        for c, want in [("am start -n x", "am start --user 0 -n x"), ("run-as p id", "run-as p --user 0 id"),
+                        ("pm list packages org.leasemem", "pm list packages --user 0 org.leasemem")]:
+            if d.u(c) != want:
+                problems.append("AWS u(%r): %r, want %r" % (c, d.u(c), want))
         # 4. personal mode is unchanged: no user named P06 Test -> refused
         lmdrv.AWS = False
         lmdrv.subprocess.run = FakeRun({"get-state": "device", "getprop ro.serialno": "UDID1", "id -u": "2000",

@@ -45,7 +45,7 @@ def bg_client():
 
 
 def granted(pkg, perm):
-    m = re.search(re.escape(perm) + r": granted=(true|false)", d.sh("dumpsys package %s" % pkg))
+    m = re.search(re.escape(perm) + r": granted=(true|false)", d.sh("dumpsys package %s 2>&1" % pkg))
     return m and m.group(1) == "true"
 
 
@@ -74,7 +74,7 @@ def run_as_user():
 
 
 def read_files():
-    d.cmd("PING")                       # client command round trip through run-as --user
+    d.cmd("PING")                       # client command round trip through run-as <pkg> --user
     m = d.cat(CPKG, "files/mem.json")
     return m.startswith("{"), {"mem_json_bytes": len(m), "exclusion_file": d.cat(CPKG, "files/p06_exclude").strip()}
 
@@ -110,7 +110,7 @@ def mutations():
 def client_probe():
     r = d.cmd("PROBE", timeout=60)["probe"]
     bad = sorted(k for k, v in r.items() if "ERR" in str(v))
-    return not bad, {"candidates": sorted(r), "err": bad}
+    return not bad, {"candidates": sorted(r), "err": {k: str(r[k])[:200] for k in bad}}
 
 
 def process_user():
@@ -164,7 +164,10 @@ def revoke_grant():
     perm = "android.permission.READ_CONTACTS"
     d.sh(d.u("pm revoke %s %s" % (CPKG, perm))); off = granted(CPKG, perm)
     d.sh(d.u("pm grant %s %s" % (CPKG, perm))); on = granted(CPKG, perm)
-    return off is False and on is True, {"after_revoke": off, "after_grant": on}
+    res = {"after_revoke": off, "after_grant": on}
+    if off is None or on is None:          # B0 run 97a66c65 read nothing here: keep what dumpsys printed, stderr included
+        res["dumpsys_head"] = d.sh("dumpsys package %s 2>&1" % CPKG)[:400]
+    return off is False and on is True, res
 
 
 def battery_unplug():
@@ -181,9 +184,12 @@ def doze():
 
 
 def bucket():
-    d.sh(d.u("am set-standby-bucket %s restricted" % CPKG)); b = d.sh(d.u("am get-standby-bucket %s" % CPKG)).strip()
+    # 2>&1: am reports errors on stderr (B0 run 97a66c65 read an empty bucket)
+    o = d.sh(d.u("am set-standby-bucket %s restricted" % CPKG) + " 2>&1").strip()
+    b = d.sh(d.u("am get-standby-bucket %s" % CPKG) + " 2>&1").strip()
     d.sh(d.u("am set-standby-bucket %s active" % CPKG))
-    return b in ("45", "restricted"), {"bucket": b, "after_restore": d.sh(d.u("am get-standby-bucket %s" % CPKG)).strip()}
+    return b in ("45", "restricted"), {"set": o[:200], "bucket": b[:200],
+                                       "after_restore": d.sh(d.u("am get-standby-bucket %s" % CPKG) + " 2>&1").strip()[:200]}
 
 
 def assistant():
@@ -263,16 +269,35 @@ def pm_clear_contacts():
     return "Success" in o and bool(r.get("ok")) and n >= 2, {"pm_clear": o, "refixtured": r, "fixture_raw_contacts": n}
 
 
+def calllog_diag():
+    """AWS only. The call log is excluded on Device Farm: rows the mutator inserted were not returned by its own
+    queries (run 97a66c65). Re-include it for the mutator alone, insert one row, look at the provider with the shell,
+    try an update, then exclude it again."""
+    d.app_sh(MPKG, "echo sms > files/p06_exclude")
+    try:
+        ins = d.mut("mutate", "calllog", "insert", extra="--es tag 9%04d" % random.randrange(10000))
+        q = d.sh(d.u("content query --uri content://call_log/calls --projection _id:number:type:phone_account_hidden") + " 2>&1")
+        upd = d.mut("mutate", "calllog", "update", extra="--es tag 9")
+    finally:
+        d.app_sh(MPKG, "echo %s > files/p06_exclude" % " ".join(sorted(d.excluded)))
+    rows = re.findall(r"number=\+1666\S*", q)
+    return bool(rows) and bool(upd.get("ok")), {"insert": ins, "shell_query": q[:800], "rows_seen_by_shell": len(rows), "update": upd}
+
+
 def reboot():
     """Needs the user's consent for this run. After boot the phone shows the owner's lock screen; the probe records
     what it sees, then waits (without unlocking or switching anything) until the user switches to P06 Test."""
-    t = d.now_ms(); d.adb("reboot"); time.sleep(5); d.adb("wait-for-device", timeout=300)
+    bid = lambda: d.sh("cat /proc/sys/kernel/random/boot_id").strip()
+    b0 = bid(); t = d.now_ms(); o = d.adb("reboot").strip(); time.sleep(5); d.adb("wait-for-device", timeout=300)
     s = d.wait_boot()
     seen = {"current_user_after_boot": d.current_user(),
             "test_user_state_after_boot": d.sh("am get-started-user-state %d" % d.user).strip()}
     t0 = time.time(); d.after_reboot()
-    # reaching this line means the run survived `adb reboot` and `adb wait-for-device` (otherwise the probe fails)
-    return True, {"survived": True, "boot_s": round(s, 1), "t_reboot": t, **seen,
+    # Only a new boot_id is a reboot: on Device Farm `adb reboot` was ignored (run 97a66c65, same system_server
+    # before and after). survived = the run outlived a real reboot.
+    b1 = bid()
+    return b1 != b0, {"rebooted": b1 != b0, "survived": b1 != b0, "boot_id_before": b0, "boot_id_after": b1,
+                      "adb_reboot_out": o[:200], "boot_s": round(s, 1), "t_reboot": t, **seen,
                   "user_back_after_s": round(time.time() - t0, 1), "client_pid_after": d.pid()}
 
 
@@ -287,7 +312,7 @@ for name, fn in ([("identity", identity), ("user_info", user_info), ("install_us
                  ("charge_counter", charge_counter), ("batterystats_uid", batterystats),
                  ("screen_sleep_wake", screen), ("wireless_debugging", wireless)]
                 + ([("host", host), ("clock_set_back", clock_set_back), ("sms_role", sms_role),
-                    ("pm_clear_contacts", pm_clear_contacts)] if d.aws else [])):
+                    ("pm_clear_contacts", pm_clear_contacts), ("calllog_diag", calllog_diag)] if d.aws else [])):
     probe(name, fn)
 if "--allow-reboot" in sys.argv:
     probe("reboot", reboot)

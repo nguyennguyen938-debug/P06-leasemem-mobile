@@ -77,6 +77,10 @@ def blocked(serial):
 PERMS = ["READ_CONTACTS", "WRITE_CONTACTS", "READ_CALL_LOG", "WRITE_CALL_LOG", "READ_CALENDAR", "WRITE_CALENDAR",
          "READ_MEDIA_IMAGES", "READ_EXTERNAL_STORAGE", "POST_NOTIFICATIONS", "READ_SMS", "WRITE_SECURE_SETTINGS"]
 PERM_SOURCE = {"READ_SMS": "sms", "READ_CALL_LOG": "calllog", "WRITE_CALL_LOG": "calllog"}
+# Sources P06 cannot write on Device Farm's Pixel 8 (B0 run 97a66c65): SMS, because the mutator cannot hold the SMS
+# role and its inserts are dropped; the call log, because rows the mutator inserts are not returned by its own queries
+# (b0_probe calllog_diag looks for the cause). Every record carries excluded_sources; the analysis reads it from there.
+AWS_EXCLUDED = ("sms", "calllog")
 
 if os.environ.get("P06_FAKE_TIME"):     # E7 dry run against the fake adb: a virtual clock, so waits cost ~nothing
     _off, _sleep, _time, _mono = [0.0], time.sleep, time.time, time.monotonic
@@ -98,11 +102,14 @@ BANNED = re.compile(r"batterystats\s+--reset|/sdcard|/storage/|/data/|" + _AT + 
 # pm clear: refused everywhere except one exact command in AWS mode, clearing the Contacts provider of user 0 on a
 # wiped rented phone (B0 probe; the Contacts reset of revision/supplement.py). Never on a personal phone.
 PM_CLEAR_AWS_OK = re.compile(r"pm clear --user 0 com\.android\.providers\.contacts\s*")
+# run-as without --user: refused everywhere except this read-only probe in AWS mode (user 0 is run-as's default), run
+# once by runas_diag() after an unanswered app command, to tell a failing `--user` option from a failing run-as.
+RUNAS_ID_AWS_OK = re.compile(r"run-as org\.leasemem\.\w+ id( 2>)?\s*")
 # Clock changes: refused on a personal phone; allowed in AWS mode, where B0 probes whether the shell can set the time.
 CLOCK = re.compile(r"\bauto_time|" + _AT + r"(date\s+(-s|@|\d)|cmd\s+(alarm|time)\b)")
 DUMPSYS_OK = [re.compile(p + r"\s*") for p in (
     r"battery( unplug| reset)?( \| grep .*)?", r"deviceidle (get (deep|light)|force-idle( deep)?|force-inactive|unforce|step( deep)?)",
-    r"activity settings( \| grep .*)?", r"activity (processes|services) org\.leasemem\S*", r"(package|meminfo) org\.leasemem\S*",
+    r"activity settings( \| grep .*)?", r"activity (processes|services) org\.leasemem\S*", r"(package|meminfo) org\.leasemem\S*( 2>)?",
     r"batterystats --charged org\.leasemem\S*", r"power \| grep -m1 mWakefulness=", r"voiceinteraction \| grep .*",
     r"user \| awk .*")]
 
@@ -123,6 +130,8 @@ def phone_violation(cmd, user, aws=False):
             continue
         if tool == "pm" and re.match(r"pm\s+clear\b", seg) and not (aws and PM_CLEAR_AWS_OK.fullmatch(seg)):
             return "banned: %r" % seg
+        if tool == "run-as" and aws and RUNAS_ID_AWS_OK.fullmatch(seg):
+            continue
         if tool == "cmd" and aws and seg.startswith("cmd alarm "):
             continue                                       # AWS: B0 probes setting the clock (not user-scoped)
         if tool == "cmd" and not seg.startswith("cmd role "):
@@ -190,6 +199,7 @@ class Dev:
                 raise RuntimeError("in AWS mode, run drivers through physical/campaign.py")
             if self.rooted:
                 raise RuntimeError("adbd runs as root on this device; P06 runs unrooted")
+            self.excluded = set(AWS_EXCLUDED)
             self.require_fg()
         elif not self.emulator:
             if not os.environ.get("P06_CAMPAIGN"):
@@ -256,13 +266,16 @@ class Dev:
         return r.stdout + (r.stderr if a0 == "install" else "")
 
     def u(self, cmd):
-        """Add --user <test user> to a user-scoped command: 'am start -n x' -> 'am start --user 10 -n x'."""
+        """Add --user <test user> to a user-scoped command: 'am start -n x' -> 'am start --user 10 -n x'.
+        run-as takes it after the package (`run-as <pkg> --user <id> <cmd>`): Android 15's run-as read
+        `run-as --user 0 <pkg>` as package "--user" (B0 run 19ba952e on a Pixel 8)."""
         if cmd.startswith("run-as "):
-            head, rest = "run-as", cmd[7:]
+            p = cmd.split(" ", 2); head, rest = " ".join(p[:2]), (p[2] if len(p) > 2 else "")
         elif cmd.startswith("cmd role "):
             p = cmd.split(" ", 3); head, rest = " ".join(p[:3]), (p[3] if len(p) > 3 else "")
         elif cmd.split(" ", 1)[0] in ("am", "pm", "appops", "content"):
-            p = cmd.split(" ", 2); head, rest = " ".join(p[:2]), (p[2] if len(p) > 2 else "")
+            k = 3 if cmd.startswith("pm list ") else 2      # `pm list packages --user 0 x`, not `pm list --user 0 packages x`
+            p = cmd.split(" ", k); head, rest = " ".join(p[:k]), (p[k] if len(p) > k else "")
         else:
             raise ValueError("not a user-scoped command: " + cmd)
         return ("%s --user %d %s" % (head, self.user, rest)).rstrip()
@@ -445,7 +458,7 @@ class Dev:
                 self.rm(pkg, "files/res_%s.json" % rid)
                 return json.loads(out)
             time.sleep(0.15)
-        raise TimeoutError("no response to %s %s" % (cmd, rid))
+        raise TimeoutError("no response to %s %s; run-as diagnosis: %s" % (cmd, rid, json.dumps(self.runas_diag(pkg))))
 
     def launch(self, pkg=CPKG):
         self.require_fg()
@@ -468,7 +481,23 @@ class Dev:
                 self.rm(MPKG, "files/done_%s" % rid)
                 return json.loads(out[2:])
             time.sleep(0.1)
-        raise TimeoutError("mut " + op)
+        raise TimeoutError("mut %s; run-as diagnosis: %s" % (op, json.dumps(self.runas_diag(MPKG))))
+
+    def runas_diag(self, pkg):
+        """After an app command got no answer: why can the shell not read the app's files? run-as prints its errors on
+        stderr, which sh() drops, so `2>&1` folds them in on the device. Read-only; never raises."""
+        out = {}
+        for c in [self.u("run-as %s id" % pkg) + " 2>&1", "run-as %s id 2>&1" % pkg,
+                  self.u("run-as %s ls -la files" % pkg) + " 2>&1", "getprop ro.debuggable", "dumpsys package %s" % pkg]:
+            try:
+                r = self.sh(c, timeout=30, retries=0)
+                if c.startswith("dumpsys"):     # only the package flags (DEBUGGABLE) and the code path
+                    r = " ".join(re.findall(r"(?:pkgFlags|flags|codePath)=\S[^\n]*", r)[:4])
+                out[c] = r.strip()[:400]
+            except Exception as e:
+                out[c] = "%s: %s" % (type(e).__name__, str(e)[:300])
+        print("run-as diagnosis for %s: %s" % (pkg, json.dumps(out)), flush=True)
+        return out
 
     def home(self):
         self.require_fg()

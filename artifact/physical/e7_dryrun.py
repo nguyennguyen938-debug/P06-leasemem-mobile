@@ -43,15 +43,20 @@ RUNS_AWS = [("setup", []), ("B0", ["--allow-reboot"]), ("B1", []), ("B3", []),
             ("B5", ["--trials", "1", "--part", "2", "#no-pilot"]), ("B13", []), ("B6", []), ("B7", []),
             ("B11", ["#dropped"]), ("B12", ["#dropped"]), ("B3", ["--budget-min", "0", "#budget"]),
             ("B3", ["#serial=RFCXA0TTMPP", "#blocked"]), ("B3", ["#fake-serialno=RFCXA0TTMPP", "#alias-blocked"]),
-            ("cleanup", [])]
+            ("B3", ["#runas-fails"]), ("cleanup", [])]   # B3: its setup stops on a failed fixture (B0 keeps probing)
 RUNS = RUNS_AWS if AWS else RUNS
 RUNS = [r for r in RUNS if not ARGS[1:] or r[0] in ARGS[1:] or set(r[1]) & set(ARGS[1:])]
 # restore failure cases (review finding 6): the fake adb makes `settings delete global lm_mode` fail with exit 1
 # (loud) or exit 0 without effect (silent). The campaign must log "final restore FAILED", keep the state file and
 # exit 3; the following --restore (no injection) must then succeed from that state file.
 INJECT = {"#restore-fails-loud": ("FAKE_FAIL", r"^settings delete global lm_mode$"),
-          "#restore-fails-silent": ("FAKE_IGNORE", r"^settings delete global lm_mode$")}
-EXPECT_RC = {"#restore-fails-loud": 3, "#restore-fails-silent": 3, "#budget": 4, "#blocked": 1, "#alias-blocked": 1}
+          "#restore-fails-silent": ("FAKE_IGNORE", r"^settings delete global lm_mode$"),
+          # B0 runs 7a89358f: the mutator answered but the driver read nothing through run-as. The timeout must carry
+          # run-as's own message (runas_diag) so the cause shows in the Device Farm test spec output.
+          "#runas-fails": ("FAKE_RUNAS_FAIL", "package not debuggable: org.leasemem.mut")}
+EXPECT_RC = {"#restore-fails-loud": 3, "#restore-fails-silent": 3, "#budget": 4, "#blocked": 1, "#alias-blocked": 1,
+             "#runas-fails": 1}
+EXPECT_OUT = {"#runas-fails": "run-as diagnosis: "}    # in the campaign's own output, with the injected message
 # adb commands the fake may see: none for the blocked serial, get-state and getprop for the device reporting it
 EXPECT_ADB_MAX = {"#blocked": 0, "#alias-blocked": 2}
 EXPECT_LOG = {"#dropped": "dropped:", "#budget": "budget:"}
@@ -89,9 +94,10 @@ def run_one(task, flags):
     t0 = time.time()
     try:
         p = subprocess.run(argv, cwd=str(A), env=env, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=1800)
-        rc, tail = p.returncode, (p.stdout + p.stderr).strip().splitlines()[-4:]
+        rc, out = p.returncode, p.stdout + p.stderr
     except subprocess.TimeoutExpired:
-        rc, tail = "timeout", []
+        rc, out = "timeout", ""
+    tail = out.strip().splitlines()[-4:]
     log = fake_log(env)[n0:]
     new_log = (OUT / "RUNLOG.md").read_text(encoding="utf-8")[rl0:] if (OUT / "RUNLOG.md").exists() else ""
     want = next((EXPECT_RC[fl] for fl in flags if fl in EXPECT_RC), 0)
@@ -99,7 +105,8 @@ def run_one(task, flags):
     need = [EXPECT_LOG[fl] for fl in flags if fl in EXPECT_LOG]
     state_kept = Path(env["P06_RESTORE_STATE"]).exists()
     ok = (rc == want and (("final restore FAILED" in new_log and state_kept) if want == 3 else not state_kept)
-          and (adb_max is None or len(log) <= adb_max) and all(x in new_log for x in need))
+          and (adb_max is None or len(log) <= adb_max) and all(x in new_log for x in need)
+          and all(EXPECT_OUT[fl] in out and INJECT[fl][1] in out for fl in flags if fl in EXPECT_OUT))
     return {"task": task, "flags": flags, "rc": rc, "expected_rc": want, "ok": ok, "state_kept": state_kept,
             "restore_failures_logged": [l for l in new_log.splitlines() if "FAILED" in l][:3], "seconds": round(time.time() - t0, 1),
             "adb_commands": len(log), "violations": [e["argv"] for e in log if e.get("violation")][:5],

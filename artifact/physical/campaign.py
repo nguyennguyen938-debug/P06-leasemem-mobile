@@ -281,7 +281,7 @@ def main():
         else:
             sys.path.insert(0, str(A / "physical")); import b0_setup
             out.mkdir(parents=True, exist_ok=True)
-            rec = b0_setup.setup(d, out)
+            rec = b0_setup.setup(d, out, strict=a.task != "B0")   # B0 probes even if the fixtures fail
             runlog(out_root, "- %s %s setup: `campaign.py %s` on %s (`%s`, user %s, excluded %s, foreign rows %s); APK sha256 %s" % (
                 time.strftime("%H:%M"), a.task, a.task, meta["device"], meta["fingerprint"], d.user, sorted(d.excluded),
                 rec["foreign_before"], apk))

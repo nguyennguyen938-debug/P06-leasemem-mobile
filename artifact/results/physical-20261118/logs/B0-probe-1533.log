@@ -1,0 +1,32 @@
+identity                     OK   {'ro.product.manufacturer': 'Google', 'ro.product.model': 'Pixel 8', 'ro.product.device': 'shiba', 'ro.build.f
+user_info                    OK   {'user_id': 0, 'current_user': 0, 'state': 'RUNNING_UNLOCKED', 'restrictions': [], 'excluded_sources': [], 'ad
+install_user                 NO   ['Error:', 'unknown', 'list', 'type', "'--user'"]
+run_as_user                  OK   uid=10281(u0_a281) gid=10281(u0_a281) groups=10281(u0_a281),1004(input),1007(log),1011(adb),1015(sdcard_rw),10
+read_app_files               OK   {'mem_json_bytes': 281, 'exclusion_file': ''}
+content_user                 OK   {'fixture_raw_contacts': 2}
+appops                       OK   MANAGE_EXTERNAL_STORAGE: allow; time=+10s643ms ago
+fixtures_ensure_base         OK   {'t_pre': 1795016036369, 'made': 5, 't_post': 1795016036578, 'ok': True}
+mutations_all_kinds          NO   {'contacts.update': 'upd n=1', 'contacts.delete': 'deleted Omar', 'contacts.insert': 'added X16039003', 'sms.i
+client_probe_candidates      NO   {'candidates': ['calendar.count', 'calendar.count_deleted', 'calendar.max_id', 'calendar.sum_dirty', 'calllog.
+process_user                 OK   {'pid': '31362', 'uid': '10281', 'oom_score_adj': '905'}
+proc_cgroup_read             OK   {'cgroup': '3:cpuset:/background\n2:cpu:/\n1:blkio:/background\n0::/uid_10281/pid_31362', 'cgroup.freeze': '0'
+dumpsys_isFrozen             OK   {'isFrozen': 'false', 'pid': '31362'}
+freezer_debounce_2s          OK   {'debounce_get': '2000', 'frozen': '1', 'method': 'cgroup', 'after_s': 3.9}
+am_kill                      OK   {'pid_before': '31362', 'pid_after': ''}
+am_force_stop                OK   {'pid_before': '32272', 'pid_after': ''}
+sigkill_kill9                OK   {'pid_before': '32331', 'pid_after': ''}
+pm_revoke_grant              NO   {'after_revoke': None, 'after_grant': None}
+battery_unplug               OK   {'plugged_after_unplug': False, 'plugged_after_reset': True}
+doze_force_idle_deep         OK   {'force_idle': 'Now forced in to deep idle mode', 'deep_state': 'IDLE'}
+standby_bucket               NO   {'bucket': '', 'after_restore': ''}
+assistant_role               OK   {'add': '', 'holders': 'org.leasemem.assist', 'bound': True}
+charge_counter               OK   {'charge_counter_uAh': 4244000, 'level': 79}
+batterystats_uid             OK   {'uid_tag': 'u0a281', 'lines': ['UID u0a281: 0.110 fg: 0.000148 bg: 0.000358 cached: 0.0333 ( cpu=0.110 cpu:fg
+screen_sleep_wake            OK   {'after_sleep': 'mWakefulness=Dozing', 'after_wakeup': 'mWakefulness=Awake'}
+wireless_debugging           NO   {'tls_port': '', 'transports': ['3A030DLJH001AT']}
+host                         OK   {'python': '3.12.12', 'platform': 'Linux-5.10.271-272.1121.amzn2.x86_64-x86_64-with-glibc2.26', 'adb': ['Andro
+clock_set_back               OK   {'auto_time': '1', 'date': 'date: cannot set date: Operation not permitted\nWed Nov 18 14:34:54 UTC 2026', 'al
+sms_role                     NO   {'holders_before': '', 'add': '', 'held': False}
+pm_clear_contacts            OK   {'pm_clear': 'Success', 'refixtured': {'t_pre': 1795016099453, 'made': 5, 't_post': 1795016099674, 'ok': True}
+rebooted: waiting for user 0 in the foreground and unlocked
+reboot                       OK   {'survived': True, 'boot_s': 0.1, 't_reboot': 1795016101359, 'current_user_after_boot': 0, 'test_user_state_af

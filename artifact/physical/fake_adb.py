@@ -6,7 +6,8 @@ $FAKE_ADB_LOG together with the verdict of the guard (lmdrv.phone_violation) for
 run shows exactly what would reach the phone. `adb forward` starts a small TCP server (this file with --serve) that
 answers the client's loopback ops used by revision/run.py and b7_continuous.py. Failure injection for the restore
 checks: a shell command matching $FAKE_FAIL exits 1 with an error and changes nothing; one matching $FAKE_IGNORE
-exits 0 and changes nothing (a silent failure).
+exits 0 and changes nothing (a silent failure). $FAKE_RUNAS_FAIL=<message> makes every run-as fail with that message,
+visible only through 2>&1 (as on a phone, where run-as reports on stderr).
 Use through physical/e7_dryrun.py (it sets ADB to this file, so lmdrv runs it with the Python interpreter).
 """
 import json, os, re, socket, socketserver, subprocess, sys, time
@@ -111,6 +112,8 @@ def one(s, c):
         return PROPS.get(m.group(1), "")
     if c in ("id -u",):
         return "2000"
+    if c == "cat /proc/sys/kernel/random/boot_id":       # changes on every `adb reboot`
+        return "fake-boot-%d" % s.get("boots", 0)
     if c == "pm list users":
         return "Users:\n\tUserInfo{0:Owner:c13} running" + ("" if AWS else "\n\tUserInfo{10:P06 Test:410} running")
     if c == "am get-current-user":
@@ -232,11 +235,19 @@ def one(s, c):
                 s["files"]["%s/files/done_%s" % (pkg, e.get("id"))] = "R:" + json.dumps(mut_reply(s, e.get("op"), e.get("a"), e.get("b")))
             return "Broadcast completed: result=0"
         return ""
-    m = re.match(r"run-as --user %d (\S+) (.*)" % USER, c)
+    # run-as as on Android 15: `run-as <pkg> [--user <id>] <cmd>`; `run-as --user 0 <pkg>` reads "--user" as the
+    # package (B0 run 19ba952e). Errors go to stderr, seen only with 2>&1.
+    m = re.match(r"run-as (\S+)(?: --user (\d+))? (.*?)( 2>&1)?$", c)
     if m:
-        pkg, inner = m.groups()
+        pkg, uid_, inner, merged = m.groups()
+        err = os.environ.get("FAKE_RUNAS_FAIL") or ("unknown package: --user" if pkg == "--user" else None) \
+            or (None if uid_ in (None, str(USER)) else "user %s has no package %s" % (uid_, pkg))
+        if err:
+            return "run-as: " + err if merged else ""
         if inner == "id":
             return "uid=%d(u10_a123) gid=%d" % (UID, UID)
+        if inner == "ls -la files":
+            return "\n".join(k.split("/", 1)[1] for k in s["files"] if k.startswith(pkg + "/files/"))
         inner = re.sub(r"^sh -c '(.*)'$", r"\1", inner)
         out = []
         for part in [x.strip() for x in inner.split("&&")]:
@@ -258,10 +269,12 @@ def one(s, c):
         if pkg + "/files/mem.json" not in s["files"] and inner.startswith("cat files/mem.json"):
             return json.dumps({"events": [{"src": "contacts", "t": now(s), "flags": 0}], "last_start": {}})
         return "".join(out)
-    m = re.match(r"pm (\S+) --user %d (.*)" % USER, c)
+    if re.match(r"pm list --user ", c):         # as on Android 15: --user goes after `pm list packages` (run 97a66c65)
+        return "Error: unknown list type '--user'"
+    m = re.match(r"pm (list packages|\S+) --user %d (.*)" % USER, c)
     if m:
         sub, rest = m.groups()
-        if sub == "list":
+        if sub == "list packages":
             return "\n".join("package:" + p for p in s["installed"])
         if sub in ("grant", "revoke"):
             pkg, perm = rest.split()[:2]; s["grants"][pkg + "/" + perm] = sub == "grant"; return ""
@@ -394,6 +407,7 @@ def main(argv):
             ensure_server(int(argv[1].split(":")[1]))
         elif argv[0] == "reboot":
             s["cur"], s["back_after"], s["running"], s["fgs"] = 0, 3, {}, False
+            s["boots"] = s.get("boots", 0) + 1
             s["dc"].pop("activity_manager_native_boot/freeze_debounce_timeout", None) if s["sync"] != "persistent" else None
             s["sync"] = "none" if s["sync"] == "until_reboot" else s["sync"]
         elif argv[0] in ("wait-for-device", "connect"):
