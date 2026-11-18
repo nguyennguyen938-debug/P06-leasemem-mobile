@@ -91,6 +91,8 @@ def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=No
     if task == "B1F":    # B1 bg_freezer only (rerun after the diagnosis), Contacts
         return [("deploy-contacts-freezer", [PY, str(A / "followup/deployment.py"), serial, "--out", o("deploy-contacts-freezer"),
                                              "--source", "contacts", "--modes", "bg_freezer", "--n", str(n(20))], [], o("deploy-contacts-freezer"))]
+    if task == "CRESET":   # Contacts reset (the contacts_reset case of revision/supplement.py), AWS mode only
+        return [("contacts-reset", [PY, P + "/contacts_reset.py", serial, o("contacts-reset"), str(n(20))], [stop_fgs], o("contacts-reset"))]
     if task == "B9":     # the effect is a call-log row, or a Contacts Data row where the call log is excluded (AWS)
         return [
             ("boundary", [PY, D + "/e3v2_boundary.py", serial, str(n(100)), sd(2611901), o("boundary")], [stop_fgs], o("boundary")),

@@ -18,7 +18,7 @@ A = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(A / "driver"))
 import lmdrv
 
-FILES = ["driver/lmdrv.py", "driver/e1_coverage.py", "driver/e2v3_gaps.py", "driver/e3v2_boundary.py",
+FILES = ["physical/contacts_reset.py", "driver/lmdrv.py", "driver/e1_coverage.py", "driver/e2v3_gaps.py", "driver/e3v2_boundary.py",
          "driver/e6_pitfalls.py", "driver/e9_frozen.py", "revision/run.py", "followup/deployment.py",
          "physical/campaign.py", "physical/b0_setup.py", "physical/b0_probe.py", "physical/b7_continuous.py",
          "physical/b11_statelog.py", "physical/b12_battery.py"]
@@ -37,6 +37,7 @@ EMULATOR_ONLY = [
     ("physical/b0_probe.py", "settings put global auto_time", "clock_set_back: probed only if d.aws"),
     ("physical/b0_probe.py", "settings get global auto_time", "clock_set_back: probed only if d.aws"),
     ("physical/campaign.py", "pm uninstall %s", "cleanup: goes through d.u() and the runtime guard, which allows only org.leasemem.*"),
+    ("physical/contacts_reset.py", "pm clear com.android.providers.contacts", "contacts_reset: exits unless d.aws, goes through d.u(); the runtime guard allows exactly `pm clear --user 0 com.android.providers.contacts` in AWS mode only"),
     ("driver/e2v3_gaps.py", "appops set root WRITE_SMS allow", "inside `if d.emulator:`"),
     ("driver/e6_pitfalls.py", "settings put global auto_time", "clock part: n_clock = 0 unless (d.emulator and d.rooted) or d.aws; the runtime guard refuses clock commands outside AWS mode"),
     ("driver/e6_pitfalls.py", "date @", "clock part: `date` only off AWS, i.e. on a rooted emulator"),
