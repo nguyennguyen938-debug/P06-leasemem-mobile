@@ -56,6 +56,7 @@ RESULTS = Path(os.environ.get("P06_DF_RESULTS") or A / "results")       # tests 
 LEDGER = RESULTS / "aws-minutes.jsonl"
 RUNLOG = RESULTS / "RUNLOG.md"
 EXPIRED = re.compile(r"expired|ExpiredToken|aws login|Unable to locate credentials|InvalidClientTokenId|SSO session", re.I)
+THROTTLED = re.compile(r"\(429\)|Rate exceeded|Throttl|TooManyRequests", re.I)
 
 
 class AwsError(RuntimeError):
@@ -67,7 +68,13 @@ def aws(op, **req):
     exe = [sys.executable, AWS_CLI] if AWS_CLI.endswith(".py") else [AWS_CLI]
     argv = exe + ["devicefarm", op] + (["--cli-input-json", json.dumps(req)] if req else []) + \
         ["--profile", PROFILE, "--region", REGION, "--output", "json"]
-    p = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
+    # Throttling (HTTP 429 "Rate exceeded", e.g. on the login token refresh with several watchers polling at once,
+    # 2026-11-19 01:56: it made a watcher stop B9 run) is retried with backoff instead of failing the caller.
+    for wait in (5, 10, 20, 40, 80, 160, None):
+        p = subprocess.run(argv, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=300)
+        if p.returncode == 0 or wait is None or not THROTTLED.search((p.stderr or p.stdout)):
+            break
+        time.sleep(wait)
     if p.returncode != 0:
         err = (p.stderr or p.stdout).strip()
         if EXPIRED.search(err):
@@ -265,7 +272,7 @@ def stop_and_check(run_arn, why):
     return st
 
 
-def watch(run_arn, timeout_min, every=30):
+def watch(run_arn, timeout_min, every=60):   # 60 s: several watchers at 30 s hit AWS throttling (2026-11-19)
     """Poll until COMPLETED. On an errored result or an overrun of timeout + 10 min: stop-run at once. Ctrl-C
     propagates to the caller, which stops the run."""
     t0 = time.time(); stopped = False
