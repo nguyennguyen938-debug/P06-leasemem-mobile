@@ -6,7 +6,9 @@ file names: PHYS-PROTOCOL.md sections 6, 7 and 10. Every macro or table without 
 TBD; scripts/check_final.py fails while the PDF shows one. Trials are classified with the emulator rules of
 scripts/analyze.py (valid, classify, gap_effects, coverage, e9_row), so phone and emulator numbers are comparable.
 Files whose name contains "pilot" (S2 pipeline check) are summarized on stdout and never enter macros or tables.
-B6 (host-*) and B7 (continuous-*) have no macro yet. Run `python physical/analyze_phys.py --self-check`.
+Optional per-record fields of the AWS runs: `device_instance` (counted by \\PhysInstances) and `run_arn` (counted on
+stdout); records without them still load. B6 (host-*) has one macro, B7 (continuous-*) none; B11 and B12 are dropped.
+Run `python physical/analyze_phys.py --self-check`.
 """
 import json, statistics as st, sys, tempfile
 from collections import Counter, defaultdict
@@ -24,17 +26,21 @@ GAPS = ['none', 'freeze', 'dozeidle', 'bucket', 'unregister', 'kill', 'forcestop
 LOST, INEPOCH = ['unregister', 'kill', 'forcestop', 'perm', 'reboot'], ['none', 'freeze', 'dozeidle', 'bucket']
 FILES = {'deploy': 'deploy*.jsonl', 'gaps': 'gaps-*.jsonl', 'coverage': 'coverage-*.jsonl', 'stock': 'stock-*.jsonl',
          'boundary': 'boundary*.jsonl', 'pitfalls': 'pitfalls-*.jsonl', 'frozen': 'frozen-*.jsonl',
-         'statelog': 'statelog-*.jsonl', 'battery': 'battery-night*-samples.jsonl', 'b0': 'b0-probe-*.jsonl', 'host': 'host-*.jsonl', 'all': '*.jsonl'}
-# Sources never touched on this phone print NR instead of TBD. SMS always (its store is shared with the owner's user);
-# the call log, and with it B9 (whose effect is a call-log row), when the latest B0 record lists it in excluded_sources.
-ALWAYS_OUT = {'sms'}
+         'b0': 'b0-probe-*.jsonl', 'host': 'host-*.jsonl', 'all': '*.jsonl'}
+# Sources never touched on this phone print NR instead of TBD: those the latest B0 record lists in excluded_sources.
+# SMS and the call log (and with it B9, whose effect is a call-log row) each have an \if switch for the prose.
 NR = 'not run on phone'
+# B11 (24-hour state log) and B12 (battery) are dropped: rented Device Farm phones are always charging and a run lasts
+# at most 150 min. Their macros stay defined and print NR; their tables carry one row that says why.
+DROPPED = ['PhysStateHours', 'PhysStateAlivePct', 'PhysStateFrozenPct', 'PhysStateDozePct', 'PhysStateKillsPerHour',
+           'PhysBatteryFgsMahPerHour', 'PhysBatteryBgMahPerHour', 'PhysBatteryFgsBlocks', 'PhysBatteryBgBlocks']
+WHY = 'dropped: rented Device Farm phones are always charging and a run lasts at most 150\\,min'
 
 
 def not_run(b0):
-    """Sources not run: ALWAYS_OUT plus excluded_sources of the latest B0 record (files sort by date and time)."""
+    """Sources not run: excluded_sources of the latest B0 record (files sort by date and time); none before B0."""
     recs = [r for r in b0 if 'excluded_sources' in r]
-    return ALWAYS_OUT | set(recs[-1]['excluded_sources'] if recs else ())
+    return set(recs[-1]['excluded_sources'] if recs else ())
 
 
 def load(res, pattern):
@@ -181,45 +187,6 @@ def frozen(rows):
             'callbacks': sum(o['callbacks_vlate'] for o in V), 'evr': [sum(o['evr_miss_' + p] for o in V) for p in ('early', 'late', 'vlate')]}
 
 
-def statelog(rows):
-    """B11: share of samples per state, process deaths per hour; charging time separated."""
-    start = next((r for r in rows if r.get('kind') == 'start'), {})
-    period = start.get('period_s', 5)
-    S = sorted((r for r in rows if r.get('kind') == 'sample'), key=lambda r: r['t'])
-    if not S:
-        return {}
-    out = {}
-    for plugged in (False, True):
-        G = [r for r in S if bool(r.get('plugged')) == plugged and 'error' not in r]
-        n_all = sum(bool(r.get('plugged')) == plugged for r in S)   # failed samples count as unplugged time
-        out[plugged] = {'samples': len(G), 'all': n_all, 'hours': n_all * period / 3600,
-                        'alive': sum(bool(r['alive']) for r in G), 'frozen': sum(str(r.get('frozen')) in ('1', 'True', 'true') for r in G),
-                        'deep': sum(r.get('doze_deep') == 'IDLE' for r in G), 'deaths': 0}
-    prev = None
-    for r in S:
-        if 'error' in r:
-            continue
-        if prev and prev['alive'] and (not r['alive'] or r['pid'] != prev['pid']):
-            out[bool(r.get('plugged'))]['deaths'] += 1
-        prev = r
-    out['hours'] = len(S) * period / 3600
-    return out
-
-
-def battery(rows):
-    """B12: drain per hour over complete blocks; arm on = FGS running, off = plain background client."""
-    out = {}
-    for arm in ('on', 'off'):
-        B = [r for r in rows if r.get('kind') == 'block' and r.get('arm') == arm]
-        C = [b for b in B if b.get('complete') and b.get('duration_s')]
-        mah = [(b['charge_start_uAh'] - b['charge_end_uAh']) / 1000 / (b['duration_s'] / 3600) for b in C
-               if b.get('charge_start_uAh') is not None and b.get('charge_end_uAh') is not None]
-        lvl = [(b['level_start'] - b['level_end']) / (b['duration_s'] / 3600) for b in C if b.get('level_start') is not None and b.get('level_end') is not None]
-        if B:
-            out[arm] = {'blocks': len(B), 'complete': len(C), 'hours': sum(b['duration_s'] for b in C) / 3600, 'mah': mah, 'lvl': lvl}
-    return out
-
-
 def device(rows, key):
     vals = sorted({str(r[key]) for r in rows if r.get(key) is not None})
     return ', '.join(vals) if vals else None
@@ -242,12 +209,12 @@ def analyze(D):
     M = {k: [r for r in v if not pilot(r)] for k, v in D.items()}
     R = {'deploy': deploy(M['deploy']), 'gaps': gaps(M['gaps']), 'coverage': coverage(M['coverage']), 'race': race(M['stock']),
          'boundary': boundary(M['boundary']), 'pitfalls': pitfalls(M['pitfalls']), 'frozen': frozen(M['frozen']),
-         'statelog': statelog(M['statelog']), 'battery': battery(M['battery']), 'not_run': not_run(D['b0'])}
+         'not_run': not_run(D['b0'])}
     X = R['not_run']
     nr = lambda src, val: NR if src in X else val       # a source not run prints NR, not TBD
     P = {'deploy': deploy([r for r in D['deploy'] if pilot(r)]),
          'records': dict(Counter(k for k, v in D.items() if k != 'all' for r in v if pilot(r)))}
-    B1, G, BD, F, SL, BT = R['deploy'], R['gaps'], R['boundary'], R['frozen'], R['statelog'], R['battery']
+    B1, G, BD, F, PF = R['deploy'], R['gaps'], R['boundary'], R['frozen'], R['pitfalls']
     med = lambda s, m: dur(st.median(B1[s, m]['delays_ms'])) if (s, m) in B1 and B1[s, m]['delays_ms'] else None
     fcl = lambda g: sec(st.median(G[g]['fcl'])) if g in G and G[g].get('fcl') else None
     def gmiss(gs, phase, p):
@@ -263,14 +230,15 @@ def analyze(D):
     has['cost'] = bool(cost)
     cmed = lambda k: '%.0f' % st.median(c[k] for c in cost) if cost else None
     cci = lambda k: (lambda m: '[%.0f, %.0f]' % (m[1], m[2]))(ea.boot_ci([c[k] for c in cost])) if cost else None
-    unpl = SL.get(False, {})
-    batt = lambda arm: f"{st.mean(BT[arm]['mah']):.1f}" if arm in BT and BT[arm]['mah'] else None
+    pf = lambda k: kn(*PF[k]) if PF and PF[k][1] else None          # B10 cell; no trials of that kind: TBD, not 0/0
+    inst = {r.get('device_instance') for k, v in M.items() if k not in ('all', 'b0') for r in v} - {None}
     macros = {
         'PhysDevice': ('device model', tex(device(D['all'], 'device'))),
         'PhysFingerprint': ('build fingerprint', (lambda f: f and '\\path{%s}' % f)(device(D['all'], 'fingerprint'))),
         'PhysAndroid': ('Android release and SDK level', android(D['b0'])),
         'PhysRooted': ('root status', {'True': 'rooted', 'False': 'not rooted'}.get(device(D['all'], 'rooted') or '', None)),
         'PhysSdk': ('API level', device(D['all'], 'sdk')),
+        'PhysInstances': ('distinct physical units', len(inst) or None),
         'PhysDeployTrials': ('B1 valid/attempted trials, all sources', kn(sum(z['valid'] for z in B1.values()), sum(z['attempted'] for z in B1.values())) if B1 else None),
         'PhysDeployBgMedian': ('B1 Contacts background unfrozen median callback delay', med('contacts', 'bg_unfrozen')),
         'PhysDeployFgMedian': ('B1 Contacts FGS median callback delay', med('contacts', 'fg')),
@@ -299,21 +267,13 @@ def analyze(D):
         'PhysBndObsStale': ('B9 observation check, change before the action: stale/n', nr('calllog', kn(*BD['k']('obs', 'before_action')) if BD else None)),
         'PhysBndBeforeCheckStale': ('B9 boundary check, change before the check: stale/n', nr('calllog', kn(*BD['k']('bnd', 'before_check')) if BD else None)),
         'PhysBndOverlapStale': ('B9 boundary check, change overlaps check or residual: stale/n', nr('calllog', kn(*BD['k']('bnd', 'overlaps')) if BD else None)),
-        'PhysSmsReuse': ('B10 SMS id reuse trials', nr('sms', kn(*R['pitfalls']['sms']) if R['pitfalls'] else None)),
-        'PhysMtimeSame': ('B10 same-second mtime trials', kn(*R['pitfalls']['mtime']) if R['pitfalls'] else None),
+        'PhysSmsReuse': ('B10 SMS id reuse trials', nr('sms', pf('sms'))),
+        'PhysMtimeSame': ('B10 same-second mtime trials', pf('mtime')),
         'PhysFrozenHolds': ('B5 valid frozen holds', F.get('valid')),
         'PhysFrozenStayed': ('B5 holds that stayed frozen', F.get('stayed')),
         'PhysFrozenKilled': ('B5 holds ended by a kill', kn(F['died'], F['valid']) if F else None),
         'PhysFrozenLastUnseen': ('B5 sources whose last change had no later callback', kn(F['unseen'], F['src']) if F else None),
-        'PhysStateHours': ('B11 logged hours', f"{SL['hours']:.1f}" if SL else None),
-        'PhysStateAlivePct': ('B11 unplugged share of samples alive', pct(unpl['alive'], unpl['samples']) if unpl.get('samples') else None),
-        'PhysStateFrozenPct': ('B11 unplugged share of samples frozen', pct(unpl['frozen'], unpl['samples']) if unpl.get('samples') else None),
-        'PhysStateDozePct': ('B11 unplugged share of samples in deep Doze', pct(unpl['deep'], unpl['samples']) if unpl.get('samples') else None),
-        'PhysStateKillsPerHour': ('B11 unplugged process deaths per hour', f"{unpl['deaths'] / unpl['hours']:.2f}" if unpl.get('hours') else None),
-        'PhysBatteryFgsMahPerHour': ('B12 mAh per hour, FGS on', batt('on')),
-        'PhysBatteryBgMahPerHour': ('B12 mAh per hour, FGS off', batt('off')),
-        'PhysBatteryFgsBlocks': ('B12 complete/all blocks, FGS on', kn(BT['on']['complete'], BT['on']['blocks']) if 'on' in BT else None),
-        'PhysBatteryBgBlocks': ('B12 complete/all blocks, FGS off', kn(BT['off']['complete'], BT['off']['blocks']) if 'off' in BT else None),
+        **{k: ('B11/B12 dropped', NR) for k in DROPPED},
         'PhysHostTrials': ('B6 matched host trials', len(host) or None),
         'PhysCostGl': ('B2 median provider ms per late decision, global refresh', cmed('gl_ms')),
         'PhysCostGlCi': ('B2 bootstrap CI of that median', cci('gl_ms')),
@@ -389,9 +349,10 @@ def tables(gen, R):
 
     PF, rows = R['pitfalls'], []
     if PF:
-        rows = [f"SMS \\texttt{{\\_id}} reused after delete and insert & {NR if 'sms' in NOT_RUN else wil(*PF['sms'])}\\\\", f"second append in the same second leaves mtime & {wil(*PF['mtime'])}\\\\",
+        cell = lambda k: wil(*PF[k]) if PF[k][1] else r'\PhysTBD{B10 %s trials}' % k     # no trials of that kind yet
+        rows = [f"SMS \\texttt{{\\_id}} reused after delete and insert & {NR if 'sms' in NOT_RUN else cell('sms')}\\\\", f"second append in the same second leaves mtime & {cell('mtime')}\\\\",
                 'wall-clock rollback & ' + (f"{PF['clock']} records" if PF['clock'] else 'not run on this phone') + r'\\']
-    table(gen, 'tab_phys_pitfalls.tex', 'Phone (B10): evidence pitfalls, trials affected out of trials (Wilson 95\\% interval). Clock changes are not allowed on this phone.',
+    table(gen, 'tab_phys_pitfalls.tex', 'Phone (B10): evidence pitfalls, trials affected out of trials (Wilson 95\\% interval).',
           'lr', 'Pitfall & Trials affected', rows, 'B10 pitfall trials',
           extra=[r'SMS \texttt{\_id} reuse & %s\\' % NR] if 'sms' in NOT_RUN and not PF else [])
 
@@ -403,30 +364,17 @@ def tables(gen, R):
     table(gen, 'tab_phys_frozen.tex', 'Phone (B5): long frozen holds, same metrics as Table~\\ref{tab:frozen}; lost and unseen sources count holds that stayed frozen; last row: changed uses missed by restart-aware event-only at +2/+14/+120\\,s.',
           'lr', 'Metric & Phone', rows, 'B5 frozen holds')
 
-    SL, rows = R['statelog'], []
-    for plugged, lab in ((False, 'Unplugged'), (True, 'Charging')):
-        z = SL.get(plugged)
-        if z and z['all']:
-            rows.append(f"{lab} & {z['hours']:.1f} & {z['samples']}/{z['all']} & {pct(z['alive'], z['samples'])} & {pct(z['frozen'], z['samples'])} & "
-                        f"{pct(z['deep'], z['samples'])} & {z['deaths'] / z['hours']:.2f}\\\\")
-    table(gen, 'tab_phys_statelog.tex', 'Phone (B11): client state over one day, one sample every 5\\,s; hours, readable/all samples, share of readable samples alive, frozen and in deep Doze, process deaths per hour. Charging time is separated.',
-          'lrrrrrr', r'Power & Hours & Samples & Alive\,\% & Frozen\,\% & Deep idle\,\% & Deaths/h', rows, 'B11 state log')
-
-    BT, rows = R['battery'], []
-    for arm, lab in (('on', 'FGS running'), ('off', 'Background only')):
-        z = BT.get(arm)
-        if z:
-            m = '%.1f [%.1f, %.1f]' % (st.mean(z['mah']), min(z['mah']), max(z['mah'])) if z['mah'] else 'n/a'
-            rows.append(f"{lab} & {z['complete']}/{z['blocks']} & {z['hours']:.1f} & {m} & {'%.2f' % st.mean(z['lvl']) if z['lvl'] else 'n/a'}\\\\")
-    table(gen, 'tab_phys_battery.tex', 'Phone (B12): screen-off drain over complete blocks (unplugged, wireless debugging), FGS running versus a plain background client; mean [min, max] mAh per hour from the charge counter and battery level points per hour.',
-          'lrrrr', r'Arm & Blocks & Hours & mAh/h & Level/h', rows, 'B12 battery blocks')
+    for name, what in (('tab_phys_statelog.tex', 'B11, 24-hour state log'), ('tab_phys_battery.tex', 'B12, battery drain')):
+        table(gen, name, 'Phone (%s): not run.' % what, 'l', 'Status', [], what, tbd=False, extra=[WHY + r'\\'])
 
 
 def write(D, gen):
     macros, R, P = analyze(D)
     lines = ['% AUTO-GENERATED by artifact/physical/analyze_phys.py; do not edit',
              r'\providecommand{\PhysTBD}[1]{}\renewcommand{\PhysTBD}[1]{\textcolor{red}{TBD}}']
-    lines.append(r'\newif\ifPhysCalllog\PhysCalllog%s' % ('false' if 'calllog' in R['not_run'] else 'true'))
+    for src, sw in (('calllog', 'Calllog'), ('sms', 'Sms')):      # true unless the latest B0 excludes the source
+        lines.append(r'\newif\ifPhys%s\Phys%s%s' % (sw, sw, 'false' if src in R['not_run'] else 'true'))
+    lines.append(r'\newif\ifPhysReboot\PhysReboot%s' % ('true' if R['gaps'].get('reboot', {}).get('n') else 'false'))   # valid B2 reboot trials
     for name, (what, val) in macros.items():
         lines.append('\\newcommand{\\%s}{%s\\xspace}' % (name, val if val is not None else '\\PhysTBD{%s}' % what))
     (gen / 'physical_macros.tex').write_text('\n'.join(lines) + '\n', encoding='utf-8', newline='\n')
@@ -445,15 +393,19 @@ def self_check():
     empty = {k: [] for k in FILES}
     with tempfile.TemporaryDirectory() as d:
         gen = Path(d)
+        tab = lambda n: (gen / n).read_text(encoding='utf-8')
         m, _ = write(empty, gen)
-        tex = (gen / 'physical_macros.tex').read_text(encoding='utf-8')
-        assert all(v is None for k, (_, v) in m.items() if k != 'PhysSmsReuse') and m['PhysSmsReuse'][1] == NR, 'no data: TBD everywhere, SMS not run'
-        assert tex.count('\\PhysTBD{') == len(m) - 1 and '\\PhysCalllogtrue' in tex
+        tex = tab('physical_macros.tex')
+        assert all(v is None for k, (_, v) in m.items() if k not in DROPPED) and all(m[k][1] == NR for k in DROPPED), 'no data: TBD except dropped B11/B12'
+        assert tex.count('\\PhysTBD{') == len(m) - len(DROPPED)
+        assert all(s in tex for s in ('\\PhysCalllogtrue', '\\PhysSmstrue', '\\PhysRebootfalse')), 'before B0: SMS and call log run, no reboot'
         assert '\\renewcommand{\\PhysTBD}' in tex
         assert '%' not in tex.split('\n', 1)[1], 'a % in a macro would comment out the rest of its line'
         tabs = sorted(p.name for p in gen.glob('tab_phys_*.tex'))
-        assert '(\\PhysTBD{B3 trials} trials)' in (gen / 'tab_phys_coverage.tex').read_text(encoding='utf-8')
-        assert len(tabs) == 9 and all('\\PhysTBD{' in (gen / t).read_text(encoding='utf-8') for t in tabs), tabs
+        dropped = {'tab_phys_statelog.tex', 'tab_phys_battery.tex'}
+        assert '(\\PhysTBD{B3 trials} trials)' in tab('tab_phys_coverage.tex')
+        assert len(tabs) == 9 and all(('\\PhysTBD{' in tab(t)) == (t not in dropped) for t in tabs), tabs
+        assert all('Device Farm' in tab(t) for t in dropped)
 
         D = {k: [] for k in FILES}
         def add(key, fname, *recs):
@@ -469,7 +421,8 @@ def self_check():
         add('deploy', 'deploy-media-0930.jsonl', dep('bg_unfrozen', '0', 1500, 'media'), dep('bg_unfrozen', '0', 1200, 'media', ev='contacts'))
         add('deploy', 'deploy-calllog-1000.jsonl', dep('fg', '0', 1005, 'calllog'), dep('fg', '0', 1007, 'calllog'))
         add('deploy', 'deploy-pilot-contacts-0800.jsonl', dep('fg', '0', 1006, 'contacts'))
-        # B2: two no-gap trials (callback 10 s after the change), one force-stop trial; a pilot trial stays out
+        # B2: two no-gap trials (callback 10 s after the change) on two device instances, one force-stop trial without the
+        # AWS fields (older schema); a pilot trial and the B0 probe add instances that must not count
         def gap(g, pid_late, ev_t, mem, evr):
             f = {'src': 'contacts', 'ev': 'KEEP', 'te': 'KEEP', 'lm': 'CHANGED', 'lme': 'CHANGED', 'evr': evr, 'mem': mem, 'truth': 'B', 'refresh_ns': 2000000}
             dec = lambda t, ev: {'t_dec': t, 'fg': False, 'pid': pid_late, 'facts': {'c.dana': f}, 'events': ev, 'last_start': {},
@@ -477,9 +430,10 @@ def self_check():
             ev = [{'src': 'contacts', 't': ev_t}] if ev_t else []
             return {'gap': g, 'protocol': 'v3', 'fg': False, 'trial': 0, 't_obs': 0, 't_gap_start': 100, 'hold': 5, 'pid_obs': 7,
                     'muts': [{'src': 'contacts', 'kind': 'update', 't_pre': 1000, 't_dev': 1000}], 'early': dec(7000, []), 'late': dec(19000, ev)}
-        add('gaps', 'gaps-none-1100.jsonl', gap('none', 7, 11000, 'A', 'KEEP'), gap('none', 7, 11040, 'A', 'KEEP'))
+        aws = lambda r, i: dict(r, device_instance='arn:devinst/' + i, run_arn='arn:run/' + i)
+        add('gaps', 'gaps-none-1100.jsonl', aws(gap('none', 7, 11000, 'A', 'KEEP'), 'A'), aws(gap('none', 7, 11040, 'A', 'KEEP'), 'B'))
         add('gaps', 'gaps-forcestop-1130.jsonl', gap('forcestop', 8, None, 'A', 'REFRESH'))
-        add('gaps', 'gaps-pilot-none-0800.jsonl', gap('none', 7, 30000, 'A', 'KEEP'))
+        add('gaps', 'gaps-pilot-none-0800.jsonl', aws(gap('none', 7, 30000, 'A', 'KEEP'), 'C'))
         # B3, B4, B9, B10
         add('coverage', 'coverage-1200.jsonl', {'fg': False, 'p0': {'contacts.sum_raw_version': '5'}, 'p1': {'contacts.sum_raw_version': '6'},
                                                 'muts': [{'src': 'contacts', 'kind': 'update', 't_pre': 0}], 'events': []})
@@ -498,16 +452,7 @@ def self_check():
                     't_first_mut': 100, 'pid_obs': 5, 'frozen_with_pending_s': 600, 'early': dec(t_recv=700), 'late': dec(),
                     'vlate': dec(events=[{'src': 'contacts', 't': 701}], pid=pid_v, last_start={'exit': {'ts': 400, 'desc': 'too many cached'}})}
         add('frozen', 'frozen-0100.jsonl', hold(5), hold(6))
-        add('b0', 'b0-probe-0600.jsonl', {'probe': 'identity', 'ok': True, 'detail': {'ro.build.version.release': '15', 'ro.build.version.sdk': '35'}})
-        # B11: 4 unplugged samples (one frozen, one death then restart), 1 charging sample
-        smp = lambda i, alive, pid, frozen, plugged=False: {'kind': 'sample', 'i': i, 't': i * 5.0, 'alive': alive, 'pid': pid, 'frozen': frozen,
-                                                            'doze_deep': 'IDLE' if i == 1 else 'ACTIVE', 'plugged': plugged}
-        add('statelog', 'statelog-0700.jsonl', {'kind': 'start', 'period_s': 5}, smp(0, True, '1', '0'), smp(1, True, '1', '1'), smp(2, False, None, None),
-            smp(3, True, '2', '0'), smp(4, True, '2', '0', True))
-        # B12: FGS on 4 mAh/h over two complete blocks, off 2 mAh/h; an incomplete block is ignored
-        blk = lambda arm, drop, complete=True: {'kind': 'block', 'arm': arm, 'complete': complete, 'duration_s': 3600, 'charge_start_uAh': 3000000,
-                                                'charge_end_uAh': 3000000 - drop, 'level_start': 90, 'level_end': 89}
-        add('battery', 'battery-night1-2300-samples.jsonl', blk('on', 4000), blk('on', 4000), blk('off', 2000), blk('off', 9000, False))
+        add('b0', 'b0-probe-0600.jsonl', aws({'probe': 'identity', 'ok': True, 'detail': {'ro.build.version.release': '15', 'ro.build.version.sdk': '35'}}, 'D'))
 
         m, P = write(D, gen)
         v = {k: x for k, (_, x) in m.items()}
@@ -521,11 +466,9 @@ def self_check():
         assert v['PhysCoverageTrials'] == 1 and v['PhysRaceTrials'] == 2 and v['PhysRaceStale'] == 1
         assert v['PhysBoundaryTrials'] == 3 and v['PhysCteMs'] == '30.0' and v['PhysBndBeforeCheckStale'] == '0/1'
         assert v['PhysBndOverlapStale'] == '1/1' and v['PhysBndObsStale'] == '1/1'
-        assert v['PhysSmsReuse'] == NR and v['PhysMtimeSame'] == '0/1'
+        assert v['PhysSmsReuse'] == '1/1' and v['PhysMtimeSame'] == '0/1', 'no B0 yet: SMS runs'
         assert v['PhysFrozenHolds'] == 2 and v['PhysFrozenKilled'] == '1/2' and v['PhysFrozenLastUnseen'] == '0/2'
-        assert v['PhysStateHours'] == '0.0' and v['PhysStateFrozenPct'] == '25' and v['PhysStateAlivePct'] == '75', (v['PhysStateFrozenPct'], v['PhysStateAlivePct'])
-        assert v['PhysStateDozePct'] == '25' and v['PhysStateKillsPerHour'] == '180.00', v['PhysStateKillsPerHour']
-        assert v['PhysBatteryFgsMahPerHour'] == '4.0' and v['PhysBatteryBgMahPerHour'] == '2.0' and v['PhysBatteryBgBlocks'] == '1/2'
+        assert v['PhysInstances'] == 2 and all(v[k] == NR for k in DROPPED), v['PhysInstances']
         assert P['deploy'][('contacts', 'fg')]['valid'] == 1 and P['records'] == {'deploy': 1, 'gaps': 1}
         assert v['PhysEvidBound'] == 'phone' and v['PhysEvidWeak'] == 'phone' and v['PhysEvidCheap'] == 'phone' and v['PhysHostTrials'] is None   # B2 without B6 suffices
         assert v['PhysCostGl'] == '2' and v['PhysCostLm'] == '5' and v['PhysCostN'] == 3 and v['PhysCostLmCi'] == '[5, 5]', (v['PhysCostGl'], v['PhysCostLm'])
@@ -535,16 +478,26 @@ def self_check():
         add('host', 'host-X-1400.jsonl', {'case': 'none', 'arms': {}}, {'case': 'one', 'error': 'adb lost'})
         m, _ = write(D, gen); v = {k: x for k, (_, x) in m.items()}
         assert v['PhysEvidCheap'] == 'phone' and v['PhysHostTrials'] == 1
-        tab = lambda n: (gen / n).read_text(encoding='utf-8')
         assert '\\mgroup{5}{MediaStore}' in tab('tab_phys_deploy.tex') and tab('tab_phys_deploy.tex').count('Foreground service') == 2
-        assert 'Force-stop & 1/1' in tab('tab_phys_gaps.tex') and '1/1 & 0/1 & 0/1 & 1/1 & 0/1 & 0/1' in tab('tab_phys_gaps.tex') and 'not run on this phone' in tab('tab_phys_pitfalls.tex') and NR in tab('tab_phys_pitfalls.tex')
+        assert 'Force-stop & 1/1' in tab('tab_phys_gaps.tex') and '1/1 & 0/1 & 0/1 & 1/1 & 0/1 & 0/1' in tab('tab_phys_gaps.tex')
+        assert 'not run on this phone' in tab('tab_phys_pitfalls.tex') and 'insert & 1/1 [' in tab('tab_phys_pitfalls.tex')
         assert not any('\\PhysTBD{' in tab(t) for t in tabs), [t for t in tabs if '\\PhysTBD{' in tab(t)]
+        # \ifPhysReboot: true only with a valid, non-pilot B2 reboot trial
+        rb = lambda f, **k: dict(gap('reboot', 8, None, 'A', 'REFRESH'), _file=f, **k)
+        write(dict(D, gaps=D['gaps'] + [rb('gaps-reboot-1500.jsonl', error='adb lost'), rb('gaps-pilot-reboot-1500.jsonl')]), gen)
+        assert '\\PhysRebootfalse' in tab('physical_macros.tex')
+        write(dict(D, gaps=D['gaps'] + [rb('gaps-reboot-1500.jsonl')]), gen)
+        assert '\\PhysReboottrue' in tab('physical_macros.tex')
+        # B10 with mtime trials only: the SMS cell is TBD, never 0/0
+        m, _ = write(dict(empty, pitfalls=[r for r in D['pitfalls'] if r['exp'] == 'mtime']), gen); w = {k: x for k, (_, x) in m.items()}
+        assert w['PhysSmsReuse'] is None and w['PhysMtimeSame'] == '0/1' and '\\PhysTBD{B10 sms trials}' in tab('tab_phys_pitfalls.tex')
         # B0 says the call log runs: call-log macros and B9 are computed (latest B0 record wins)
         add('b0', 'b0-probe-0600.jsonl', {'probe': 'user_info', 'ok': True, 'excluded_sources': ['sms', 'calllog'], 'detail': {}})
         add('b0', 'b0-probe-0700.jsonl', {'probe': 'user_info', 'ok': True, 'excluded_sources': ['sms'], 'detail': {}})
         m, _ = write(D, gen); v = {k: x for k, (_, x) in m.items()}
         assert v['PhysDeployCalllogFgMedian'] == '6\\,ms' and v['PhysBoundaryTrials'] == 3 and v['PhysSmsReuse'] == NR
         assert '\\PhysCalllogtrue' in tab('physical_macros.tex') and 'Call log' in tab('tab_phys_deploy.tex') and NR not in tab('tab_phys_boundary.tex')
+        assert '\\PhysSmsfalse' in tab('physical_macros.tex') and NR in tab('tab_phys_pitfalls.tex')
         # B0 excludes the call log: call-log cells and all of B9 print NR, never TBD; other sources are unaffected
         add('b0', 'b0-probe-0800.jsonl', {'probe': 'user_info', 'ok': True, 'excluded_sources': ['sms', 'calllog'], 'detail': {}})
         m, _ = write(D, gen); v = {k: x for k, (_, x) in m.items()}
@@ -559,6 +512,10 @@ def self_check():
         m, _ = write(bare, gen); v = {k: x for k, (_, x) in m.items()}
         assert v['PhysBoundaryTrials'] == NR and v['PhysDeployBgMedian'] is None and '\\PhysTBD{' not in tab('tab_phys_boundary.tex')
         assert '\\PhysTBD{' in tab('tab_phys_deploy.tex') and 'Call log: ' + NR in tab('tab_phys_deploy.tex')
+        # a later B0 runs every source: SMS and call log are computed again
+        add('b0', 'b0-probe-0900.jsonl', {'probe': 'user_info', 'ok': True, 'excluded_sources': [], 'detail': {}})
+        m, _ = write(D, gen); v = {k: x for k, (_, x) in m.items()}
+        assert v['PhysSmsReuse'] == '1/1' and v['PhysBoundaryTrials'] == 3 and '\\PhysSmstrue' in tab('physical_macros.tex') and '\\PhysCalllogtrue' in tab('physical_macros.tex')
     print('analyze_phys self-check ok')
 
 
@@ -567,5 +524,7 @@ if __name__ == '__main__':
         self_check()
     else:
         res = ROOT / 'artifact/results'
-        m, P = write({k: load(res, p) for k, p in FILES.items()}, ROOT / 'manuscript/generated')
-        print(json.dumps({'macros': len(m), 'tbd': sum(v is None for _, v in m.values()), 'pilot_records': P['records'], 'pilot_deploy': summary(P['deploy'])}))
+        D = {k: load(res, p) for k, p in FILES.items()}
+        m, P = write(D, ROOT / 'manuscript/generated')
+        print(json.dumps({'macros': len(m), 'tbd': sum(v is None for _, v in m.values()), 'runs': len({r.get('run_arn') for r in D['all']} - {None}),
+                          'pilot_records': P['records'], 'pilot_deploy': summary(P['deploy'])}))
