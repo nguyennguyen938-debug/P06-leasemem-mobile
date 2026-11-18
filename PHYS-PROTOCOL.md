@@ -1,9 +1,11 @@
 # PHYS-PROTOCOL: experiments on rented phones (AWS Device Farm)
 
-Status: **draft of 2026-11-18 (G4).** The AWS project exists and the three uploads of the first run passed Device
-Farm's checks (section 2); **no run has been scheduled and no device minute has been used.** Every cell that says
-*not yet probed* is filled from the first B0 run (`b0-probe-*.jsonl`), which is sent only when the user agrees; until
-then nothing here is a measurement of a phone. Owner: Experiment role. Readers: Theory (`06b-physical-setup.tex`,
+Status: **draft of 2026-11-18 (G4).** The AWS project exists and the uploads passed Device Farm's checks (section
+2). **Two runs so far, both B0, both stopped in setup before any probe, no data:** `e035a924` (user's agreement,
+15:57; install of the client, 0.53 device minutes) and `7a89358f` (Orchestrator's approval, 16:56; the driver could
+not read the mutator's answer through `run-as`, 1.00 device minute). Work paused on 2026-11-18 (section 2, "The
+first run"). Every cell that says *not yet probed* is filled from a B0 run that
+completes (`b0-probe-*.jsonl`); until then nothing here is a measurement of a phone. Owner: Experiment role. Readers: Theory (`06b-physical-setup.tex`,
 Evidence column), Results (`artifact/physical/analyze_phys.py`).
 
 Task codes (B0 to B13) are those of `PLAN-dien-thoai-that.md` section 5.
@@ -39,7 +41,10 @@ source (Contacts, SMS, call log, MediaStore, calendar, Settings, files).
 - **Project.** `mobisys-thu-nghiem`, `arn:aws:devicefarm:us-west-2:478825889366:project:83e7e695-4f56-4afc-bca4-cb04dea963ec`;
   the account's `maxJobTimeoutMinutes` is 150.
 - **Mode.** Custom test environment, test type `APPIUM_PYTHON` with the client APK as the app under test (Device Farm
-  installs it; the drivers install all four APKs themselves and, if Device Farm's copy was re-signed, replace it).
+  installs it; the drivers install all four APKs themselves). Device Farm installs a **re-signed** copy of the client
+  (seen in run `e035a924`: `INSTALL_FAILED_UPDATE_INCOMPATIBLE` on our install), so `provision()` uninstalls it for
+  user 0 and installs ours. The host's adb (1.0.39) reports an install failure on stderr; `lmdrv.adb` returns stderr
+  for `install` so the failure is seen.
   The test spec `artifact/aws/testspec.yml` (host `amazon_linux_2`) runs `physical/campaign.py`, which reaches the
   phone only through adb. There is no adb from the user's computer to a rented phone.
 - **Test package format** (checked by Device Farm at upload): a zip with `requirements.txt` (`pytest==8.3.4`; Device
@@ -54,7 +59,8 @@ source (Contacts, SMS, call log, MediaStore, calendar, Settings, files).
 | File | Type | Upload ARN (project prefix `arn:aws:devicefarm:us-west-2:478825889366:upload:83e7e695-4f56-4afc-bca4-cb04dea963ec/`) | Status |
 |---|---|---|---|
 | `LeaseMemClient-v4.apk` (SHA-256 `f378a764...`) | `ANDROID_APP` | `e7f7dd9d-b697-4c61-836f-9d142696bc85` | SUCCEEDED |
-| `p06-tests-20261118-153552.zip` (SHA-256 `10028192...`) | `APPIUM_PYTHON_TEST_PACKAGE` | `713e702a-099f-4113-9826-f83b0613abc0` | SUCCEEDED |
+| `p06-tests-20261118-160519.zip` (SHA-256 `85372213...`, `lmdrv` reads install errors on stderr) | `APPIUM_PYTHON_TEST_PACKAGE` | `7df021f7-a150-4037-98ef-59015c84dbbb` | SUCCEEDED, for the next run |
+| `p06-tests-20261118-153552.zip` (SHA-256 `10028192...`) | `APPIUM_PYTHON_TEST_PACKAGE` | `713e702a-099f-4113-9826-f83b0613abc0` | SUCCEEDED; used by run `e035a924`, superseded |
 | `p06-testspec-20261118-153424.yml` (SHA-256 `42eac2ae...`, same as `aws/testspec.yml`) | `APPIUM_PYTHON_TEST_SPEC` | `c396c072-a24b-4152-9e96-89fb5bfd6510` | SUCCEEDED |
 | two earlier packages | `APPIUM_PYTHON_TEST_PACKAGE` | `c47ce5bf-...` (no `test*` file), `eaddcbb8-...` (empty `requirements.txt`) | FAILED, left unused |
 
@@ -67,12 +73,22 @@ source (Contacts, SMS, call log, MediaStore, calendar, Settings, files).
   `WRITE_SMS`, grants, and the fixtures of all seven sources through the mutator app.
 - **Records carry the run's identity.** `device_instance` (`$DEVICEFARM_DEVICE_UDID`), `device_arn`
   (`$DEVICEFARM_DEVICE_ARN`) and `run_arn` (`$DEVICEFARM_RUN_ARN`), read by `lmdrv` on the test host.
-- **Minutes.** The cap is **300 device minutes for all of P06** (the user's decision); the account's free minutes
-  (995.88 left on 2026-11-18) are shared with other projects, and minutes beyond them cost 0.17 USD each. The ledger
-  `artifact/results/aws-minutes.jsonl` (append-only) gets a `scheduled` line per run (its timeout) and a `final` line
-  with Device Farm's `deviceMinutes` (total, metered, unmetered); `RUNLOG.md` gets the same numbers. A run counts with
-  its final total, or with its timeout while it has no final line. `run` refuses a run if used + reserved + its
-  timeout > 300, and when 2 runs are already active.
+- **Minutes: free minutes only, never the card** (the user's rule of 2026-11-18, 16:04, replacing the earlier
+  300-minute cap). Every experiment of the plan runs, paid only with the account's free minutes (1000 at first, 988.37
+  left at 16:10 on 2026-11-18, shared with other projects); minutes beyond them would cost 0.17 USD each on the card,
+  which is forbidden. Before a run, `run` reads `trialMinutes.remaining` (`get-account-settings`), subtracts what every
+  open run and remote access session of the whole account may still use (all projects through `list-projects`,
+  `list-runs`, `list-remote-access-sessions`: a run's timeout times its jobs, 150 when unknown; 150 per session) and
+  the new run's timeout, and refuses under 30. Metered minutes in `deviceMinutes` come out of the free minutes first
+  (checked by the Orchestrator on 2026-11-18: 7.31 + 0.21 metered minutes lowered `trialMinutes.remaining` from 995.88
+  to 988.37), so after a run `run` reads `trialMinutes.remaining` again: it must be > 0 and have dropped by at least
+  the run's metered minutes (0.1 tolerance, re-read for up to 3 min); otherwise it stops every open P06 run and exits
+  asking to tell the Orchestrator. All of these are read-only `aws devicefarm` calls. The ledger
+  `artifact/results/aws-minutes.jsonl` (append-only) gets a `scheduled` line per run (timeout, free minutes before), a
+  `final` line with Device Farm's `deviceMinutes` (total, metered, unmetered) and a `free` line with the check after
+  the run; `RUNLOG.md` gets the same numbers. At most 2 P06 runs at a time. The Device Farm project is shared with
+  other projects' runs (e.g. `pilot-p01-a36-android15`): the ledger and the parallel limit count only P06's runs
+  (named `p06-*`); the free-minute check counts everyone's.
 - **Stopping.** `run` watches every run: on an errored or failed result, on an overrun of its timeout by 10 min, on
   Ctrl-C, or when the runner itself ends before the run completes, it calls `stop-run` at once and reads the status
   back (STOPPING or COMPLETED), then records the minutes and fetches what exists.
@@ -83,16 +99,25 @@ python aws/package.py                                   # build/aws/p06-tests-<s
 python aws/devicefarm.py upload <file> <TYPE> [...]     # create-upload, PUT, wait for SUCCEEDED or FAILED (0 min)
 python aws/devicefarm.py plan B2 --allow-reboot         # prints --args="..." --estimate N per run (no AWS call)
 python aws/devicefarm.py run <TASK> --device pixel8 --app-arn <A> --package-arn <P> --spec-arn <S> [--args="..."] [--estimate N] [--timeout M]
-python aws/devicefarm.py minutes                        # used, reserved, left under 300
+python aws/devicefarm.py minutes                        # P06 minutes used, free minutes, what open runs may use
 python aws/devicefarm.py stop <run ARN>                 # stop-run and read the status back
 ```
 
-- **The first run (B0, short), not sent:** it runs only after the user agrees. Pixel 8, Android 15, about 15 min
-  expected, timeout 25 min: the 31 probes of section 5 (above all process and freezer state: `dumpsys activity`,
-  cgroup, `run-as`), the reboot probe last, and one full B2 no-gap trial. One command, from `artifact/`:
+- **The first run (B0, short).** Pixel 8, Android 15, about 15 min expected, timeout 25 min: the 31 probes of section
+  5 (above all process and freezer state: `dumpsys activity`, cgroup, `run-as`), the reboot probe last, and one full
+  B2 no-gap trial. Sent at 15:57 with the user's agreement as run `e035a924` (package `713e702a`): Device Farm's setup
+  passed, the test phase started at 08:57:38 UTC and `campaign.py` stopped 8 s later in `b0_setup` (install of the
+  client, see "Mode"); 0 probes, 0 trials, 0.53 device minutes (metered 0.21). Test spec output and logcat are kept in
+  `build/aws-b0-e035a924*`. The second run `7a89358f` (16:56, package `7df021f7`) got past the install (Device Farm's
+  copy uninstalled, all four APKs installed) and stopped 37 s into the test phase in `ensure_base()`:
+  `TimeoutError("mut ensure")`. Logcat shows the mutator received the broadcast and finished within 1 s, and its
+  receiver always writes `files/done_<id>`, so the driver's `run-as --user 0 org.leasemem.mut cat files/done_m1`
+  returned nothing; `run-as`'s own message was lost because `lmdrv` drops the stderr of shell commands. 1.00 device
+  minute (metered 0.69); logs in `build/aws-b0-7a89358f*`. Before the next B0 the timeout path must record why
+  `run-as` fails. The next B0 run is sent only with the Orchestrator's approval, from `artifact/`:
 
 ```
-python aws/devicefarm.py run B0 --device pixel8 --allow-reboot --estimate 15 --timeout 25 --app-arn arn:aws:devicefarm:us-west-2:478825889366:upload:83e7e695-4f56-4afc-bca4-cb04dea963ec/e7f7dd9d-b697-4c61-836f-9d142696bc85 --package-arn arn:aws:devicefarm:us-west-2:478825889366:upload:83e7e695-4f56-4afc-bca4-cb04dea963ec/713e702a-099f-4113-9826-f83b0613abc0 --spec-arn arn:aws:devicefarm:us-west-2:478825889366:upload:83e7e695-4f56-4afc-bca4-cb04dea963ec/c396c072-a24b-4152-9e96-89fb5bfd6510
+python aws/devicefarm.py run B0 --device pixel8 --allow-reboot --estimate 15 --timeout 25 --app-arn arn:aws:devicefarm:us-west-2:478825889366:upload:83e7e695-4f56-4afc-bca4-cb04dea963ec/e7f7dd9d-b697-4c61-836f-9d142696bc85 --package-arn arn:aws:devicefarm:us-west-2:478825889366:upload:83e7e695-4f56-4afc-bca4-cb04dea963ec/7df021f7-a150-4037-98ef-59015c84dbbb --spec-arn arn:aws:devicefarm:us-west-2:478825889366:upload:83e7e695-4f56-4afc-bca4-cb04dea963ec/c396c072-a24b-4152-9e96-89fb5bfd6510
 ```
 
   The same command was run against `aws/fake_aws.py` (requests checked against the Device Farm model of botocore):
@@ -126,8 +151,9 @@ Device Farm returns `$DEVICEFARM_LOG_DIR` as the Customer Artifacts zip. `device
 is never overwritten; a clash is reported in RUNLOG), then appends to `artifact/results/RUNLOG.md` one `AWS fetch` line
 (run ARN, files, records, records with `error`, device instances, clashes) followed by the run's own RUNLOG lines.
 `devicefarm.py run` also appends an `AWS schedule` line (task, `P06_ARGS`, device ARN, run ARN, timeout, estimate,
-minutes used and reserved), an `AWS stop` line whenever it stops a run, and an `AWS minutes` line (total, metered,
-unmetered device minutes of the run, and P06's running total against 300). The minutes of a run are those Device
+free minutes, what open runs may use, P06's total), an `AWS stop` line whenever it stops a run, an `AWS minutes` line
+(total, metered, unmetered device minutes of the run, and P06's running total) and an `AWS free minutes` line (before,
+after, metered, ok or MISMATCH). The minutes of a run are those Device
 Farm reports (`deviceMinutes`), also written to `artifact/results/aws-minutes.jsonl`.
 
 ## 4. Guard on rented phones, and the blocked personal phone
@@ -243,32 +269,30 @@ perm: about 104 min; unregister, bucket, kill: about 45 min), B5 in two runs of 
 other task in one run. A pilot B1 run (2 trials per condition) is about 7 min. These figures are before any free
 minutes the account may have, and they do not include reruns of failed runs.
 
-### Fitting the 300-minute cap
+### Full campaign within the free minutes
 
-The user capped P06 at 300 device minutes. With the emulator-paced estimates above (to be replaced by B0's timings),
-the core comes first, 15 % of the cap is kept for failed or cut runs, and the rest goes to B10, B9, B5 in that order
-of fit. Timeouts are what a run reserves while it runs (`run` checks used + reserved + timeout <= 300 before each run);
-the estimate is what it is expected to use.
+Every experiment of the plan runs (the user's rule of 2026-11-18, section 2), paid only with the account's free
+minutes: 988.37 left at 16:10 on 2026-11-18, shared with other projects. The table is still paced by the emulator:
+B0 has not completed (its first run stopped in setup, section 2), so neither the real seconds per trial nor the real
+preparation time of a run is known; it is redone from B0's numbers before B1. The Orchestrator approves each wave.
+Timeouts are what `run` holds against the free minutes while a run is open; the estimate is what a run is expected
+to use.
 
-| Block | Runs | Estimate, device min | Timeouts reserved | Status under the cap |
-|---|---|---|---|---|
-| B0 short (Pixel 8) | 1 | 15.0 | 25 | first; sent only with the user's agreement |
-| B1 pilot (S2) | 1 | 7.4 | 12 | core |
-| B1 | 1 | 33.8 | 44 | core |
-| B3 | 1 | 19.8 | 27 | core |
-| B2 with the reboot gap (only if B0's `reboot` probe has `survived: true`) | 2 | 149.7 | 129, 58 | core |
-| B4 | 1 | 6.5 | 11 | core |
-| **B0 and core** | 7 | **232.2** | | |
-| Reserve for failed or cut runs, 15 % of 300 | | **45.0** | | kept |
-| **Left** | | **22.8** | | |
-| B10 | 1 | 6.8 | 12 | fits (15.9 left) |
-| B9 | 1 | 23.9 | 32 | does not fit; fits if B2 runs without the reboot gap (126.3 instead of 149.7) or if the reserve is not used |
-| B5 | 2 | 135.6 | 109, 58 | cut: ten 10-min frozen holds alone exceed what is left; emulator result stays |
-| B13 (Galaxy S25), B6, B7 | 1 each | 42.6, 6.6, 6.6 | 55, 11, 11 | cut |
+| Wave | Runs (Pixel 8 unless named) | Estimate, device min | Timeouts |
+|---|---|---|---|
+| 0 | B0 again (fixed package) | 15.0 | 25 |
+| 1 (S2) | B1 pilot | 7.4 | 12 |
+| 2 | B1 and B3 in parallel | 33.8 + 19.8 = 53.6 | 44, 27 |
+| 3 | B2 in two runs in parallel (the reboot gap only if B0's `reboot` probe has `survived: true`), then B4 | 104 + 45 + 6.5 = 156.2 | 129, 58, 11 |
+| 4 | B9 and B10 in parallel | 23.9 + 6.8 = 30.7 | 32, 12 |
+| 5 | B5 in two parts of 5 holds, in parallel | 135.5 | 85, 85 |
+| 6 | B13 on the Galaxy S25, then B6 and B7 | 42.6 + 6.6 + 6.6 = 55.8 | 55, 11, 11 |
+| **All** | 14 runs | **454.2** | **597** |
 
-If B2 runs without the reboot gap, the core is 208.8, the left part 46.2: B10 and B9 both fit (15.5 left), B5 still
-does not. Once B0 has measured the real seconds per trial and the real preparation time of a run, `estimate.py` is
-rerun with them and this table is redone before B1; nothing beyond the core is scheduled without the new table.
+Against 988.37 free minutes this leaves about 534 if every run takes its estimate and about 391 if every run took
+its full timeout, before reruns of failed runs and before what other projects use. Without the reboot gap B2 is 126.3
+instead of 149.7. B0's first run used 0.53 device minutes. If the free minutes fall short of a wave (the check before
+each run), the wave is not sent and the Orchestrator decides what to cut, in the order of plan section 9.
 
 Seconds per trial behind the table (emulator, median):
 
@@ -283,8 +307,8 @@ Seconds per trial behind the table (emulator, median):
 | B9 | 4.1 | `raw/e3v2_boundary.jsonl` | `at`, device ms |
 | B10 SMS reuse, mtime | 0.1, 0.8 | `raw/e6_pitfalls.jsonl` | `res.t_pre`, device ms |
 
-Order (plan section 8, within the cap above): B0, pilot B1, then B1 and B3, B2 and B4 (two runs in parallel at most), B10, B9, B5, then
-B13, and B6, B7 if time allows.
+Order (plan section 8, waves above): B0, pilot B1, then B1 and B3, B2 and B4 (two P06 runs in parallel at most), B9
+and B10, B5, then B13, B6, B7.
 
 ## 7. JSONL schema
 

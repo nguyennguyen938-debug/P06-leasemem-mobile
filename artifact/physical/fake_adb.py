@@ -43,7 +43,9 @@ def lock():
 def load():
     if STATE.exists():
         return json.loads(STATE.read_text(encoding="utf-8"))
-    return {"cur": USER, "running": {}, "next_pid": 4000, "files": {}, "installed": [], "fgs": False, "fg_app": False,
+    # AWS: Device Farm has already installed its re-signed copy of the app under test (B0 run e035a924, 2026-11-18)
+    return {"cur": USER, "running": {}, "next_pid": 4000, "files": {}, "installed": [PKGS["LeaseMemClient-v4"]] if AWS else [],
+            "resigned": [PKGS["LeaseMemClient-v4"]] if AWS else [], "fgs": False, "fg_app": False,
             "frozen": False, "dc": {}, "sync": "none", "settings": {}, "bucket": {}, "grants": {}, "role": None,
             "battery_override": None, "battery_calls": 0, "deep": "ACTIVE", "awake": True, "clock_ms": 0, "back_after": 0}
 
@@ -266,7 +268,8 @@ def one(s, c):
         if sub == "clear":
             return "Success"
         if sub == "uninstall":
-            s["installed"] = [p for p in s["installed"] if p != rest.strip()]; return "Success"
+            s["installed"] = [p for p in s["installed"] if p != rest.strip()]
+            s["resigned"] = [p for p in s.get("resigned", []) if p != rest.strip()]; return "Success"
         return ""
     m = re.match(r"appops (set|get) --user %d (\S+) (\S+)" % USER, c)
     if m:
@@ -379,9 +382,14 @@ def main(argv):
         elif argv[0] == "install":
             entry["violation"] = None if argv[1:3] == ["--user", str(USER)] else "install without --user %d" % USER
             name = Path(argv[-1]).stem
-            if name in PKGS and PKGS[name] not in s["installed"]:
-                s["installed"].append(PKGS[name])
-            out = "Performing Streamed Install\nSuccess"
+            if PKGS.get(name) in s.get("resigned", []):   # like Device Farm's adb 1.0.39: the failure goes to stderr
+                out, rc = "Performing Streamed Install", 1
+                err = ("adb: failed to install %s: Failure [INSTALL_FAILED_UPDATE_INCOMPATIBLE: Existing package %s "
+                       "signatures do not match newer version; ignoring!]\n" % (argv[-1], PKGS[name]))
+            else:
+                if name in PKGS and PKGS[name] not in s["installed"]:
+                    s["installed"].append(PKGS[name])
+                out = "Performing Streamed Install\nSuccess"
         elif argv[0] == "forward":
             ensure_server(int(argv[1].split(":")[1]))
         elif argv[0] == "reboot":

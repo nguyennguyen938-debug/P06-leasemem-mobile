@@ -249,8 +249,11 @@ class Dev:
                     raise GuardError("refused on the personal phone (%s)" % why)
         if a0 in ("root", "unroot", "reboot"):
             self._root = None
-        return subprocess.run(ADB_CMD + ["-s", self.s] + list(args), capture_output=True, text=True,
-                              encoding="utf-8", errors="replace", timeout=timeout).stdout
+        r = subprocess.run(ADB_CMD + ["-s", self.s] + list(args), capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=timeout)
+        # adb install reports a failure (e.g. INSTALL_FAILED_UPDATE_INCOMPATIBLE) on stderr: the Device Farm host's adb
+        # 1.0.39 did so in B0 run e035a924, and provision() never saw the reason
+        return r.stdout + (r.stderr if a0 == "install" else "")
 
     def u(self, cmd):
         """Add --user <test user> to a user-scoped command: 'am start -n x' -> 'am start --user 10 -n x'."""

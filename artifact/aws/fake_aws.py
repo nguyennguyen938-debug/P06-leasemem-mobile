@@ -6,14 +6,18 @@ It accepts only `aws devicefarm <op> [--cli-input-json J] --profile devicefarm -
 Device Farm service model shipped with botocore (member names, required members, types, enum values; the model is
 read from the installed botocore data files, offline), and answers with fixed responses that keep a little state in
 $FAKE_AWS_STATE: uploads (served through a local PUT URL given by $FAKE_AWS_PUT_URL), runs that complete after two
-get-run polls, stop-run, list-artifacts pointing at $FAKE_AWS_ARTIFACT_ZIP. Every call is appended to $FAKE_AWS_LOG.
+get-run polls, stop-run, list-artifacts pointing at $FAKE_AWS_ARTIFACT_ZIP, the account's free minutes (state "free",
+988.37 at first; a completing run takes its metered minutes from them), a second project ("other_runs") and remote
+access sessions ("sessions"). Every call is appended to $FAKE_AWS_LOG.
 Fault injection: FAKE_AWS_EXPIRED=1 answers like an expired login; FAKE_AWS_RESULT=ERRORED makes a running run report
-that result; FAKE_AWS_UPLOAD_FAIL=<name suffix> makes that upload FAILED.
+that result; FAKE_AWS_UPLOAD_FAIL=<name suffix> makes that upload FAILED; FAKE_AWS_METERED=<min> is the metered part
+of a completed run (default 0); FAKE_AWS_CARD=1 bills those metered minutes to the card (free minutes do not drop).
 """
 import gzip, json, os, re, sys, time
 from pathlib import Path
 
 PROJECT = "arn:aws:devicefarm:us-west-2:478825889366:project:83e7e695-4f56-4afc-bca4-cb04dea963ec"
+OTHER = "arn:aws:devicefarm:us-west-2:478825889366:project:00000000-0000-0000-0000-0000000000p1"   # another project
 STATE = Path(os.environ.get("FAKE_AWS_STATE", "fake-aws-state.json"))
 LOG = Path(os.environ.get("FAKE_AWS_LOG", "fake-aws-log.jsonl"))
 
@@ -84,11 +88,20 @@ def answer(op, req, st):
         failed = bool(bad) and u["name"].endswith(bad)
         return {"upload": {"arn": req["arn"], "name": u["name"], "type": u["type"], "status": "FAILED" if failed else "SUCCEEDED",
                            **({"metadata": '{"errorMessage": "fake validation failure"}'} if failed else {})}}
+    if op == "GetAccountSettings":
+        return {"accountSettings": {"awsAccountNumber": "478825889366", "maxJobTimeoutMinutes": 150,
+                                    "trialMinutes": {"total": 1000.0, "remaining": st.get("free", 988.37)}}}
+    if op == "ListProjects":
+        return {"projects": [{"arn": PROJECT, "name": "mobisys-thu-nghiem"}, {"arn": OTHER, "name": "other"}]}
+    if op == "ListRemoteAccessSessions":
+        return {"remoteAccessSessions": st.get("sessions", {}).get(req["arn"], [])}
     if op == "ListRuns":
-        return {"runs": [dict(arn=a, **r) for a, r in st["runs"].items()]}
+        runs = st["runs"] if req["arn"] == PROJECT else st.get("other_runs", {})
+        return {"runs": [dict(arn=a, **r) for a, r in runs.items()]}
     if op == "ScheduleRun":
         st["n"] += 1; arn = "arn:aws:devicefarm:us-west-2:478825889366:run:83e7e695-4f56-4afc-bca4-cb04dea963ec/%08d" % st["n"]
-        st["runs"][arn] = {"name": req["name"], "status": "SCHEDULING", "polls": 0, "stopped": False}
+        st["runs"][arn] = {"name": req["name"], "status": "SCHEDULING", "polls": 0, "stopped": False,
+                           "jobTimeoutMinutes": req["executionConfiguration"]["jobTimeoutMinutes"], "totalJobs": 1}
         return {"run": {"arn": arn, "name": req["name"], "status": "SCHEDULING"}}
     if op == "GetRun":
         r = st["runs"][req["arn"]]; r["polls"] += 1
@@ -100,7 +113,12 @@ def answer(op, req, st):
             r.update(status="RUNNING", result=os.environ.get("FAKE_AWS_RESULT", "PENDING"))
         out = {k: v for k, v in r.items() if k in ("name", "status", "result")}
         if r["status"] == "COMPLETED":
-            out["deviceMinutes"] = {"total": 7.5, "metered": 0.0, "unmetered": 7.5}
+            m = float(os.environ.get("FAKE_AWS_METERED", "0"))
+            out["deviceMinutes"] = {"total": 7.5, "metered": m, "unmetered": 7.5 - m}
+            if not r.get("billed"):          # metered minutes come out of the free minutes, unless billed to the card
+                r["billed"] = True
+                if not os.environ.get("FAKE_AWS_CARD"):
+                    st["free"] = round(st.get("free", 988.37) - m, 2)
         return {"run": dict(arn=req["arn"], **out)}
     if op == "StopRun":
         r = st["runs"][req["arn"]]

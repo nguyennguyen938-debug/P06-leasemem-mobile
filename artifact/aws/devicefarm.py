@@ -7,10 +7,16 @@ printed or copied); files go up and down through the presigned URLs that `aws de
 A request is passed as `--cli-input-json`, so its member names are the Device Farm API names. If the CLI reports an
 expired login, the command stops and asks the user to run `aws login --profile devicefarm --region us-west-2`.
 
-Minutes: the P06 cap is CAP_MIN = 300 device minutes in total. artifact/results/aws-minutes.jsonl (append-only) gets
-one "scheduled" line per run (its execution timeout) and one "final" line with Device Farm's deviceMinutes (total,
-metered, unmetered). A run counts with its final total, or with its timeout while it has no final line. `run`
-refuses a run if used + reserved + its timeout > CAP_MIN. The timeout is set close to the estimate (at most 150 min).
+Minutes: only the account's free minutes may be used, never minutes charged to the card (the user's rule of
+2026-11-18, replacing the 300-minute cap). Before a run, `run` reads trialMinutes.remaining (get-account-settings),
+subtracts what every open run and remote access session of the whole account may still use (all projects: a run's
+timeout times its jobs, 150 when unknown; 150 per session) and the new run's timeout; under FREE_MARGIN_MIN = 30 it
+refuses. After a run it reads trialMinutes.remaining again: metered minutes come out of the free minutes first, so it
+must still be > 0 and have dropped by at least the run's metered minutes; if not, every open P06 run is stopped and
+`run` exits asking to tell the Orchestrator. artifact/results/aws-minutes.jsonl (append-only) gets one "scheduled"
+line per run (its execution timeout, free minutes before), one "final" line with Device Farm's deviceMinutes (total,
+metered, unmetered) and one "free" line with that check. The timeout is set close to the estimate (at most 150 min).
+At most MAX_PARALLEL P06 runs (named p06-*) at a time; other projects' runs in the shared project do not count.
 Every run is watched: when it errors, is interrupted (Ctrl-C), overruns its timeout, or the runner ends before it
 completes, `stop-run` is called at once and the status is read back (STOPPING or COMPLETED).
 
@@ -23,7 +29,7 @@ Commands
           [--args "..."]             schedule one run, watch it, stop it if needed, record minutes, fetch
   watch RUN_ARN [--timeout M]        watch a run (stops it on Ctrl-C, error or overrun) and record its minutes
   fetch RUN_ARN                      Customer Artifacts into artifact/results/physical-<date>/ (create-only)
-  minutes                            the minute ledger: used, reserved by open runs, left under the cap
+  minutes                            P06's ledger, the account's free minutes and what open runs may still use
   stop RUN_ARN                       stop-run and read the status back
   --selftest                         offline check of plan splitting, timeouts and artifact extraction
 Devices: pixel8 (main), pixel9 (backup), s25 (B13), or a device ARN.
@@ -41,7 +47,8 @@ PROJECT_ARN = "arn:aws:devicefarm:us-west-2:478825889366:project:83e7e695-4f56-4
 DEVICES = {"pixel8": "arn:aws:devicefarm:us-west-2::device:DE5BD47FF3BD42C3A14BF7A6EFB1BFE7",    # Pixel 8, Android 15
            "pixel9": "arn:aws:devicefarm:us-west-2::device:BCDA2B2CE0B54ABEA1F8B34A54A2752C",    # Pixel 9, Android 15
            "s25": "arn:aws:devicefarm:us-west-2::device:69977E819F314BD481F194580E8EFC16"}       # Galaxy S25, B13
-MAX_TIMEOUT, CAP_MIN, MAX_PARALLEL, USD_PER_MIN = 150, 300.0, 2, estimate.USD_PER_MIN
+MAX_TIMEOUT, FREE_MARGIN_MIN, MAX_PARALLEL, USD_PER_MIN = 150, 30.0, 2, estimate.USD_PER_MIN
+FREE_TOL_MIN, FREE_POLLS, FREE_POLL_S = 0.1, 6, 30    # after a run: free-minute drop >= metered - tolerance, re-read up to 3 min
 # Python custom environment with the client APK as the app under test; the drivers also install every APK themselves
 TEST_TYPE, PKG_TYPE, SPEC_TYPE, APP_TYPE = "APPIUM_PYTHON", "APPIUM_PYTHON_TEST_PACKAGE", "APPIUM_PYTHON_TEST_SPEC", "ANDROID_APP"
 ACTIVE = {"PENDING", "PENDING_CONCURRENCY", "PENDING_DEVICE", "PROCESSING", "SCHEDULING", "PREPARING", "RUNNING", "STOPPING"}
@@ -87,6 +94,50 @@ def minutes_used():
     used = sum((r.get("device_minutes") or {}).get("total") or 0.0 for r in final.values())
     reserved = sum(r["timeout_min"] for r in rows if r.get("kind") == "scheduled" and r["run_arn"] not in final)
     return used, reserved
+
+
+# ---------------------------------------------------------------- free minutes (read-only aws devicefarm calls)
+def free_minutes():
+    return float(aws("get-account-settings")["accountSettings"]["trialMinutes"]["remaining"])
+
+
+def open_spend():
+    """[(name, minutes)] that the account's open runs and remote access sessions may still use, over all projects
+    (other projects share the free minutes): a run's timeout times its jobs (150 when unknown), 150 per session."""
+    out = []
+    for p in aws("list-projects")["projects"]:
+        for r in aws("list-runs", arn=p["arn"])["runs"]:
+            if r["status"] in ACTIVE:
+                out.append((r.get("name") or r["arn"], (r.get("jobTimeoutMinutes") or MAX_TIMEOUT) * max(1, r.get("totalJobs") or 1)))
+        for s in aws("list-remote-access-sessions", arn=p["arn"])["remoteAccessSessions"]:
+            if s["status"] in ACTIVE:
+                out.append((s.get("name") or s["arn"], MAX_TIMEOUT))
+    return out
+
+
+def stop_open_p06(why):
+    for r in aws("list-runs", arn=PROJECT_ARN)["runs"]:
+        if r["status"] in ACTIVE and r.get("name", "").startswith("p06-"):
+            stop_and_check(r["arn"], why)
+
+
+def check_free(run_arn, before, r):
+    """After a run: metered minutes come out of the free minutes first, so the free minutes must still be > 0 and
+    have dropped by at least this run's metered minutes (others' runs can only make the drop larger). Otherwise
+    minutes may be going to the card: stop every open P06 run. Returns True when the check holds."""
+    metered = dm(r)["metered"]
+    for i in range(FREE_POLLS):            # the account figure may lag the run's end
+        after = free_minutes(); ok = after > 0 and before - after >= metered - FREE_TOL_MIN
+        if ok:
+            break
+        time.sleep(FREE_POLL_S)
+    ledger_add({"kind": "free", "run_arn": run_arn, "before": before, "after": after, "metered": metered, "ok": ok})
+    append_runlog("- %s AWS free minutes %s: %.2f before, %.2f after, run metered %.2f: %s" % (
+        time.strftime("%H:%M"), run_arn, before, after, metered, "ok" if ok else "MISMATCH, every open P06 run stopped"))
+    print("free minutes %.2f -> %.2f, metered %.2f: %s" % (before, after, metered, "ok" if ok else "MISMATCH"), flush=True)
+    if not ok:
+        stop_open_p06("free minutes mismatch")
+    return ok
 
 
 # ---------------------------------------------------------------- plan (offline)
@@ -233,9 +284,9 @@ def record_final(run_arn, r, task=None):
     d = dm(r); ledger_add({"kind": "final", "run_arn": run_arn, "task": task, "status": r["status"], "result": r.get("result"),
                            "device_minutes": d})
     used, reserved = minutes_used()
-    append_runlog("- %s AWS minutes %s: total %.2f, metered %.2f, unmetered %.2f device min; P06 used %.1f of %.0f" % (
-        time.strftime("%H:%M"), run_arn, d["total"], d["metered"], d["unmetered"], used, CAP_MIN))
-    print("device minutes %.2f (metered %.2f, unmetered %.2f); P06 used %.1f of %.0f" % (d["total"], d["metered"], d["unmetered"], used, CAP_MIN), flush=True)
+    append_runlog("- %s AWS minutes %s: total %.2f, metered %.2f, unmetered %.2f device min; P06 used %.1f in total" % (
+        time.strftime("%H:%M"), run_arn, d["total"], d["metered"], d["unmetered"], used))
+    print("device minutes %.2f (metered %.2f, unmetered %.2f); P06 used %.1f in total" % (d["total"], d["metered"], d["unmetered"], used), flush=True)
 
 
 def fetch(run_arn):
@@ -266,12 +317,16 @@ def cmd_run(a):
     timeout = a.timeout or timeout_for(est)
     if timeout > MAX_TIMEOUT:
         raise SystemExit("timeout %d > %d min" % (timeout, MAX_TIMEOUT))
-    used, reserved = minutes_used()
-    if used + reserved + timeout > CAP_MIN:
-        raise SystemExit("cap: %.1f used + %.0f reserved + %d timeout > %.0f device min; ask the user" % (used, reserved, timeout, CAP_MIN))
-    active = [r for r in aws("list-runs", arn=PROJECT_ARN)["runs"] if r["status"] in ACTIVE]
+    # the project is shared with other projects' runs (e.g. pilot-p01-*): only P06's runs (named p06-*) count
+    active = [r for r in aws("list-runs", arn=PROJECT_ARN)["runs"] if r["status"] in ACTIVE and r.get("name", "").startswith("p06-")]
     if len(active) >= MAX_PARALLEL:
-        raise SystemExit("%d run(s) already active; at most %d in parallel" % (len(active), MAX_PARALLEL))
+        raise SystemExit("%d P06 run(s) already active; at most %d in parallel" % (len(active), MAX_PARALLEL))
+    free, held = free_minutes(), open_spend()
+    left = free - sum(m for _, m in held) - timeout
+    if left < FREE_MARGIN_MIN:          # never let a run reach minutes charged to the card
+        raise SystemExit("free minutes: %.2f remaining - %.0f that %d open run(s) or session(s) may use - %d timeout = %.1f < %.0f; "
+                         "not sent, tell the Orchestrator" % (free, sum(m for _, m in held), len(held), timeout, left, FREE_MARGIN_MIN))
+    used, _ = minutes_used()
     p06_args = " ".join(x for x in [args, "--budget-min %d" % max(1, timeout - 4)] if x)
     name = "p06-%s-%s" % (a.task, time.strftime("%Y%m%d-%H%M%S"))
     run = aws("schedule-run", projectArn=PROJECT_ARN, appArn=a.app_arn, name=name,
@@ -280,9 +335,9 @@ def cmd_run(a):
               executionConfiguration={"jobTimeoutMinutes": timeout, "videoCapture": False},
               configuration={"environmentVariables": [{"name": "P06_TASK", "value": a.task}, {"name": "P06_ARGS", "value": p06_args}]})["run"]
     ledger_add({"kind": "scheduled", "run_arn": run["arn"], "task": a.task, "args": p06_args, "device_arn": device,
-                "timeout_min": timeout, "estimate_min": est})
-    append_runlog("- %s AWS schedule %s `%s` on %s: %s; timeout %d min (estimate %.0f); P06 used %.1f + reserved %.0f of %.0f" % (
-        time.strftime("%H:%M"), a.task, p06_args, device, run["arn"], timeout, est, used, reserved + timeout, CAP_MIN))
+                "timeout_min": timeout, "estimate_min": est, "free_before": free})
+    append_runlog("- %s AWS schedule %s `%s` on %s: %s; timeout %d min (estimate %.0f); free minutes %.2f, open runs may use %.0f; P06 used %.1f" % (
+        time.strftime("%H:%M"), a.task, p06_args, device, run["arn"], timeout, est, free, sum(m for _, m in held), used))
     print("scheduled", run["arn"], "timeout", timeout, flush=True)
     r = None
     try:
@@ -292,7 +347,11 @@ def cmd_run(a):
             stop_and_check(run["arn"], "runner ended before completion")
             r = aws("get-run", arn=run["arn"])["run"]
         record_final(run["arn"], r, a.task)
+    ok = check_free(run["arn"], free, r)
     fetch(run["arn"])
+    if not ok:
+        raise SystemExit("free minutes did not drop by the run's metered minutes (or reached 0): every open P06 run was "
+                         "stopped; tell the Orchestrator now")
 
 
 def cmd_watch(a):
@@ -307,8 +366,10 @@ def cmd_watch(a):
 
 
 def cmd_minutes(a):
-    used, reserved = minutes_used()
-    print("P06 device minutes: used %.1f, reserved by open runs %.0f, left %.1f of %.0f" % (used, reserved, CAP_MIN - used - reserved, CAP_MIN))
+    used, _ = minutes_used(); free, held = free_minutes(), open_spend()
+    print("P06 device minutes used %.1f; account free minutes %.2f; open runs and sessions may use %.0f (%s); "
+          "a new run needs free - that - its timeout >= %.0f" % (used, free, sum(m for _, m in held),
+                                                                  ", ".join("%s %.0f" % x for x in held) or "none", FREE_MARGIN_MIN))
 
 
 def selftest():
