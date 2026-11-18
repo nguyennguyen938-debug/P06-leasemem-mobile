@@ -144,8 +144,12 @@ def one(s, c):
         p = m.group(1); pid = s["running"].get(p)
         return "  *APP* UID %d ProcessRecord{a1 %s:%s/u10a123}\n    isFreezeExempt=false isPendingFreeze=false isFrozen=%s\n" % (
             UID, pid, p, "true" if s["frozen"] else "false") if pid else ""
-    if c.startswith("dumpsys activity settings"):
-        return "  freeze_debounce_timeout=%s" % s["dc"].get("activity_manager_native_boot/freeze_debounce_timeout", "600000")
+    if c.startswith("dumpsys activity settings"):        # a unit with the freezer off until cached_apps_freezer=enabled
+        on = s["settings"].get("cached_apps_freezer") == "enabled"
+        if "grep use_freezer" in c:
+            return "  use_freezer=%s" % ("true" if on else "false")
+        return "  use_freezer=%s\n  freeze_debounce_timeout=%s" % ("true" if on else "false",
+                                                                 s["dc"].get("activity_manager_native_boot/freeze_debounce_timeout", "600000"))
     if c.startswith("dumpsys activity services"):
         return "  isForeground=true" if s["fgs"] else ""
     if c.startswith("dumpsys -t "):                     # lmdrv.DUMP_PKG: dumpsys's own timeout, stderr folded in

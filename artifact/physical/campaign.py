@@ -85,6 +85,12 @@ def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=No
                           "--out-dir", str(out), "--suffix=" + sfx], [], f)]
     if task == "B7":
         return [("continuous", [PY, P + "/b7_continuous.py", serial, o("continuous"), "--n", str(n(30))], [], o("continuous"))]
+    if task == "B1FD":   # B1 bg_freezer diagnosis (run 106d9bc0 never froze): 2 trials per launch variant, Contacts
+        return [("freeze-diag", [PY, str(A / "followup/deployment.py"), serial, "--out", o("diag-b1-freeze"),
+                                 "--source", "contacts", "--freeze-diag", "2"], [], o("diag-b1-freeze"))]
+    if task == "B1F":    # B1 bg_freezer only (rerun after the diagnosis), Contacts
+        return [("deploy-contacts-freezer", [PY, str(A / "followup/deployment.py"), serial, "--out", o("deploy-contacts-freezer"),
+                                             "--source", "contacts", "--modes", "bg_freezer", "--n", str(n(20))], [], o("deploy-contacts-freezer"))]
     if task == "B9":     # the effect is a call-log row, or a Contacts Data row where the call log is excluded (AWS)
         return [
             ("boundary", [PY, D + "/e3v2_boundary.py", serial, str(n(100)), sd(2611901), o("boundary")], [stop_fgs], o("boundary")),
@@ -121,7 +127,8 @@ def snapshot(d):
     return {"debounce": g("device_config get activity_manager_native_boot freeze_debounce_timeout"),
             "sync_disabled": g("device_config get_sync_disabled_for_tests"),
             "settings": {k: g("settings get global " + k) for k in ("lm_mode", "lm_target")},
-            "buckets": {p: g(d.u("am get-standby-bucket %s" % p)) for p in PKGS}, "t": time.time()}
+            "buckets": {p: g(d.u("am get-standby-bucket %s" % p)) for p in PKGS}, "t": time.time(),
+            **({"freezer_setting": g("settings get global cached_apps_freezer")} if d.aws else {})}
 
 
 def restore(d, snap):
@@ -148,6 +155,10 @@ def restore(d, snap):
         v = v if v not in ("",) else "null"
         todo.append(("settings delete global %s" % k if v == "null" else "settings put global %s %s" % (k, v),
                      "settings get global %s" % k, is_(v), v))
+    if d.aws and "freezer_setting" in snap:   # campaign turned the freezer on where the unit had it off
+        fs = snap["freezer_setting"] if snap["freezer_setting"] not in ("",) else "null"
+        todo.append(("settings delete global cached_apps_freezer" if fs == "null" else "settings put global cached_apps_freezer %s" % fs,
+                     "settings get global cached_apps_freezer", is_(fs), fs))
     if d.aws:   # B10 moves the clock on AWS phones (cmd alarm set-time): automatic time is always back on at the end
         todo.append(("settings put global auto_time 1", "settings get global auto_time", is_("1"), "1"))
     for p, b in snap["buckets"].items():
@@ -288,6 +299,11 @@ def main():
             sys.path.insert(0, str(A / "physical")); import b0_setup
             out.mkdir(parents=True, exist_ok=True)
             rec = b0_setup.setup(d, out, strict=a.task != "B0")   # B0 probes even if the fixtures fail
+            if d.aws:   # the freezer is off on some Device Farm units (B1 runs 106d9bc0, 5ec38290)
+                fz = d.freezer_on()
+                runlog(out_root, "- %s %s freezer on %s: use_freezer %s -> %s (cached_apps_freezer was %r)%s" % (
+                    time.strftime("%H:%M"), a.task, meta.get("device_instance"), fz["use_freezer_before"], fz["use_freezer_after"],
+                    fz["setting_before"], "; turned on by campaign.py" if fz["turned_on"] else ""))
             runlog(out_root, "- %s %s setup: `campaign.py %s` on %s (`%s`, user %s, excluded %s, foreign rows %s); APK sha256 %s" % (
                 time.strftime("%H:%M"), a.task, a.task, meta["device"], meta["fingerprint"], d.user, sorted(d.excluded),
                 rec["foreign_before"], apk))

@@ -101,7 +101,7 @@ BANNED = re.compile(r"batterystats\s+--reset|/sdcard|/storage/|/data/|" + _AT + 
     r"pm\s+(create-user|remove-user|disable\S*|hide|suspend|set-user-restriction|reset-permissions)\b"
     r"|pm\s+uninstall\s+(?!--user\s+\d+\s+org\.leasemem\.\w+\s*$)|am\s+(switch-user|stop-user|start-user)\b"
     r"|locksettings\b|svc\b|su\b|setprop\b|reboot\b|wipe\b|recovery\b"
-    r"|content\s+(insert|update|delete)\b|settings\s+(?!(get|put|delete)\s+global\s+(lm_mode|lm_target|auto_time)\b)"
+    r"|content\s+(insert|update|delete)\b|settings\s+(?!(get|put|delete)\s+global\s+(lm_mode|lm_target|auto_time|cached_apps_freezer)\b)"
     r"|device_config\s+(?!((get|put|delete)\s+activity_manager_native_boot\s+freeze_debounce_timeout|(set|get)_sync_disabled_for_tests)\b))")
 # pm clear: refused everywhere except one exact command in AWS mode, clearing the Contacts provider of user 0 on a
 # wiped rented phone (B0 probe; the Contacts reset of revision/supplement.py). Never on a personal phone.
@@ -109,13 +109,14 @@ PM_CLEAR_AWS_OK = re.compile(r"pm clear --user 0 com\.android\.providers\.contac
 # run-as without --user: refused everywhere except this read-only probe in AWS mode (user 0 is run-as's default), run
 # once by runas_diag() after an unanswered app command, to tell a failing `--user` option from a failing run-as.
 RUNAS_ID_AWS_OK = re.compile(r"run-as org\.leasemem\.\w+ id( 2>)?\s*")
-# Clock changes: refused on a personal phone; allowed in AWS mode, where B0 probes whether the shell can set the time.
-CLOCK = re.compile(r"\bauto_time|" + _AT + r"(date\s+(-s|@|\d)|cmd\s+(alarm|time)\b)")
+# Clock changes, and the cached-apps freezer switch: refused on a personal phone; allowed in AWS mode, where B0 probes
+# whether the shell can set the time and campaign.py turns the freezer on where a rented unit has it off.
+CLOCK = re.compile(r"\bauto_time|\bcached_apps_freezer\b|" + _AT + r"(date\s+(-s|@|\d)|cmd\s+(alarm|time)\b)")
 DUMPSYS_OK = [re.compile(p + r"\s*") for p in (
     r"battery( unplug| reset)?( \| grep .*)?", r"deviceidle (get (deep|light)|force-idle( deep)?|force-inactive|unforce|step( deep)?)",
     r"activity settings( \| grep .*)?", r"activity (processes|services) org\.leasemem\S*", r"(-t \d+ )?(package|meminfo) org\.leasemem\S*( 2>)?",
     r"batterystats --charged org\.leasemem\S*", r"power \| grep -m1 mWakefulness=", r"voiceinteraction \| grep .*",
-    r"user \| awk .*")]
+    r"user \| awk .*", r"activity oom \| grep -m3 leasemem")]
 
 
 class GuardError(RuntimeError):
@@ -380,6 +381,19 @@ class Dev:
             else:
                 self.app_sh(pkg, "kill -9 %s" % p)
         return p
+
+    def freezer_on(self):
+        """AWS only. Some Device Farm Pixel 8 units run with the cached-apps freezer off (`use_freezer=false` in
+        `dumpsys activity settings`; B1 runs 106d9bc0, 5ec38290), others on (B0 runs, diagnosis run 270a7324). Turn it on
+        through the global setting the freezer observes at runtime (no reboot, which Device Farm forbids) and read it
+        back. campaign.py restores the setting from its snapshot at the end of the run."""
+        use = lambda: (re.findall(r"use_freezer=(\w+)", self.sh("dumpsys activity settings | grep use_freezer")) or ["?"])[0]
+        rec = {"use_freezer_before": use(), "setting_before": self.sh("settings get global cached_apps_freezer").strip()}
+        if rec["use_freezer_before"] != "true":
+            self.sh("settings put global cached_apps_freezer enabled"); time.sleep(2)
+        rec["use_freezer_after"] = use()
+        rec["turned_on"] = rec["use_freezer_before"] != "true" and rec["use_freezer_after"] == "true"
+        return rec
 
     def frozen(self, pkg=CPKG):
         """'1'/'0' cached-app-freezer state, 'dead' if no process, '?' if unreadable. Reads the cgroup v2 freeze file

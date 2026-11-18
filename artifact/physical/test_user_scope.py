@@ -44,6 +44,11 @@ EMULATOR_ONLY = [
     ("physical/campaign.py", "settings delete global %s", "restore: keys from the fixed tuple (lm_mode, lm_target)"),
     ("physical/campaign.py", "settings put global %s %s", "restore: keys from the fixed tuple (lm_mode, lm_target)"),
     ("physical/campaign.py", "settings put global auto_time 1", "restore: only if d.aws (the runtime guard refuses clock settings outside AWS mode)"),
+    ("physical/campaign.py", "settings delete global cached_apps_freezer", "restore: only if d.aws (freezer switch, AWS mode only in the runtime guard)"),
+    ("physical/campaign.py", "settings put global cached_apps_freezer %s", "restore: only if d.aws"),
+    ("physical/campaign.py", "settings get global cached_apps_freezer", "snapshot and restore read-back: only if d.aws"),
+    ("driver/lmdrv.py", "settings get global cached_apps_freezer", "Dev.freezer_on: called only if d.aws"),
+    ("driver/lmdrv.py", "settings put global cached_apps_freezer enabled", "Dev.freezer_on: called only if d.aws"),
     ("physical/campaign.py", "settings get global auto_time", "restore read-back: only if d.aws"),
     ("physical/campaign.py", "settings get global ", "snapshot: keys from the fixed tuple (lm_mode, lm_target)"),
 ]
@@ -127,7 +132,8 @@ def aws_examples():
                "date @1700000000", "settings put global auto_time 0", "cmd alarm set-time 5",
                "cmd role add-role-holder --user 0 android.app.role.SMS org.leasemem.mut 0", "pm uninstall --user 0 org.leasemem.client",
                "content query --user 0 --uri content://sms --projection _id", "pm clear --user 0 com.android.providers.contacts",
-               "run-as org.leasemem.mut id 2>&1", "run-as org.leasemem.client id"]
+               "run-as org.leasemem.mut id 2>&1", "run-as org.leasemem.client id", "settings put global cached_apps_freezer enabled",
+               "settings get global cached_apps_freezer"]
     refused = ["am start -W -n x/.Main", "am start --user 10 -n x/.Main", "pm clear org.leasemem.client", "dumpsys batterystats --reset",
                "pm clear --user 0 org.leasemem.client", "pm clear com.android.providers.contacts",
                "pm clear --user 10 com.android.providers.contacts", "pm clear --user 0 com.android.providers.contacts; pm clear --user 0 com.x",
@@ -136,7 +142,7 @@ def aws_examples():
     bad = [c for c in allowed if v(c)] + [c for c in refused if not v(c)]
     # outside AWS mode the Contacts clear stays banned for any user
     personal = [c for c in ("pm clear --user 10 com.android.providers.contacts", "pm clear --user 0 com.android.providers.contacts",
-                            "run-as org.leasemem.mut id 2>&1")
+                            "run-as org.leasemem.mut id 2>&1", "settings put global cached_apps_freezer enabled")
                 if not lmdrv.phone_violation(c, 10) or not lmdrv.phone_violation(c, 0)]
     return ["AWS guard example misjudged: %r -> %s" % (c, v(c)) for c in bad] + \
            ["pm clear allowed outside AWS mode: %r" % c for c in personal]

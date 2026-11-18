@@ -2,17 +2,59 @@
 """Verified freezer-state callback campaign; isolated P06 overlays only, never overwrite.
 Usage: deployment.py SERIAL [--out PATH.jsonl] [--modes bg_unfrozen,bg_freezer,fg,assistant] [--source contacts] [--n 20]
 Defaults reproduce the emulator campaign; B1 on the test phone also runs --source media and --source calllog."""
-import sys,json,time,random,os,hashlib,argparse
+import sys,json,time,random,os,hashlib,argparse,re
 from pathlib import Path
 ROOT=Path(__file__).resolve().parents[2]
 sys.path.insert(0,str(ROOT/'artifact/revision'))
 from run import setup,lmdrv
 OUT=ROOT/'artifact/results/followup-20261116'
 ap=argparse.ArgumentParser();ap.add_argument('serial');ap.add_argument('--out');ap.add_argument('--modes',default='bg_unfrozen,bg_freezer,fg,assistant')
-ap.add_argument('--source',default='contacts',choices=['contacts','media','calllog']);ap.add_argument('--n',type=int,default=20);a=ap.parse_args()
+ap.add_argument('--source',default='contacts',choices=['contacts','media','calllog']);ap.add_argument('--n',type=int,default=20)
+ap.add_argument('--freeze-diag',type=int,default=0,help='B1 bg_freezer diagnosis on the phone: N trials per launch variant a, b, c, d (no mutation, no decision)')
+a=ap.parse_args()
 serial=a.serial;out=Path(a.out) if a.out else OUT/f'deploy-{serial}.jsonl'
 c,w=setup(serial,out.parent if a.out else None);d=c.d
 if a.source in d.excluded:raise SystemExit('source %s is excluded on this device (PHYS-PROTOCOL.md section 4)'%a.source)
+
+def diag_sample(pkg):
+ """What ActivityManager says about the client's freezer state: cgroup freeze, the process record's freezer fields,
+ its oom line, connected providers and /proc status (B1 bg_freezer never froze on Device Farm's Pixel 8, run 106d9bc0)."""
+ p=d.pid(pkg);s={'pid':p,'frozen':d.frozen(pkg) if p else 'dead'}
+ blk=d.sh('dumpsys activity processes '+pkg);i=blk.find('*APP*');blk=blk[i:i+3500] if i>=0 else blk[:500]
+ for k in ('isFrozen','isPendingFreeze','isFreezeExempt','earliestFreezableTimeMs','pendingUiClean','curProcState','hasShownUi','cached','empty'):
+  m=re.search(k+r'=(\S+)',blk);s[k]=m.group(1) if m else None
+ m=re.search(r'oom adj: ([^\n]*)',blk);s['oom_adj']=m.group(1) if m else None
+ s['providers']=re.findall(r'- (\S+)->',blk)
+ s['oom_line']=[l.strip() for l in d.sh('dumpsys activity oom | grep -m3 leasemem').splitlines()]
+ s['proc_status']=d.sh('grep -E "^(State|voluntary_ctxt|nonvoluntary_ctxt)" /proc/%s/status'%p).strip() if p else None
+ s['block']=blk
+ return s
+
+if a.freeze_diag:
+ # (a) no force-stop; (b) ensure before the app starts; (c) the B0 probe's sequence (stopservice, launch, home, no
+ # ensure); (d) this driver's own bg_freezer sequence (force-stop, start, ensure, home), the negative control.
+ pkg='org.leasemem.client'
+ d.sh('device_config set_sync_disabled_for_tests until_reboot');d.sh('device_config put activity_manager_native_boot freeze_debounce_timeout 2000')
+ start=lambda:d.sh(d.u(f'am start -W -n {pkg}/org.leasemem.client.Main'))
+ with lmdrv.open_new(out) as f:
+  for v in ('a','b','c','d'):
+   for i in range(a.freeze_diag):
+    r={**d.meta(),'serial':serial,'exp':'freeze_diag','variant':v,'trial':i,'source':a.source,'debounce_ms':2000}
+    try:
+     if v=='a':start();time.sleep(.4);w.ensure_base();time.sleep(.5)
+     elif v=='b':d.sh(d.u('am force-stop '+pkg));w.ensure_base();start();time.sleep(.4)
+     elif v=='c':d.sh(d.u('am stopservice -n %s/.FgService'%pkg));d.launch();time.sleep(1)
+     else:d.sh(d.u('am force-stop '+pkg));start();time.sleep(.4);w.ensure_base();time.sleep(.5)
+     t0=time.monotonic();d.home();r['samples']=[]
+     for at in (3,10,25):
+      time.sleep(max(0,at-(time.monotonic()-t0)))
+      smp=diag_sample(pkg);smp['t_s']=round(time.monotonic()-t0,1);r['samples'].append(smp)
+     r['froze']=any(x['frozen']=='1' for x in r['samples'])
+    except Exception as e:
+     r['error']=repr(e)
+    f.write(json.dumps(r)+'\n');f.flush();print('freeze_diag',v,i,r.get('froze'),r.get('error','')[:100],flush=True)
+ d.sh('device_config put activity_manager_native_boot freeze_debounce_timeout 600000')
+ sys.exit(0)
 
 def state(pkg):
  p=d.pid(pkg);r={'pid':p,'activity':d.sh('dumpsys activity processes '+pkg)}
