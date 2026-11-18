@@ -174,8 +174,9 @@ def plan_runs(task, pilot=False, allow_reboot=False):
 
 
 def timeout_for(est_min):
-    """Execution timeout close to the estimate: 20 % and 3 min of slack, at most MAX_TIMEOUT."""
-    return int(min(MAX_TIMEOUT, math.ceil(est_min * 1.2 + 3)))
+    """Execution timeout close to the estimate: 20 % and 3 min of slack, at least 10 (a run's own preparation varies),
+    at most MAX_TIMEOUT. The timeout only holds free minutes while the run is open; a run uses what it uses."""
+    return int(min(MAX_TIMEOUT, max(10, math.ceil(est_min * 1.2 + 3))))
 
 
 # ---------------------------------------------------------------- artifacts (offline part)
@@ -382,7 +383,7 @@ def selftest():
     assert [x.split("--part ")[1] for x, _ in b5] == [str(i) for i in range(1, len(b5) + 1)] and len(b5) >= 2, b5
     assert sum(int(x.split("--trials ")[1].split()[0]) for x, _ in b5) == 10
     assert len(plan_runs("B1", pilot=True)) == 1
-    assert timeout_for(15) == 21 and timeout_for(400) == MAX_TIMEOUT
+    assert timeout_for(15) == 21 and timeout_for(400) == MAX_TIMEOUT and timeout_for(2) == 10
     t = A.parent / "build" / ("devicefarm-selftest-" + time.strftime("%Y%m%d-%H%M%S"))   # repo build/, never the system temp
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as z:

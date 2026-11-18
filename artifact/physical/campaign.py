@@ -111,8 +111,8 @@ def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=No
 
 def run_pre(d, cmd, check=False):
     if cmd.startswith("{u:"):
-        return d.sh(d.u(cmd[3:-1]), check=check)
-    return d.sh(cmd, check=check)
+        return d.sh(d.u(cmd[3:-1]), check=check, timeout=90)
+    return d.sh(cmd, check=check, timeout=90)        # 90: a package dump may take up to its own 60 s
 
 
 def snapshot(d):
@@ -156,7 +156,7 @@ def restore(d, snap):
                      "{u:cmd role get-role-holders android.app.role.ASSISTANT}", lambda got: lmdrv.APKG not in got, "no P06 holder"))
     for p in (lmdrv.CPKG, lmdrv.TPKG):
         if p in pkgs:
-            todo.append(("{u:pm grant %s android.permission.READ_CONTACTS}" % p, "dumpsys package %s" % p,
+            todo.append(("{u:pm grant %s android.permission.READ_CONTACTS}" % p, lmdrv.DUMP_PKG % p,
                          lambda got: "android.permission.READ_CONTACTS: granted=true" in got, "READ_CONTACTS granted"))
     failed = []
     for cmd, back, ok, want in todo:
@@ -166,7 +166,11 @@ def restore(d, snap):
             failed.append("%s: exit error %s" % (cmd, str(e).strip()[:160])); continue
         if back:
             try:
-                got = run_pre(d, back, check=True).strip()
+                for attempt in range(3):     # a package dump can come back empty on a busy phone (B0 run 1c18f498)
+                    got = run_pre(d, back, check=True).strip()
+                    if ok(got):
+                        break
+                    time.sleep(2)
             except Exception as e:
                 failed.append("%s: read-back error %s" % (back, str(e).strip()[:160])); continue
             if not ok(got):

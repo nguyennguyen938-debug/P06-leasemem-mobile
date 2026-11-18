@@ -81,6 +81,9 @@ PERM_SOURCE = {"READ_SMS": "sms", "READ_CALL_LOG": "calllog", "WRITE_CALL_LOG": 
 # role and its inserts are dropped; the call log, because rows the mutator inserts are not returned by its own queries
 # (b0_probe calllog_diag looks for the cause). Every record carries excluded_sources; the analysis reads it from there.
 AWS_EXCLUDED = ("sms", "calllog")
+# Package dump (runtime permission state): dumpsys's 10 s default can run out on a busy phone, and its notices go to
+# stderr; on Device Farm the plain command came back empty for 2 of 4 read-backs (B0 run 1c18f498).
+DUMP_PKG = "dumpsys -t 60 package %s 2>&1"
 
 if os.environ.get("P06_FAKE_TIME"):     # E7 dry run against the fake adb: a virtual clock, so waits cost ~nothing
     _off, _sleep, _time, _mono = [0.0], time.sleep, time.time, time.monotonic
@@ -109,7 +112,7 @@ RUNAS_ID_AWS_OK = re.compile(r"run-as org\.leasemem\.\w+ id( 2>)?\s*")
 CLOCK = re.compile(r"\bauto_time|" + _AT + r"(date\s+(-s|@|\d)|cmd\s+(alarm|time)\b)")
 DUMPSYS_OK = [re.compile(p + r"\s*") for p in (
     r"battery( unplug| reset)?( \| grep .*)?", r"deviceidle (get (deep|light)|force-idle( deep)?|force-inactive|unforce|step( deep)?)",
-    r"activity settings( \| grep .*)?", r"activity (processes|services) org\.leasemem\S*", r"(package|meminfo) org\.leasemem\S*( 2>)?",
+    r"activity settings( \| grep .*)?", r"activity (processes|services) org\.leasemem\S*", r"(-t \d+ )?(package|meminfo) org\.leasemem\S*( 2>)?",
     r"batterystats --charged org\.leasemem\S*", r"power \| grep -m1 mWakefulness=", r"voiceinteraction \| grep .*",
     r"user \| awk .*")]
 
@@ -488,7 +491,7 @@ class Dev:
         stderr, which sh() drops, so `2>&1` folds them in on the device. Read-only; never raises."""
         out = {}
         for c in [self.u("run-as %s id" % pkg) + " 2>&1", "run-as %s id 2>&1" % pkg,
-                  self.u("run-as %s ls -la files" % pkg) + " 2>&1", "getprop ro.debuggable", "dumpsys package %s" % pkg]:
+                  self.u("run-as %s ls -la files" % pkg) + " 2>&1", "getprop ro.debuggable", DUMP_PKG % pkg]:
             try:
                 r = self.sh(c, timeout=30, retries=0)
                 if c.startswith("dumpsys"):     # only the package flags (DEBUGGABLE) and the code path

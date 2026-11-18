@@ -145,6 +145,8 @@ def one(s, c):
         return "  freeze_debounce_timeout=%s" % s["dc"].get("activity_manager_native_boot/freeze_debounce_timeout", "600000")
     if c.startswith("dumpsys activity services"):
         return "  isForeground=true" if s["fgs"] else ""
+    if c.startswith("dumpsys -t "):                     # lmdrv.DUMP_PKG: dumpsys's own timeout, stderr folded in
+        c = re.sub(r"^dumpsys -t \d+ ", "dumpsys ", c); c = c[:-5] if c.endswith(" 2>&1") else c
     if c.startswith("dumpsys package"):
         g = s["grants"].get(c.split()[-1] + "/android.permission.READ_CONTACTS", True)
         return "    runtime permissions:\n      android.permission.READ_CONTACTS: granted=%s" % ("true" if g else "false")

@@ -4,9 +4,13 @@
 How: for each emulator raw file, the seconds per trial are the median gap between the start stamps of consecutive
 trials (device or host clock, whichever the driver recorded), which includes every wait and setup step of a trial;
 gaps above 10 times the median (host sleep, restarts) are dropped. Phone trials may be faster or slower: B0 measures
-the real seconds per trial and this table is recomputed. Each Device Farm run also costs a fixed preparation time
-(the device is wiped, the APKs are installed, fixtures are written); RUN_OVERHEAD_MIN is an assumption until B0
-measures it. A task is split into runs of at most RUN_BUDGET_MIN of trial time so a run stays under the 150-minute
+the real seconds per trial: its one phone trial (gap none, run 1c18f498) took 36 s as a whole step against 34.2 s per
+emulator trial, so every emulator time is multiplied by PHONE_PACE = 1.1 (a margin, redone after the pilot B1). Each
+Device Farm run also costs a fixed preparation time (Device Farm installs the app, the drivers install the APKs,
+grant and write fixtures): in B0 runs 97a66c65 and 1c18f498 the device minutes outside the probe and trial steps were
+0.73 and 0.70, so RUN_OVERHEAD_MIN = 1.0. What Device Farm cannot do is left out of PLAN (B0 runs 97a66c65 and
+1c18f498): the call log (inserts dropped: B1's call log trials and all of B9), SMS (B10 SMS reuse) and reboots (B2's
+reboot gap, `adb reboot` is not permitted). A task is split into runs of at most RUN_BUDGET_MIN of trial time so a run stays under the 150-minute
 Device Farm timeout. Price: 0.17 USD per device minute (CLAUDE.md of the project).
 Usage: python aws/estimate.py [--json]
 """
@@ -16,7 +20,8 @@ from pathlib import Path
 A = Path(__file__).resolve().parents[1]
 R = A / "results"
 USD_PER_MIN = 0.17
-RUN_OVERHEAD_MIN = 6.0     # assumption: wipe, install 4 APKs, grants, fixtures (B0 measures it)
+RUN_OVERHEAD_MIN = 1.0     # measured in B0 (0.73, 0.70 device min outside the probe and trial steps), rounded up
+PHONE_PACE = 1.1           # phone trial time / emulator trial time: 36 s step vs 34.2 s (B0 run 1c18f498), with margin
 RUN_TIMEOUT_MIN = 150      # Device Farm execution timeout per run
 RUN_BUDGET_MIN = 110       # trial time per run: 150 min minus overhead minus a margin for slower phone trials
 
@@ -67,18 +72,19 @@ def timings():
                           "raw/e6_pitfalls.jsonl", "res.t_pre, device ms")
     T["B10/mtime"] = (per_trial_s(field([r for r in p6 if r.get("exp") == "mtime"], lambda r: ((r.get("res") or [{}])[0] or {}).get("t_pre")), 1e-3),
                       "raw/e6_pitfalls.jsonl", "res[0].t_pre, device ms")
-    return T
+    return {k: ((v[0] * PHONE_PACE if v[0] else v[0]),) + tuple(v[1:]) for k, v in T.items()}
 
 
 # planned trials per step (PLAN-dien-thoai-that.md section 5); B9: 100 changes + 25 + 20 + 20 controls, then 100 in band
-PLAN = {"B1": {"B1/bg_unfrozen": 20 + 20 + 20, "B1/bg_freezer": 20, "B1/fg": 20 + 20 + 20, "B1/assistant": 20},   # Contacts + MediaStore + call log
+# On Device Farm: no call log (B1's call log trials, B9), no SMS (B10 SMS reuse), no reboot gap (B0 runs 97a66c65, 1c18f498)
+PLAN = {"B1": {"B1/bg_unfrozen": 20 + 20, "B1/bg_freezer": 20, "B1/fg": 20 + 20, "B1/assistant": 20},   # Contacts + MediaStore
         "B3": {"B3": 30},
-        "B2": {"B2/" + g: 25 for g in ["none", "freeze", "dozeidle", "bucket", "unregister", "kill", "forcestop", "perm", "reboot"]},
-        "B4": {"B4": 20}, "B9": {"B9": 165 + 100}, "B10": {"B10/sms_reuse": 50, "B10/mtime": 50}, "B5": {"B5": 10},
+        "B2": {"B2/" + g: 25 for g in ["none", "freeze", "dozeidle", "bucket", "unregister", "kill", "forcestop", "perm"]},
+        "B4": {"B4": 20}, "B10": {"B10/mtime": 50}, "B5": {"B5": 10},
         "B13": {"B1/bg_unfrozen": 10, "B1/bg_freezer": 10, "B1/fg": 10, "B1/assistant": 10,
                 **{"B2/" + g: 10 for g in ["none", "freeze", "dozeidle", "kill", "forcestop"]}},
         "B6": {"B6": 30}, "B7": {"B6": 30}}     # B7 has no emulator run; its trials resemble B6's continuous case
-B0_MIN = 20.0              # assumption: one probe run (setup, 27 probes, one reboot, one full trial)
+B0_MIN = 2.6               # measured: B0 run 1c18f498 (setup, 32 probes, one trial) used 2.60 device min
 
 
 def estimate():
@@ -107,7 +113,7 @@ if __name__ == "__main__":
         print(json.dumps({"timings": {k: [v[0], v[1], v[2]] for k, v in T.items()}, "estimate": E}, indent=1)); sys.exit(0)
     print("| Task | Trial time, min | Runs (<= %d min) | Device min incl. %.0f min/run | USD at %.2f/min |" % (RUN_TIMEOUT_MIN, RUN_OVERHEAD_MIN, USD_PER_MIN))
     print("|---|---|---|---|---|")
-    order = ["B0", "B1", "B3", "B2", "B4", "B9", "B10", "B5", "B13", "B6", "B7"]
+    order = ["B0", "B1", "B3", "B2", "B4", "B10", "B5", "B13", "B6", "B7"]
     for k in order:
         e = E[k]; print("| %s | %.1f | %d | %.1f | %.2f |" % (k, e["trial_min"], e["runs"], e["device_min"], e["usd"]))
     core = sum(E[k]["device_min"] for k in ["B0", "B1", "B3", "B2", "B4"]); allm = sum(E[k]["device_min"] for k in order)

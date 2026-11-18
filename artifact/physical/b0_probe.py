@@ -45,7 +45,7 @@ def bg_client():
 
 
 def granted(pkg, perm):
-    m = re.search(re.escape(perm) + r": granted=(true|false)", d.sh("dumpsys package %s 2>&1" % pkg))
+    m = re.search(re.escape(perm) + r": granted=(true|false)", d.sh(lmdrv.DUMP_PKG % pkg, timeout=90))
     return m and m.group(1) == "true"
 
 
@@ -166,7 +166,7 @@ def revoke_grant():
     d.sh(d.u("pm grant %s %s" % (CPKG, perm))); on = granted(CPKG, perm)
     res = {"after_revoke": off, "after_grant": on}
     if off is None or on is None:          # B0 run 97a66c65 read nothing here: keep what dumpsys printed, stderr included
-        res["dumpsys_head"] = d.sh("dumpsys package %s 2>&1" % CPKG)[:400]
+        res["dumpsys_head"] = d.sh(lmdrv.DUMP_PKG % CPKG, timeout=90)[:400]
     return off is False and on is True, res
 
 
