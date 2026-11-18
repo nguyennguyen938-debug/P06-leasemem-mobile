@@ -8,9 +8,10 @@ scripts/analyze.py (valid, classify, gap_effects, coverage, e9_row), so phone an
 Files whose name contains "pilot" (S2 pipeline check) are summarized on stdout and never enter macros or tables.
 Optional per-record fields of the AWS runs: `device_instance` (counted by \\PhysInstances) and `run_arn` (counted on
 stdout); records without them still load. B6 (host-*) has one macro, B7 (continuous-*) none; B11 and B12 are dropped.
+Freezer trials (B1 bg_freezer, B2 freeze, B5) count only with the freezer on: `use_freezer`, else the saved settings.
 Run `python physical/analyze_phys.py --self-check`.
 """
-import json, statistics as st, sys, tempfile
+import json, re, statistics as st, sys, tempfile
 from collections import Counter, defaultdict
 from pathlib import Path
 
@@ -26,7 +27,7 @@ GAPS = ['none', 'freeze', 'dozeidle', 'bucket', 'unregister', 'kill', 'forcestop
 LOST, INEPOCH = ['unregister', 'kill', 'forcestop', 'perm', 'reboot'], ['none', 'freeze', 'dozeidle', 'bucket']
 FILES = {'deploy': 'deploy*.jsonl', 'gaps': 'gaps-*.jsonl', 'coverage': 'coverage-*.jsonl', 'stock': 'stock-*.jsonl',
          'boundary': 'boundary*.jsonl', 'pitfalls': 'pitfalls-*.jsonl', 'frozen': 'frozen-*.jsonl',
-         'b0': 'b0-probe-*.jsonl', 'host': 'host-*.jsonl', 'all': '*.jsonl'}
+         'b0': 'b0-probe-*.jsonl', 'host': 'host-*.jsonl', 'diag': 'diag-*.jsonl', 'all': '*.jsonl'}
 # Sources never touched on this phone print NR instead of TBD: those the latest B0 record lists in excluded_sources.
 # SMS and the call log each have an \if switch for the prose; B9 has its own (\ifPhysBoundary), whatever the call log.
 NR = 'not run on phone'
@@ -74,6 +75,61 @@ def pct(k, n):
     return f'{100 * k / n:.0f}' if n else 'n/a'
 
 
+# ------------------------------------------------------------------ freezer state (some Device Farm units ship it off)
+FZ_WHY = {False: 'freezer off on unit', None: 'freezer state unknown'}
+FREEZE_GAPS = {'freeze', 'longfreeze'}      # B2 gaps that rely on the freezer; B5 and B1 bg_freezer always do
+
+
+def setting(r, key):
+    """'true'/'false' from the record's field `key`, else from use_freezer= in its saved `dumpsys activity settings`
+    (`config`, B1 records written before the field existed); None if neither says."""
+    v = r.get(key)
+    if v in (None, '', '?'):
+        m = re.search(r'use_freezer=(\w+)', str(r.get('config') or ''))
+        v = m and m.group(1)
+    return None if v in (None, '', '?') else str(v).lower()
+
+
+def freezer_on(r):
+    """Freezer state during the trial: True, False or None (unknown). use_freezer is the value after campaign.py
+    turned the freezer on where a unit had it off."""
+    v = setting(r, 'use_freezer')
+    return None if v is None else v == 'true'
+
+
+def freezer_units(M):
+    """device_instance -> freezer on (True) or off (False) before any run changed it, over non-pilot records. Off:
+    use_freezer_before (or the saved settings) false on any record. On: that value true, or the client was seen frozen
+    (B0 freezer probe, freezer diagnosis). Units with neither stay out."""
+    units = {}
+    for k, v in M.items():
+        for r in v if k != 'all' else ():
+            s = setting(r, 'use_freezer_before')
+            if s is None and (r.get('froze') is True or r.get('probe') == 'freezer_debounce_2s' and r.get('ok') and (r.get('detail') or {}).get('frozen') == '1'):
+                s = 'true'
+            u = r.get('device_instance')
+            if s is not None and u is not None:
+                units[u] = units.get(u, True) and s == 'true'   # any off record wins
+    return units
+
+
+def needs_freezer(rows, excl):
+    """Rows whose trial depends on the freezer: keep those that ran with it on, count the others by reason."""
+    keep = []
+    for r in rows:
+        fz = freezer_on(r)
+        if fz:
+            keep.append(r)
+        else:
+            excl[FZ_WHY[fz]] += 1
+    return keep
+
+
+def why(excl, what):
+    """Caption sentence for excluded trials, or ''."""
+    return ' Excluded %s: %s.' % (what, ', '.join('%d (%s)' % (c, w) for w, c in sorted(excl.items()))) if excl else ''
+
+
 # ------------------------------------------------------------------ per experiment: dict of results, or {} without data
 def deploy(rows):
     """B1: callback delay per (source, deployment); a callback counts only for the trial's own `source`
@@ -84,9 +140,9 @@ def deploy(rows):
             rs = [r for r in rows if r.get('source', 'contacts') == src and r.get('mode') == mode]
             if not rs:
                 continue
-            target = '1' if mode == 'bg_freezer' else '0'
+            target, excl = '1' if mode == 'bg_freezer' else '0', Counter()
             valid, delays, before = [], [], 0
-            for r in rs:
+            for r in needs_freezer(rs, excl) if mode == 'bg_freezer' else rs:
                 if 'error' in r or r.get('invalid') or r['before'].get('frozen') != target or any(x.get('frozen') != target for x in r['states']):
                     continue
                 valid.append(r); t = r['mutation']['t_pre']
@@ -94,29 +150,37 @@ def deploy(rows):
                 before += bool(ev)
                 if ev:
                     delays.append(min(ev))
-            out[src, mode] = {'attempted': len(rs), 'valid': len(valid), 'before_thaw': before, 'delays_ms': delays}
+            out[src, mode] = {'attempted': len(rs), 'valid': len(valid), 'before_thaw': before, 'delays_ms': delays, 'excluded': excl}
     return out
 
 
 def gaps(rows):
     """B2: gap taxonomy and missed changed uses (event-only, restart-aware, StampCheck), emulator validity rules."""
-    att, V = Counter(r['gap'] for r in rows), defaultdict(list)
+    att, V, X = Counter(r['gap'] for r in rows), defaultdict(list), defaultdict(Counter)
     for t in rows:
+        if t['gap'] in FREEZE_GAPS and not needs_freezer([t], X[t['gap']]):
+            continue
         if ea.valid(t)[0]:
             V[t['gap']].append(t)
     out = {}
     for g in [g for g in GAPS if att[g]] + sorted(set(att) - set(GAPS)):
-        T = V[g]; z = {'att': att[g], 'n': len(T), 'miss': {}}
+        T = V[g]; z = {'att': att[g], 'n': len(T), 'miss': {}, 'excluded': X[g]}
         if T:
             z['survived'], z['nsrc'], z['ev_e'], z['ev_l'], _, z['exit'], _, z['fcl'] = ea.gap_effects(T)
+        S = [t for t in T if stamp_ok(t)]
         for phase in ('early', 'late'):
-            C = [ea.classify(t, phase) for t in T]
-            for p in ('ev', 'evr', 'lm'):
-                ch = [x for c in C for x in c.values() if x['changed']]
-                z['miss'][phase, p] = (sum(not x['refresh'][p] for x in ch), len(ch))
-        z['cost'] = [ea.decision_cost(t, 'late', ea.classify(t, 'late')) for t in T if 'lm_cost' in t['late']]
+            for p, TT in (('ev', T), ('evr', T), ('lm', S)):
+                ch = [x for t in TT for x in ea.classify(t, phase).values() if x['changed']]
+                z['miss'][phase, p] = (sum(not x['refresh'][p] for x in ch), len(ch)) if TT else None   # None: no StampCheck verdicts
+        z['cost'] = [ea.decision_cost(t, 'late', ea.classify(t, 'late')) for t in S if 'lm_cost' in t['late']]
         out[g] = z
     return out
+
+
+def stamp_ok(t):
+    """The trial's `lm` verdicts are StampCheck's: lm_cost keyed by source with `ns`, as in the emulator runs. The revised
+    client reports strict EvCheck under `lm` instead (lm_cost keyed by fact, each with a verdict); never StampCheck."""
+    return not any(isinstance(v, dict) and 'verdict' in v for v in t['late'].get('lm_cost', {}).values())
 
 
 def coverage(rows):
@@ -198,13 +262,14 @@ def pitfalls(rows):
 
 
 def frozen(rows):
-    """B5: long frozen holds, one e9_row per hold."""
-    out = [ea.e9_row(r, 'phone') for r in rows]
+    """B5: long frozen holds, one e9_row per hold; holds on a unit without the freezer are excluded first."""
+    excl = Counter()
+    out = [ea.e9_row(r, 'phone') for r in needs_freezer(rows, excl)]
     V = [o for o in out if o['valid']]
     if not V:
-        return {}
+        return {'excluded': excl} if excl else {}
     S = [o for o in V if o['stayed_frozen']]
-    return {'run': len(out), 'valid': len(V), 'stayed': len(S), 'died': sum(o['died'] for o in V), 'changes': sum(o['n_mut'] for o in V),
+    return {'run': len(rows), 'excluded': excl, 'valid': len(V), 'stayed': len(S), 'died': sum(o['died'] for o in V), 'changes': sum(o['n_mut'] for o in V),
             'hold_min': min(o['frozen_with_pending_s'] for o in V) / 60, 'src': sum(o['sources_mutated'] for o in S),
             'lost': sum(o['sources_no_callback'] for o in S), 'unseen': sum(o['sources_last_change_unseen'] for o in S),
             'callbacks': sum(o['callbacks_vlate'] for o in V), 'evr': [sum(o['evr_miss_' + p] for o in V) for p in ('early', 'late', 'vlate')]}
@@ -241,7 +306,7 @@ def analyze(D):
     med = lambda s, m: dur(st.median(B1[s, m]['delays_ms'])) if (s, m) in B1 and B1[s, m]['delays_ms'] else None
     fcl = lambda g: sec(st.median(G[g]['fcl'])) if g in G and G[g].get('fcl') else None
     def gmiss(gs, phase, p):
-        k = [G[g]['miss'][phase, p] for g in gs if g in G]
+        k = [G[g]['miss'][phase, p] for g in gs if g in G and G[g]['miss'][phase, p]]
         return kn(sum(a for a, _ in k), sum(b for _, b in k)) if k and sum(b for _, b in k) else None
     frz = B1.get(('contacts', 'bg_freezer'))
     race_n, race_k = sum(z['n'] for z in R['race'].values()), sum(z['stale'] for z in R['race'].values())
@@ -255,7 +320,8 @@ def analyze(D):
     cci = lambda k: (lambda m: '[%.0f, %.0f]' % (m[1], m[2]))(ea.boot_ci([c[k] for c in cost])) if cost else None
     pf = lambda k: kn(*PF[k]) if PF and PF[k][1] else None          # B10 cell; no trials of that kind: TBD, not 0/0
     bk = lambda m, w: kn(*BD['k'](m, w)) if BD and BD['k'](m, w)[1] else None   # B9 class, same rule
-    inst = {r.get('device_instance') for k, v in M.items() if k not in ('all', 'b0') for r in v} - {None}
+    inst = {r.get('device_instance') for k, v in M.items() if k not in ('all', 'b0', 'diag') for r in v} - {None}
+    fu = freezer_units(M)           # B0 and the freezer diagnosis count here: they show the unit's freezer state
     macros = {
         'PhysDevice': ('device model', tex(device(D['all'], 'device'))),
         'PhysFingerprint': ('build fingerprint', (lambda f: f and '\\path{%s}' % f)(device(D['all'], 'fingerprint'))),
@@ -263,6 +329,8 @@ def analyze(D):
         'PhysRooted': ('root status', {'True': 'rooted', 'False': 'not rooted'}.get(device(D['all'], 'rooted') or '', None)),
         'PhysSdk': ('API level', device(D['all'], 'sdk')),
         'PhysInstances': ('distinct physical units', len(inst) or None),
+        'PhysFreezerOffUnits': ('units with the freezer off before any run, of units with a known freezer state',
+                                kn(sum(not on for on in fu.values()), len(fu)) if fu else None),
         'PhysDeployTrials': ('B1 valid/attempted trials, all sources', kn(sum(z['valid'] for z in B1.values()), sum(z['attempted'] for z in B1.values())) if B1 else None),
         'PhysDeployBgMedian': ('B1 Contacts background unfrozen median callback delay', med('contacts', 'bg_unfrozen')),
         'PhysDeployFgMedian': ('B1 Contacts FGS median callback delay', med('contacts', 'fg')),
@@ -297,8 +365,8 @@ def analyze(D):
         'PhysClockStale': ('B10 clock set-back: stale number accepted/trials', pf('clock')),
         'PhysFrozenHolds': ('B5 valid frozen holds', F.get('valid')),
         'PhysFrozenStayed': ('B5 holds that stayed frozen', F.get('stayed')),
-        'PhysFrozenKilled': ('B5 holds ended by a kill', kn(F['died'], F['valid']) if F else None),
-        'PhysFrozenLastUnseen': ('B5 sources whose last change had no later callback', kn(F['unseen'], F['src']) if F else None),
+        'PhysFrozenKilled': ('B5 holds ended by a kill', kn(F['died'], F['valid']) if F.get('valid') else None),
+        'PhysFrozenLastUnseen': ('B5 sources whose last change had no later callback', kn(F['unseen'], F['src']) if F.get('valid') else None),
         **{k: ('B11/B12 dropped', NR) for k in DROPPED},
         'PhysHostTrials': ('B6 matched host trials', len(host) or None),
         'PhysCostGl': ('B2 median provider ms per late decision, global refresh', cmed('gl_ms')),
@@ -334,7 +402,7 @@ def tables(gen, R):
         held = 'held' if mode == 'bg_freezer' and z['valid'] else 'n/a'     # no valid trial: nothing was held
         rows.append(f"{NAMES[mode]} & {z['valid']}/{z['attempted']} & {dur(st.median(d)) if d else held} & "
                     f"{'[%s, %s]' % (dur(min(d)), dur(max(d))) if d else 'n/a'} & {kn(z['before_thaw'], z['valid']) if z['valid'] else 'n/a'}\\\\")
-    table(gen, 'tab_phys_deploy.tex', "Phone (B1): callbacks per source and deployment, counted only for the trial's own source; valid/attempted trials, median and range of the delay, trials with a callback before thaw.",
+    table(gen, 'tab_phys_deploy.tex', "Phone (B1): callbacks per source and deployment, counted only for the trial's own source; valid/attempted trials, median and range of the delay, trials with a callback before thaw." + why(sum((z['excluded'] for z in R['deploy'].values()), Counter()), 'frozen trials'),
           'lrrrr', 'Deployment & Trials & Median & Range & Before thaw', rows, 'B1 deployment trials',
           extra=[r'\mgroup{5}{%s: %s}' % (SOURCES[x], NR) for x in SOURCES if x in NOT_RUN])
 
@@ -351,11 +419,11 @@ def tables(gen, R):
 
     rows = []
     for g, z in R['gaps'].items():
-        m = lambda ph, p: kn(*z['miss'][ph, p])
+        m = lambda ph, p: kn(*z['miss'][ph, p]) if z['miss'][ph, p] else 'n/a'
         fc = '%s / %s' % (sec(st.median(z['fcl'])), sec(max(z['fcl']))) if z.get('fcl') else 'none'
         rows.append(f"{GAPNAME.get(g, g)} & {z['n']}/{z['att']} & {pct(z.get('survived', 0), z['n'])} & {fc} & {pct(z.get('ev_e', 0), z.get('nsrc', 0))} & "
                     f"{pct(z.get('ev_l', 0), z.get('nsrc', 0))} & {z.get('exit', 0)}/{z['n']} & " + ' & '.join(m(ph, p) for ph in ('early', 'late') for p in ('ev', 'evr', 'lm')) + r'\\')
-    table(gen, 'tab_phys_gaps.tex', 'Phone (B2), background client: valid/attempted trials, process survival, first callback (median / max, s), changed provider sources notified by the early (+2\\,s) and late (+14\\,s) decision, new \\texttt{ApplicationExitInfo} records, and changed uses missed by event-only (Ev), restart-aware (Evr) and \\stamp at the early (+2\\,s) and late (+14\\,s) decision (missed/changed).',
+    table(gen, 'tab_phys_gaps.tex', 'Phone (B2), background client: valid/attempted trials, process survival, first callback (median / max, s), changed provider sources notified by the early (+2\\,s) and late (+14\\,s) decision, new \\texttt{ApplicationExitInfo} records, and changed uses missed by event-only (Ev), restart-aware (Evr) and \\stamp at the early (+2\\,s) and late (+14\\,s) decision (missed/changed).' + why(sum((z['excluded'] for z in R['gaps'].values()), Counter()), 'freezer trials'),
           'lrrrrrrrrrrrr', r' & & & & \multicolumn{2}{c}{Notified} & & \multicolumn{3}{c}{Missed at +2\,s} & \multicolumn{3}{c}{Missed at +14\,s}\\ \mhead '
           r'Gap & Trials & Surv.\,\% & First cb. & +2\,s\,\% & +14\,s\,\% & Exit & Ev & Evr & \stamp & Ev & Evr & \stamp', rows, 'B2 gap trials', star=True)
 
@@ -377,7 +445,7 @@ def tables(gen, R):
         rows += [f"change starts within 10\\,ms of the check & {kn(*BD['bins']['near'])}\\\\", f"change starts 10 to 60\\,ms after it & {kn(*BD['bins']['late'])}\\\\"]
         if 'contacts' in BD['stores'] or BD['excluded']:
             rows += [f"change spans the effect: undetermined & {BD['undetermined']}\\\\"]
-            rows += [f"excluded: {why} & {c}\\\\" for why, c in sorted(BD['excluded'].items())]
+            rows += [f"excluded: {w} & {c}\\\\" for w, c in sorted(BD['excluded'].items())]
     table(gen, 'tab_phys_boundary.tex', 'Phone (B9): stale effects by where the change landed relative to the boundary check and the effect (stale/trials); median check-to-effect interval \\PhysCteMs\\,ms.' + store,
           'lr', 'Placement of the change & Stale effects', rows, 'B9 boundary trials')
 
@@ -391,11 +459,11 @@ def tables(gen, R):
           extra=[r'SMS \texttt{\_id} reuse & %s\\' % NR] if 'sms' in NOT_RUN and not PF else [])
 
     F, rows = R['frozen'], []
-    if F:
+    if F.get('valid'):
         rows = [f'Holds valid/run & {F["valid"]}/{F["run"]}\\\\', f'Stayed frozen & {F["stayed"]}\\\\', f'Killed & {F["died"]}\\\\', f'Changes & {F["changes"]}\\\\',
                 f'Hold $\\geq$ (min) & {F["hold_min"]:.1f}\\\\', f'Lost sources & {F["lost"]}/{F["src"]}\\\\', f'Unseen last & {F["unseen"]}/{F["src"]}\\\\',
                 f'Callbacks & {F["callbacks"]}\\\\', 'Restart-aware miss & %d/%d/%d\\\\' % tuple(F['evr'])]
-    table(gen, 'tab_phys_frozen.tex', 'Phone (B5): long frozen holds, same metrics as Table~\\ref{tab:frozen}; lost and unseen sources count holds that stayed frozen; last row: changed uses missed by restart-aware event-only at +2/+14/+120\\,s.',
+    table(gen, 'tab_phys_frozen.tex', 'Phone (B5): long frozen holds, same metrics as Table~\\ref{tab:frozen}; lost and unseen sources count holds that stayed frozen; last row: changed uses missed by restart-aware event-only at +2/+14/+120\\,s.' + why(F.get('excluded'), 'holds'),
           'lr', 'Metric & Phone', rows, 'B5 frozen holds')
 
     for name, what in (('tab_phys_statelog.tex', 'B11, 24-hour state log'), ('tab_phys_battery.tex', 'B12, battery drain')):
@@ -453,7 +521,7 @@ def self_check():
                  'mutation': {'t_pre': 1000}, 'memory_before_thaw': {'events': [{'src': ev or src or 'contacts', 't': t}] if t else []}}
             return dict(r, source=src) if src else r   # no `source`: emulator-schema Contacts trial
         add('deploy', 'deploy-contacts-0900.jsonl', dep('bg_unfrozen', '0', 11000), dep('bg_unfrozen', '0', 11040), dep('bg_unfrozen', '1', 11000),
-            dep('bg_freezer', '1', None), {'mode': 'fg', 'error': 'adb lost'})
+            dict(dep('bg_freezer', '1', None), use_freezer='true'), {'mode': 'fg', 'error': 'adb lost'})
         add('deploy', 'deploy-media-0930.jsonl', dep('bg_unfrozen', '0', 1500, 'media'), dep('bg_unfrozen', '0', 1200, 'media', ev='contacts'))
         add('deploy', 'deploy-calllog-1000.jsonl', dep('fg', '0', 1005, 'calllog'), dep('fg', '0', 1007, 'calllog'))
         add('deploy', 'deploy-pilot-contacts-0800.jsonl', dep('fg', '0', 1006, 'contacts'))
@@ -487,7 +555,7 @@ def self_check():
             return {'trial': 0, 'frozen_samples': [[0, '1']], 'frozen_at_end': '1', 'muts': [{'src': 'contacts', 't_pre': 100}], 't_gap_end': 700,
                     't_first_mut': 100, 'pid_obs': 5, 'frozen_with_pending_s': 600, 'early': dec(t_recv=700), 'late': dec(),
                     'vlate': dec(events=[{'src': 'contacts', 't': 701}], pid=pid_v, last_start={'exit': {'ts': 400, 'desc': 'too many cached'}})}
-        add('frozen', 'frozen-0100.jsonl', hold(5), hold(6))
+        add('frozen', 'frozen-0100.jsonl', dict(hold(5), use_freezer='true'), dict(hold(6), use_freezer='true'))
         add('b0', 'b0-probe-0600.jsonl', aws({'probe': 'identity', 'ok': True, 'detail': {'ro.build.version.release': '15', 'ro.build.version.sdk': '35'}}, 'D'))
 
         m, P = write(D, gen)
@@ -592,6 +660,39 @@ def self_check():
         assert m['PhysBoundaryTrials'][1] is None and '\\PhysBoundaryfalse' in tab('physical_macros.tex')
         m, _ = write(dict(empty, boundary=[r for r in recs if r['mode'] == 'bnd']), gen)   # no observation trial: TBD, not 0/0
         assert m['PhysBndObsStale'][1] is None and m['PhysBndOverlapStale'][1] == '1/1'
+        # freezer state (some Device Farm units ship with it off): a freezer trial counts only with the freezer on, read
+        # from use_freezer, else from the saved `dumpsys activity settings` (config), else excluded as unknown
+        fzd = lambda f, **k: dict(dep('bg_freezer', '1', None), _file=f, **k)
+        cfg = lambda on: 'ACTIVITY MANAGER SETTINGS (dumpsys activity settings)\n  use_freezer=%s\n  freeze_debounce_timeout=10000' % on
+        recs = [fzd('deploy-contacts-2000.jsonl', device_instance='uA', config=cfg('false')),          # old schema, unit off
+                fzd('deploy-contacts-2000.jsonl', device_instance='uB', use_freezer_before='false', use_freezer='true'),   # turned on: valid
+                fzd('deploy-contacts-2000.jsonl', device_instance='uG', config=cfg('true')),           # old schema, on: valid
+                fzd('deploy-contacts-2000.jsonl', device_instance='uF'),                               # unknown
+                fzd('deploy-contacts-2000.jsonl', device_instance='uA', use_freezer='false', config=cfg('true')),   # the field wins
+                fzd('deploy-pilot-contacts-2000.jsonl', device_instance='uE', config=cfg('false'))]   # pilot: no trial, no unit
+        b0p = {'probe': 'freezer_debounce_2s', 'ok': True, 'detail': {'frozen': '1'}, 'device_instance': 'uC', '_file': 'b0-probe-2000.jsonl'}
+        dg = {'exp': 'diag', 'variant': 'b', 'froze': True, 'device_instance': 'uD', '_file': 'diag-b1-freeze-2000.jsonl'}
+        m, _ = write(dict(empty, deploy=recs, b0=[b0p], diag=[dg]), gen); w = {k: x for k, (_, x) in m.items()}
+        assert w['PhysDeployFrozenBeforeThaw'] == '0/2' and w['PhysFreezerOffUnits'] == '2/5' and w['PhysInstances'] == 4, (w['PhysDeployFrozenBeforeThaw'], w['PhysFreezerOffUnits'])
+        assert 'Background, frozen & 2/5' in tab('tab_phys_deploy.tex')
+        assert 'Excluded frozen trials: 2 (freezer off on unit), 1 (freezer state unknown).' in tab('tab_phys_deploy.tex')
+        gz = lambda **k: dict(gap('freeze', 7, 11000, 'A', 'KEEP'), frozen='1', _file='gaps-freeze-2000.jsonl', **k)
+        hz = lambda **k: dict(hold(5), _file='frozen-2000.jsonl', **k)
+        m, _ = write(dict(empty, gaps=[gz(use_freezer='true'), gz(use_freezer='false'), gz(), dict(gap('kill', 8, None, 'A', 'REFRESH'), _file='gaps-kill-2000.jsonl')],
+                          frozen=[hz(use_freezer='true'), hz()]), gen); w = {k: x for k, (_, x) in m.items()}
+        assert w['PhysGapTrials'] == '2/4' and w['PhysFrozenHolds'] == 1 and w['PhysFreezerOffUnits'] is None, (w['PhysGapTrials'], w['PhysFrozenHolds'])
+        assert 'Excluded freezer trials: 1 (freezer off on unit), 1 (freezer state unknown).' in tab('tab_phys_gaps.tex')
+        assert 'Excluded holds: 1 (freezer state unknown).' in tab('tab_phys_frozen.tex')
+        m, _ = write(dict(empty, frozen=[hz(use_freezer='false')]), gen)                      # every hold excluded
+        assert m['PhysFrozenHolds'][1] is None and '\\PhysTBD{' in tab('tab_phys_frozen.tex') and 'Excluded holds: 1 (freezer off on unit).' in tab('tab_phys_frozen.tex')
+        # the revised client reports strict EvCheck under `lm` (fact-keyed lm_cost with verdicts, as in B2 part 2 on the
+        # phone): such trials give no StampCheck misses and no StampCheck cost; event-only is still counted
+        strict = lambda t: dict(t, late=dict(t['late'], lm_cost={'c.dana': {'verdict': 'UNKNOWN', 'reason': 'strict_epoch_and_snapshot_unavailable',
+                                                                            'fact': 'c.dana', 'start_ns': 1, 'end_ns': 2}}))
+        m, _ = write(dict(empty, gaps=[strict(dict(gap('kill', 8, None, 'A', 'REFRESH'), _file='gaps-kill-2100.jsonl'))]), gen)
+        w = {k: x for k, (_, x) in m.items()}
+        assert w['PhysGapLostEv'] == '1/1' and w['PhysGapLostLm'] is None and w['PhysCostN'] is None and w['PhysEvidCheap'] is None, (w['PhysGapLostEv'], w['PhysGapLostLm'])
+        assert 'am kill}) & 1/1' in tab('tab_phys_gaps.tex') and '& 1/1 & 0/1 & n/a\\\\' in tab('tab_phys_gaps.tex'), tab('tab_phys_gaps.tex')
         # the real AWS sequence: an older partial B0 lists nothing, the valid later one lists calllog and sms
         b0 = lambda f, ex: {'probe': 'identity', 'ok': True, 'excluded_sources': ex, 'detail': {}, '_file': f}
         write(dict(empty, b0=[b0('b0-probe-1533.jsonl', []), b0('b0-probe-1551.jsonl', ['calllog', 'sms'])]), gen)
