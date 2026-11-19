@@ -130,10 +130,10 @@ def coverage():
         lines.append("%s & %s & %s & %s & %s & %s \\\\" % (src, r["label"], cell(r, "insert"), cell(r, "update"), cell(r, "delete"), cell(r, "none")))
     va = S_.get("ver_adapter", {})
     lines.append("\\midrule")
-    lines.append("\\multicolumn{2}{@{}l}{\\stamp Contacts adapter (VERSION map, E2)} & %s & %s & %s & %s \\\\" % tuple(va.get(k, NA) for k in ("insert", "update", "delete", "none")))
+    lines.append("\\multicolumn{2}{@{}l}{\\stamp Contacts adapter (VERSION map)} & %s & %s & %s & %s \\\\" % tuple(va.get(k, NA) for k in ("insert", "update", "delete", "none")))
     lines.append("\\multicolumn{2}{@{}l}{SMS, calendar events, Settings: none found} & \\multicolumn{4}{c}{$\\Rightarrow$ \\Unknown} \\\\")
     table("tab_coverage.tex", "tab:coverage",
-          "Durable change evidence on Android~13 (E1): trials in which a candidate moved after one mutation of each kind by another app; ``None'' = source untouched. $\\downarrow$: moved downward in some trials. All probed candidates and the Android~15 replication are in Table~\\ref{tab:allcands}.",
+          "Durable change evidence on Android~13: trials in which a candidate moved after one mutation of each kind by another app; ``None'' = source untouched. $\\downarrow$: moved downward in some trials. All probed candidates and the Android~15 replication are in Table~\\ref{tab:allcands}.",
           "@{}llrrrr@{}", "Source & Candidate & Insert & Update & Delete & None", lines, size="\\scriptsize", sep="2.4pt")
     # all candidates, API 33 vs API 35
     lines = []
@@ -141,7 +141,7 @@ def coverage():
         r35 = next((x for x in rows if x["tag"] == "e1api35" and x["key"] == r["key"]), None)
         c35 = " / ".join(cell(r35, k) for k in ("insert", "update", "delete", "none")) if r35 else NA
         lines.append("%s & %s & %s & %s \\\\" % (SRCNAME[r["source"]], r["label"], " / ".join(cell(r, k) for k in ("insert", "update", "delete", "none")), c35))
-    table("tab_allcands.tex", "tab:allcands", "Every candidate probed in E1 (insert / update / delete / none). API~33: %s trials; API~35: %s trials." % (S_.get("e1_trials", NA), S_.get("e1api35_trials", NA)),
+    table("tab_allcands.tex", "tab:allcands", "Every candidate probed in the source campaign (insert / update / delete / none). API~33: %s trials; API~35: %s trials." % (S_.get("e1_trials", NA), S_.get("e1api35_trials", NA)),
           "@{}llll@{}", "Source & Candidate & API 33 & API 35", lines, star=True, size="\\scriptsize", where="!ht")
 
 
@@ -159,7 +159,7 @@ def latency():
                                                 (f(S_.get("%s_prov_bg_p5_ms" % tag) / 1000.0, 1) + "\\,s") if mode == "bg" and S_.get("%s_prov_bg_p5_ms" % tag) else NA,
                                                 (f(files, 0) + "\\,ms") if files is not None else NA))
     table("tab_latency.tex", "tab:latency",
-          "Delay from a mutation to the first \\texttt{ContentObserver} callback in a live client (E1); FileObserver = inotify. $^{*}$Mixed freezer state.",
+          "Delay from a mutation to the first \\texttt{ContentObserver} callback in a live client; FileObserver = inotify. $^{*}$Mixed freezer state.",
           "@{}lrrr@{}", "Client & " + stk("Provider", "median") + " & " + stk("Provider", "5th pct.") + " & " + stk("FileObserver", "median"), lines, size="\\footnotesize", sep="3pt")
     for tag in ("e1", "e1api35"):
         T = "A" if tag == "e1" else "B"
@@ -220,7 +220,7 @@ def taxonomy():
                 mac("DozeIdleTwo%s%s" % (tag, G), r["doze_idle_at_batch2"])
                 mac("DozeMaintTwo%s%s" % (tag, G), n - int(r["doze_idle_at_batch2"]))   # trials not in deep idle at batch 2
     table("tab_gaps.tex", "tab:gaps",
-          "What each gap does to a live or restarted client (E2). First callback: median / max delay from a provider mutation to its first \\texttt{ContentObserver} callback. Notified: share of changed provider sources with a callback by the early (+2\\,s) and late (+14\\,s) decision. Trigger: the JobScheduler content trigger (its own package, same gap) fired. Exit: new \\texttt{ApplicationExitInfo} records.",
+          "What each gap does to a live or restarted client. First callback: median / max delay from a provider mutation to its first \\texttt{ContentObserver} callback. Notified: share of changed provider sources with a callback by the early (+2\\,s) and late (+14\\,s) decision. Trigger: the JobScheduler content trigger (its own package, same gap) fired. Exit: new \\texttt{ApplicationExitInfo} records.",
           "@{}lrrrrrrl@{}", "Gap & Trials & Survived\\,\\% & First callback (s) & Notified early\\,\\% & Notified late\\,\\% & Trigger\\,\\% & Exit record", lines, star=True, size="\\scriptsize")
 
 
@@ -242,7 +242,7 @@ def policy():
                 cells = [pct(R[(plat, proto, client, g, phase, p)]["miss_rate"]) for p in pols]
                 lines.append("%s & %s & %s \\\\" % (GAPNAME.get(g, g), R[(plat, proto, client, g, phase, "ev")]["changed"], " & ".join(cells)))
     table("tab_policy.tex", "tab:policy",
-          "Missed changes per gap (E2): \\% of changed fact uses that a policy used without refreshing. Derived facts are counted in ``Changed''; trial-level rates are in Table~\\ref{tab:trial}. Restart-aware = event-only plus refresh of every fact after an epoch break.",
+          "Missed changes per gap: \\% of changed fact uses that a policy used without refreshing. Derived facts are counted in ``Changed''; trial-level rates are in Table~\\ref{tab:trial}. Restart-aware = event-only plus refresh of every fact after an epoch break.",
           "@{}lrrrrrrr@{}", "Gap & Changed & " + " & ".join(POLNAME[p] for p in pols), lines, star=True, size="\\scriptsize")
     # trial-level table (late + early) for the three key policies
     lines = []
@@ -366,9 +366,9 @@ def cost():
         if s_ in ("contacts", "calllog", "media", "files"):
             mac("CostVal" + s_.capitalize(), f(r["validate_ms"], 1))
     if S_.get("e8_call_s_med") is not None:
-        lines.append("\\midrule\n\\multicolumn{5}{@{}l}{LLM re-derivation of one fact (E8):} \\\\\n\\multicolumn{5}{@{}l}{\\quad median %s\\,s (Qwen2.5-7B, local GPU)} \\\\" % f(S_["e8_call_s_med"], 2))
+        lines.append("\\midrule\n\\multicolumn{5}{@{}l}{LLM re-derivation of one fact:} \\\\\n\\multicolumn{5}{@{}l}{\\quad median %s\\,s (Qwen2.5-7B, local GPU)} \\\\" % f(S_["e8_call_s_med"], 2))
     table("tab_cost.tex", "tab:cost",
-          "Per-use cost: provider refresh of one fact and \\stamp validation of one source (medians over E2 late decisions, ms); GUI re-observation of one fact through the stock app (E4, warm/cold, s).",
+          "Per-use cost: provider refresh of one fact and \\stamp validation of one source (medians over late decisions of the gap campaign, ms); GUI re-observation of one fact through the stock app (warm/cold, s).",
           "@{}lrrrr@{}", "Source & " + stk("Refresh", "(ms)") + " & " + stk("Validate", "(ms)") + " & " + stk("GUI warm", "(s)") + " & " + stk("GUI cold", "(s)"), lines, size="\\footnotesize", sep="3pt")
     mac("GuiS", f(S_.get("e4_gui_s_med"), 1)); mac("GuiSLo", f(S_.get("e4_gui_s_lo"), 1)); mac("GuiSHi", f(S_.get("e4_gui_s_hi"), 1))
     mac("EFourN", S_.get("e4_n", NA)); mac("EFourOk", S_.get("e4_ok", NA))
@@ -394,7 +394,7 @@ def e8():
         mac("EightLmUnnecUnk" + tag, r["lm_unnec_unknown"]); mac("EightLmFaster" + tag, r["lm_faster_than_memo"])
         mac("EightMemoStale" + tag, r["memo_stale"]); mac("EightLmStale" + tag, r["lm_stale"])
     table("tab_e8.tex", "tab:e8",
-          "Memory of LLM-derived facts (E8; 10 derived facts, local Qwen2.5-7B). Cost model, not end-to-end latency: per decision, the sum of the individually timed LLM calls a policy would make plus its provider reads (s; median, bootstrap 95\\% CI). Last column: facts re-derived per decision (global / restart-aware / \\stamp / memoization). No policy except event-only made a stale decision.",
+          "Memory of LLM-derived facts (10 derived facts, local Qwen2.5-7B). Cost model, not end-to-end latency: per decision, the sum of the individually timed LLM calls a policy would make plus its provider reads (s; median, bootstrap 95\\% CI). Last column: facts re-derived per decision (global / restart-aware / \\stamp / memoization). No policy except event-only made a stale decision.",
           "@{}lrrrrrrr@{}", "Condition & Trials & Changed & Global & Restart-aware & \\stamp & Memoization & Re-derived", lines, star=True, size="\\footnotesize")
     mac("EightTrials", S_.get("e8_trials", NA)); mac("EightCallS", f(S_.get("e8_call_s_med"), 2))
 
@@ -430,7 +430,7 @@ def e3():
         mac("BinEarlyK", sum(int(b["stale"]) for b in e_)); mac("BinEarlyN", sum(int(b["n"]) for b in e_))
         mac("BinLateK", sum(int(b["stale"]) for b in l_)); mac("BinLateN", sum(int(b["n"]) for b in l_))
     table("tab_boundary.tex", "tab:boundary",
-          "Validation vs.\\ commitment (E3): stale effects by where the injected change landed relative to the boundary check and the effect (a call-log row carrying the number used).",
+          "Validation vs.\\ commitment: stale effects by where the injected change landed relative to the boundary check and the effect (a call-log row carrying the number used).",
           "@{}lr@{}", "Placement of the change & Stale effects", lines, size="\\footnotesize")
     mac("EThreeTrials", S_.get("e3_trials", NA)); mac("CteMs", f(S_.get("e3_check_to_effect_ms"), 1)); mac("CteMax", f(S_.get("e3_cte_max"), 0))
 
@@ -448,7 +448,7 @@ def persource():
             NA if der else pct(int(r["lab_UNKNOWN"] or 0) / u), pct(int(r["unch_fresh"] or 0) / max(1, un)),
             NA if der else pct(int(r["unch_false"] or 0) / max(1, un)), r["chg_detected"], ch, r["evr_miss"], ch, r.get("evr_miss_early", NA), r.get("changed_early", NA)))
     table("tab_persource.tex", "tab:persource",
-          "\\stamp per source (E2, background, late decision). Reused: unchanged uses served from memory. False inval.: unchanged uses marked \\Changed. Last columns: changed uses refreshed by \\stamp; changed uses missed by restart-aware event-only at the late and at the early decision.",
+          "\\stamp per source (gap campaign, background, late decision). Reused: unchanged uses served from memory. False inval.: unchanged uses marked \\Changed. Last columns: changed uses refreshed by \\stamp; changed uses missed by restart-aware event-only at the late and at the early decision.",
           "@{}lrrrrrrrrr@{}", "Source & Uses & Chg.\\% & Fresh\\% & Unkn.\\% & Reused\\% & False inval.\\% & \\stamp refr. & Restart missed & early", lines, size="\\scriptsize", sep="2pt")
 
 
@@ -466,7 +466,7 @@ def aw():
     mac("AwRead", len(R2)); mac("AwReadWm", sum(1 for r in R2 if r["task_class"] == "watermark"))
     mac("AwReadApi", sum(1 for r in R2 if r["task_class"] == "api-only")); mac("AwReadGui", sum(1 for r in R2 if r["task_class"] == "gui-only"))
     mac("AwReadAnyWm", sum(int(r["any_watermark"]) for r in R2))
-    table("tab_aw.tex", "tab:aw", "Historical app/name-based AndroidWorld census (E5). Store classes describe candidate evidence, not certified query coverage. Right column: name-rule candidates for reading pre-existing state; the nine-validator inspection qualifies this rule.",
+    table("tab_aw.tex", "tab:aw", "Historical app/name-based AndroidWorld census. Store classes describe candidate evidence, not certified query coverage. Right column: name-rule candidates for reading pre-existing state; the nine-validator inspection qualifies this rule.",
           "@{}lrr@{}", "Stores behind the task & All tasks & Reads existing state", lines, size="\\footnotesize")
 
 
@@ -547,7 +547,7 @@ def e9():
             v = S_.get("e9_%s_%s" % (plat, k)); mac("Nine%s%s" % (nm2, T), f(abs(v) if "first" in k else v, 2 if "first" in k else 1) if v is not None else NA)
     metrics = ["Trials", "Stayed frozen", "Killed", "Changes", "Hold $\\geq$ (min)", "Lost sources", "Unseen last", "Callbacks", "Restart-aware miss"]
     lines = ["%s & %s \\\\" % (m_, " & ".join(c[i] for c in cols)) for i, m_ in enumerate(metrics)]
-    table("tab_frozen.tex", "tab:frozen", "Long frozen holds (E9): the client is frozen and stays in the background while another app changes a random source every 3\\,s for at least the stated time after the first change; decisions at +2, +14 and +120\\,s after the gap. Killed: the frozen process was killed during the hold. Lost sources and unseen last changes are counted over the trials that stayed frozen: mutated sources with no callback by +120\\,s, and sources whose last change had no later callback. Last row: changed uses missed by restart-aware event-only at +2/+14/+120\\,s.",
+    table("tab_frozen.tex", "tab:frozen", "Long frozen holds: the client is frozen and stays in the background while another app changes a random source every 3\\,s for at least the stated time after the first change; decisions at +2, +14 and +120\\,s after the gap. Killed: the frozen process was killed during the hold. Lost sources and unseen last changes are counted over the trials that stayed frozen: mutated sources with no callback by +120\\,s, and sources whose last change had no later callback. Last row: changed uses missed by restart-aware event-only at +2/+14/+120\\,s.",
           "@{}l" + "r" * len(cols) + "@{}", " & ".join(["Metric"] + names), lines, size="\\footnotesize")
 
 
@@ -593,7 +593,7 @@ def e10():
             mac("Dep%sKill" % tag, "yes" if base["am_kill"]["killed"] else "no"); mac("Dep%sForce" % tag, fstr)
             if lat:
                 mac("Dep%sLatMax" % tag, ("%s\\,ms" % f(max(lat), 0)) if max(lat) < 1000 else ("%s\\,s" % f(max(lat) / 1000.0, 1)))
-    table("tab_deploy.tex", "tab:deploy", "Which gaps apply to which deployment of the same client (E10): process state and oom\\_score\\_adj on the home screen; median delay from a provider change to its first callback (callbacks received / changes); whether the freezer (2\\,s debounce) froze it within 10\\,s; whether \\texttt{am kill} ended it; what \\texttt{am force-stop} did. ``At thaw'': with the short debounce the background client was frozen during the wait, so callbacks came only when it was woken (the deferral itself is in Table~\\ref{tab:latency}).",
+    table("tab_deploy.tex", "tab:deploy", "Which gaps apply to which deployment of the same client: process state and oom\\_score\\_adj on the home screen; median delay from a provider change to its first callback (callbacks received / changes); whether the freezer (2\\,s debounce) froze it within 10\\,s; whether \\texttt{am kill} ended it; what \\texttt{am force-stop} did. ``At thaw'': with the short debounce the background client was frozen during the wait, so callbacks came only when it was woken (the deferral itself is in Table~\\ref{tab:latency}).",
           "@{}llrrrrrrl@{}", "Deployment & Platform & ProcState & oom\\_adj & First callback & Recv. & Frozen & am kill & Force-stop", lines, star=True, size="\\scriptsize")
 
 
@@ -624,7 +624,7 @@ def e11():
         T = "Bg" if mode == "bg" else "Fg"
         mac("Cost%sCpu" % T, f(cpu / 100.0, 2) if cpu is not None else NA); mac("Cost%sPss" % T, f(pss / 1024.0, 1) if pss is not None else NA)
         mac("Cost%sPower" % T, sci(pw) if pw is not None else NA); mac("Cost%sN" % T, len(R))
-    table("tab_fgcost.tex", "tab:fgcost", "Cost of keeping the memory in a foreground service (E11, Android~13), per window with a change by another app every 20\\,s: medians of CPU time, PSS and BatteryStats' estimated charge for the client's UID (a power-profile estimate on an emulator, not a battery measurement; ``not listed'': below BatteryStats' reporting threshold; in parentheses: windows in which it was listed).",
+    table("tab_fgcost.tex", "tab:fgcost", "Cost of keeping the memory in a foreground service (Android~13), per window with a change by another app every 20\\,s: medians of CPU time, PSS and BatteryStats' estimated charge for the client's UID (a power-profile estimate on an emulator, not a battery measurement; ``not listed'': below BatteryStats' reporting threshold; in parentheses: windows in which it was listed).",
           "@{}lrrrrr@{}", "Client & Windows & Window (min) & CPU (s) & PSS (MB) & Est. charge (mAh)", lines, size="\\footnotesize")
 
 
@@ -663,7 +663,7 @@ def e12():
         mac("Scale%sVc" % T, f(vc, 1)); mac("Scale%sRc" % T, f(rc, 1)); mac("Scale%sVm" % T, f(vm, 1)); mac("Scale%sRm" % T, f(rm, 1))
         mac("Scale%sCte" % T, f(cte, 0)); mac("Scale%sRaw" % T, R[0]["raw_contacts"]); mac("Scale%sImg" % T, R[0]["images"])
         mac("Scale%sVcc" % T, f(vcc, 1)); mac("Scale%sVmc" % T, f(vmc, 1)); mac("Scale%sMiss" % T, miss)
-    table("tab_scale.tex", "tab:scale", "Cost vs.\\ source size (E12; medians, ms). Contacts: \\stamp validation with the VERSION-map adapter (unchanged / after one edit), with the timestamp adapter, and a provider refresh of the 3 Contacts facts (incl.\\ the aggregate over all ``LM'' contacts). MediaStore: validation (unchanged / after one insert) and refresh of the 2 media facts (incl.\\ the newest-photo aggregate). Last column: boundary check to effect.",
+    table("tab_scale.tex", "tab:scale", "Cost vs.\\ source size (medians, ms). Contacts: \\stamp validation with the VERSION-map adapter (unchanged / after one edit), with the timestamp adapter, and a provider refresh of the 3 Contacts facts (incl.\\ the aggregate over all ``LM'' contacts). MediaStore: validation (unchanged / after one insert) and refresh of the 2 media facts (incl.\\ the newest-photo aggregate). Last column: boundary check to effect.",
           "@{}rrrrrrrrrr@{}", "Raw contacts & Images & C.\\ val. & C.\\ val.\\,$\\Delta$ & C.\\ val.\\ TS & C.\\ refresh & M.\\ val. & M.\\ val.\\,$\\Delta$ & M.\\ refresh & Check$\\to$effect", lines, star=True, size="\\scriptsize")
 
 
@@ -683,7 +683,7 @@ def e13():
         mac("Host%sFaster" % T, r["evcheck_faster"]); mac("Host%sN" % T, r["n"]); mac("Host%sReread" % T, f(r["reread_mean"], 1))
         mac("Host%sMiss" % T, r["evcheck_miss"]); mac("Host%sChanged" % T, r["changed_facts"])
     mac("HostQueryMs", f(S_.get("e13_content_query_ms_med"), 0)); mac("HostShellMs", f(S_.get("e13_shell_cmd_ms_med"), 0))
-    table("tab_host.tex", "tab:host", "A host agent reading the phone over adb (E13; Android~13): time per decision (s; median, bootstrap 95\\% CI) to re-read all 16 base facts (global refresh, which for base facts is also input memoization) and to check watermarks and re-read what they do not certify (\\stamp). Missed: changed facts not re-read.",
+    table("tab_host.tex", "tab:host", "A host agent reading the phone over adb (Android~13): time per decision (s; median, bootstrap 95\\% CI) to re-read all 16 base facts (global refresh, which for base facts is also input memoization) and to check watermarks and re-read what they do not certify (\\stamp). Missed: changed facts not re-read.",
           "@{}lrrrrrr@{}", "Decisions & $n$ & Global (s) & \\stamp (s) & \\stamp faster & Re-reads & Missed", lines, size="\\footnotesize")
 
 

@@ -8,14 +8,48 @@
 \newif\ifPhysReset\PhysResettrue
 \newif\ifPhysHost\PhysHosttrue
 \newif\ifPhysCont\PhysConttrue
+\newif\ifPhysSamsung\PhysSamsungtrue
 \newcommand{\PhysDevice}{Google Pixel 8\xspace}
 \newcommand{\PhysFingerprint}{\path{AP3A.241005.015}, \path{BP1A.250405.007.B1}, \path{BP1A.250505.005.B1}\xspace}
 \newcommand{\PhysBuilds}{3\xspace}
 \newcommand{\PhysAndroid}{Android 15, SDK 35\xspace}
 \newcommand{\PhysRooted}{not rooted\xspace}
 \newcommand{\PhysSdk}{35\xspace}
-\newcommand{\PhysInstances}{12\xspace}
-\newcommand{\PhysFreezerOffUnits}{9/13\xspace}
+\newcommand{\PhysInstances}{13\xspace}
+\newcommand{\PhysFreezerOffUnits}{9/14\xspace}
+\newcommand{\PhysUnitsTrials}{13\xspace}
+\newcommand{\PhysUnitsFreezerKnown}{14\xspace}
+\newcommand{\PhysFreezerOffTrialUnits}{9/13\xspace}
+\newcommand{\PhysUnitsGap}{3\xspace}
+\newcommand{\PhysUnitsGapBuilds}{2\xspace}
+\newcommand{\PhysUnitFclMin}{10.04\xspace}
+\newcommand{\PhysUnitFclMax}{10.05\xspace}
+\newcommand{\PhysUnitsLostAll}{2/2\xspace}
+\newcommand{\PhysUnitsBoundary}{2\xspace}
+\newcommand{\PhysUnitCteMin}{103.0\xspace}
+\newcommand{\PhysUnitCteMax}{133.5\xspace}
+\newcommand{\PhysSamsungModel}{SM-S931U1\xspace}
+\newcommand{\PhysSamsungBuild}{\path{AP3A.240905.015.A2}\xspace}
+\newcommand{\PhysSamsungUnits}{2\xspace}
+\newcommand{\PhysSamsungFreezerOffUnits}{2/5\xspace}
+\newcommand{\PhysSamsungDeployTrials}{100/100\xspace}
+\newcommand{\PhysSamsungBgMedian}{12\,ms\xspace}
+\newcommand{\PhysSamsungFgMedian}{12\,ms\xspace}
+\newcommand{\PhysSamsungAssistMedian}{10\,ms\xspace}
+\newcommand{\PhysSamsungMediaBgMedian}{10.0\,s\xspace}
+\newcommand{\PhysSamsungMediaFgMedian}{8\,ms\xspace}
+\newcommand{\PhysSamsungNoDelay}{60/60\xspace}
+\newcommand{\PhysSamsungMediaNoDelay}{0/40\xspace}
+\newcommand{\PhysDeployNoDelay}{0/60\xspace}
+\newcommand{\PhysSamsungRaceTrials}{100\xspace}
+\newcommand{\PhysSamsungRaceStale}{26\xspace}
+\newcommand{\PhysSamsungFrozen}{0/7\xspace}
+\newcommand{\PhysSamsungFreezeWindowS}{25\xspace}
+\newcommand{\PhysSamsungFreezeDebounceS}{2\xspace}
+\newcommand{\PhysFreezerProbeFrozen}{8/8\xspace}
+\newcommand{\PhysHostReadsRefresh}{11.0\xspace}
+\newcommand{\PhysHostReadsStampMin}{4.0\xspace}
+\newcommand{\PhysHostReadsStampMax}{7.0\xspace}
 \newcommand{\PhysDeployTrials}{119/140\xspace}
 \newcommand{\PhysDeployBgMedian}{10.1\,s\xspace}
 \newcommand{\PhysDeployFgMedian}{58\,ms\xspace}
@@ -26,17 +60,17 @@
 \newcommand{\PhysDeployCalllogBgMedian}{not run on phone\xspace}
 \newcommand{\PhysDeployCalllogFgMedian}{not run on phone\xspace}
 \newcommand{\PhysCoverageTrials}{30\xspace}
-\newcommand{\PhysGapTrials}{174/199\xspace}
+\newcommand{\PhysGapTrials}{199/224\xspace}
 \newcommand{\PhysGapNoneFcl}{10.0\xspace}
-\newcommand{\PhysGapFreezeFcl}{\PhysTBD{B2 freezer median first callback, s}\xspace}
+\newcommand{\PhysGapFreezeFcl}{19.4\xspace}
 \newcommand{\PhysGapDozeFcl}{10.0\xspace}
 \newcommand{\PhysGapBucketFcl}{10.1\xspace}
 \newcommand{\PhysGapLostEv}{344/344\xspace}
 \newcommand{\PhysGapLostEvr}{0/344\xspace}
 \newcommand{\PhysGapLostLm}{0/344\xspace}
-\newcommand{\PhysGapInEpochEv}{33/281\xspace}
-\newcommand{\PhysGapInEpochEvr}{30/281\xspace}
-\newcommand{\PhysGapInEpochLm}{0/281\xspace}
+\newcommand{\PhysGapInEpochEv}{49/363\xspace}
+\newcommand{\PhysGapInEpochEvr}{46/363\xspace}
+\newcommand{\PhysGapInEpochLm}{0/363\xspace}
 \newcommand{\PhysRaceTrials}{100\xspace}
 \newcommand{\PhysRaceStale}{26\xspace}
 \newcommand{\PhysBoundaryTrials}{272\xspace}
@@ -77,11 +111,11 @@
 \newcommand{\PhysResetSameStamp}{20/20\xspace}
 \newcommand{\PhysResetUnknown}{20/20\xspace}
 \newcommand{\PhysResetEmuSameStamp}{38/40\xspace}
-\newcommand{\PhysCostGl}{151\xspace}
-\newcommand{\PhysCostGlCi}{[142, 163]\xspace}
-\newcommand{\PhysCostLm}{203\xspace}
-\newcommand{\PhysCostLmCi}{[193, 213]\xspace}
-\newcommand{\PhysCostN}{174\xspace}
+\newcommand{\PhysCostGl}{146\xspace}
+\newcommand{\PhysCostGlCi}{[139, 154]\xspace}
+\newcommand{\PhysCostLm}{201\xspace}
+\newcommand{\PhysCostLmCi}{[190, 210]\xspace}
+\newcommand{\PhysCostN}{199\xspace}
 \newcommand{\PhysEvidCheap}{phone\xspace}
 \newcommand{\PhysEvidBound}{phone\xspace}
 \newcommand{\PhysEvidWeak}{phone\xspace}

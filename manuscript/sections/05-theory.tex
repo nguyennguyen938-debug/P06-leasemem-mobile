@@ -1,15 +1,14 @@
 \section{Guarantees and Limits}
 \label{sec:theory}
-\begin{theorem}[Conditional snapshot freshness]\label{thm:sound}
-Suppose every relevant commit changes a non-repeating sequence within its epoch, supported reset or restore changes the epoch, value and support reads are snapshots or lie inside an interval whose equal complete evidence excludes relevant commits, validation includes every support, delta and membership read, and failures withdraw certification. Then a successful observation records its query's value at a certified instant, and a validation that returns \Fresh certifies equality of that stored value and the query at its own certified instant. Neither certifies response receipt, an independent source, or a later effect.
-\end{theorem}
+\begin{proposition}[Conditional snapshot freshness]\label{thm:sound}
+If every relevant commit and supported reset changes the source's evidence without repeating it, and the query and its support, delta and membership reads share one snapshot or lie between equal evidence reads, then \Fresh certifies the stored value at the attempt's certified instant, not at receipt or a later effect.
+\end{proposition}
 
-\begin{theorem}[Notification silence]\label{thm:indist}
-If a relevant write can commit before its notification is delivered, a reader using only its prior state, delivered notifications and lifecycle records cannot distinguish that execution from an unchanged source before delivery. It must read establishing evidence, refresh, or decline to certify.
-\end{theorem}
-Appendix~\ref{app:proofs} gives both arguments. The premises are implementation obligations that zero-miss trials cannot establish; a nondecreasing clock, a digest of row versions or a fixed wait does not discharge them.
+\begin{observation}[Notification silence]\label{thm:indist}
+Before a committed write's notification is delivered, a reader using only prior state, delivered notifications and lifecycle records cannot tell the write from no write; it must read evidence or decline to certify.
+\end{observation}
+Appendix~\ref{app:proofs} gives both arguments.
 
 \begin{proposition}[Cost accounting]\label{prop:cost}
-A validated bracket pays for both evidence reads, every inner read, failed attempts and fallback refreshes; a host adds transport and helper residency. Input memoization pays for current inputs and recomputes only changed outputs.
+A validated bracket pays for both evidence reads, every inner read, failed attempts and fallback refreshes; a host adds transport and helper residency.
 \end{proposition}
-Neither result implies that validation is faster than refresh, and \stamp's measured cost does not price \sys.

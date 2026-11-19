@@ -104,6 +104,9 @@ def main():
  lines += [r'\bottomrule\end{tabular}',r'\end{table*}'];(G/'tab_checks_host.tex').write_text('\n'.join(lines)+'\n',newline='\n')
  prov=json.loads((ROOT/'artifact/revision/provenance/sample.json').read_text())['rows'];per=Counter(r['task_class'] for r in prov)
  macros={'RevProvTasks':len(prov),'RevProvPerClass':min(per.values()),'RevProvClasses':len(per),'RevReference':len(ref),'RevStock':len(stock),'RevAnchoringRace':sum(sum(v) for v in by.values()),'RevTickPairs':summary['tick']['pairs'],'RevTickTrials':len(tick),'RevTickHits':summary['tick']['equal_tick_changed_trials'],'RevHost':len(host),'RevReferenceRace':summary['reference']['historical_stale'],'RevActionResidual':summary['reference']['action_residual_trials'],'RevSupplement':len(supplement)}
+ # one EvCheck attempt on the one-row reference provider, before-token read start to after-token read end, control trials only
+ brk=[(a['after']['end_ns']-a['before']['start_ns'])/1e6 for r in ref if r['case']=='control' for a in r['result']['repaired']['attempts']]
+ macros.update(RefBracketMs='%.1f'%statistics.median(brk),RefBracketMsRange='from %.1f to %.1f'%(min(brk),max(brk)))
  (G/'revision_macros.tex').write_text(''.join('\\newcommand{\\'+k+'}{'+str(v)+'\\xspace}\n' for k,v in macros.items()),newline='\n')
  print(json.dumps({k:summary[k] for k in ['reference','tick']},indent=2))
 if __name__=='__main__':main()
