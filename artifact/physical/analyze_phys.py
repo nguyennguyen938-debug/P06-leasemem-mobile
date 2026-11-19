@@ -363,9 +363,16 @@ def long_freeze(rows):
     on = [r for r in T if r['phase'] == phases[0]]
     off = next((ph for ph in phases if all('Dozing' in r['wake'] for r in T if r['phase'] == ph)), None)
     to_v1 = [r['t_s'] for r in T if r['phase'] == off and v1_frozen(r['cgroup'])]
+    def phase(ph):      # per phase, in run order: screen state, battery saver, samples in the v1 group and running there
+        P = [r for r in T if r['phase'] == ph]
+        v1 = [r for r in P if v1_frozen(r['cgroup'])]
+        return {'name': ph, 'n': len(P), 'off': all('Dozing' in r['wake'] for r in P), 'saver': all(r.get('low_power') == '1' for r in P),
+                'secs': max(r['t_s'] for r in P), 'in_v1': len(v1), 'running': sum('R (running)' in r['state'] for r in v1),
+                'first_v1': min((r['t_s'] for r in v1), default=None)}
     return {'n': len(T), 'android_frozen': sum(r['isFrozen'] == 'true' or r['frozen'] == '1' for r in T),
             'on_s': max(r['t_s'] for r in on), 'on_v1': sum(v1_frozen(r['cgroup']) for r in on), 'to_v1': min(to_v1) if to_v1 else None,
-            'running_in_v1': sum(v1_frozen(r['cgroup']) and 'R (running)' in r['state'] for r in T), 'in_v1': sum(v1_frozen(r['cgroup']) for r in T)}
+            'running_in_v1': sum(v1_frozen(r['cgroup']) and 'R (running)' in r['state'] for r in T), 'in_v1': sum(v1_frozen(r['cgroup']) for r in T),
+            'phases': [phase(ph) for ph in phases]}
 
 
 def screen_off(rows):
@@ -824,6 +831,7 @@ def analyze(D):
         'PhysSamsungScreenLaterMin': ('S25 earliest entry into the v1 frozen group, s after screen off', '%.0f' % min(SO['later']) if SO and SO['later'] else None),
         'PhysSamsungScreenLaterMax': ('S25 latest entry into the v1 frozen group, s after screen off', '%.0f' % max(SO['later']) if SO and SO['later'] else None),
         'PhysSamsungScreenCallbacks': ('S25 screen-off trials whose Contacts and MediaStore callbacks arrived before wake / trials', kn(SO['callbacks'], SO['n']) if SO else None),
+        'PhysSamsungScreenNever': ('S25 screen-off trials that never entered the v1 frozen group while the screen was off / trials', kn(SO['n'] - len(SO['later']), SO['n']) if SO else None),
         'PhysSamsungScreenOffS': ('S25 shortest screen-off observation, s', '%.0f' % SO['off_s'] if SO else None),
         # Pixel 9, Android 16 (b13-pixel9a16-*)
         'PhysNineModel': ('Pixel 9 model', tex(', '.join(sorted({r['device'].split(' ', 1)[-1] for r in P9['trials'] if r.get('device')})) or None)),
@@ -1129,10 +1137,13 @@ def tables(gen, R):
                  'app\\textquoteright s own notifyChange on the Contacts URI & flagged %s; flags as passed %s; median %s\\\\' % (kn(*FL['notify'][:2]), kn(*FL['kept']), dur(FL['notify'][2])),
                  'Calendar, MediaStore, Settings writes; Calendar notifyChange & flagged %s\\\\' % kn(*FL['other'][:2])]
     if LG:
-        rows.append(r'\mgroup{2}{Long freezer window (one unit, %d samples)}' % LG['n'])
-        rows += ['frozen by Android (isFrozen or cgroup v2) & %s samples\\\\' % kn(LG['android_frozen'], LG['n']),
-                 'screen on, cached & %.0f\\,s, never in a v1 frozen group\\\\' % LG['on_s'] if not LG['on_v1'] else 'screen on, cached & %.0f\\,s\\\\' % LG['on_s'],
-                 'screen off & in cgroup v1 \\texttt{/frozen} from %.0f\\,s; /proc state R in %s samples there\\\\' % (LG['to_v1'], kn(LG['running_in_v1'], LG['in_v1']))]
+        rows.append(r'\mgroup{2}{Long freezer window (one unit, %d samples; phases ran in this order on one process, so C and D start where B left it)}' % LG['n'])
+        rows.append('frozen by Android (isFrozen or cgroup v2), all phases & %s samples\\\\' % kn(LG['android_frozen'], LG['n']))
+        for i, ph in enumerate(LG['phases']):   # phases ran in this order on the same process, so later phases inherit earlier ones
+            lab = '%s: screen %s%s' % ('ABCDEFGH'[i], 'off' if ph['off'] else 'on', ', battery saver' if ph['saver'] else '') + (', cached' if i == 0 else '')
+            res = ('%.0f\\,s, in \\texttt{/frozen} %s samples' % (ph['secs'], kn(ph['in_v1'], ph['n'])) + (' (first at %.0f\\,s)' % ph['first_v1'] if ph['in_v1'] and i and not LG['phases'][i - 1]['in_v1'] else '')
+                   + ('; /proc state R in %s there' % kn(ph['running'], ph['in_v1']) if ph['in_v1'] else ''))
+            rows.append('%s & %s\\\\' % (lab, res))
     if SO:
         rows.append(r'\mgroup{2}{Screen off, freshly started client (one unit, %d trials)}' % SO['n'])
         rows += ['in \\texttt{/frozen} when the change was written & %s\\\\' % kn(SO['at_write'], SO['n']),
@@ -1332,6 +1343,7 @@ def self_check():
         L = long_freeze([lf('A', 0.1, '/'), lf('A', 600.0, '/'), lf('B', 0.2, '/', 'mWakefulness=Dozing'), lf('B', 15.0, '/frozen', 'mWakefulness=Dozing', state='R (running)'),
                          lf('C', 0.1, '/frozen', state='R (running)', fz='true'), {'exp': 'freeze_long_cmd'}])
         assert (L['n'], L['android_frozen'], L['on_s'], L['on_v1'], L['to_v1'], L['running_in_v1'], L['in_v1']) == (5, 1, 600.0, 0, 15.0, 2, 2), L
+        assert [(x['n'], x['off'], x['in_v1'], x['running'], x['first_v1']) for x in L['phases']] == [(2, False, 0, 0, None), (2, True, 1, 1, 15.0), (1, False, 1, 1, 0.1)], L['phases']
         so = lambda at, later, cb=True: {'exp': 'freeze_screenoff', 'v1_at_mutation': at, 'samples': [{'t_s': 46.0, 'v1': '/'}] + ([{'t_s': later, 'v1': '/frozen'}] if later else []) + [{'t_s': 85.0, 'v1': '/frozen' if later else '/'}],
                                          'contacts': {'first_before_wake': cb}, 'media': {'first_before_wake': True}}
         O = screen_off([so('/', 61.3), so('/', None), so('/', 64.0, cb=False)])

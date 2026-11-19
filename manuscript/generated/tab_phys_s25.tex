@@ -19,10 +19,12 @@ check-to-effect, median & 21.0\,ms (80 trials)\\
 write through the Contacts provider (app or shell) & flagged 20/20\\
 app\textquoteright s own notifyChange on the Contacts URI & flagged 0/20; flags as passed 20/20; median 10.0\,s\\
 Calendar, MediaStore, Settings writes; Calendar notifyChange & flagged 0/40\\
-\mgroup{2}{Long freezer window (one unit, 70 samples)}
-frozen by Android (isFrozen or cgroup v2) & 0/70 samples\\
-screen on, cached & 602\,s, never in a v1 frozen group\\
-screen off & in cgroup v1 \texttt{/frozen} from 15\,s; /proc state R in 38/38 samples there\\
+\mgroup{2}{Long freezer window (one unit, 70 samples; phases ran in this order on one process, so C and D start where B left it)}
+frozen by Android (isFrozen or cgroup v2), all phases & 0/70 samples\\
+A: screen on, cached & 602\,s, in \texttt{/frozen} 0/31 samples\\
+B: screen off & 182\,s, in \texttt{/frozen} 12/13 samples (first at 15\,s); /proc state R in 12/12 there\\
+C: screen on, battery saver & 181\,s, in \texttt{/frozen} 13/13 samples; /proc state R in 13/13 there\\
+D: screen off, battery saver & 182\,s, in \texttt{/frozen} 13/13 samples; /proc state R in 13/13 there\\
 \mgroup{2}{Screen off, freshly started client (one unit, 10 trials)}
 in \texttt{/frozen} when the change was written & 0/10\\
 entered \texttt{/frozen} with the screen off & 3/10, from 61 to 64\,s after screen off\\
