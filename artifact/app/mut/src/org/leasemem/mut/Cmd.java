@@ -55,6 +55,9 @@ public class Cmd extends BroadcastReceiver {
             switch (op) {
                 case "ensure": ensure(res); break;
                 case "mutate": res.put("did", mutate(a, b, it.getStringExtra("tag"))); break;
+                // G11: notifyChange on uri `a` with flags `b` from this app, no write: the flags an observer then
+                // receives tell whether the provider or ContentService adds NOTIFY_NO_DELAY (Galaxy S25 Contacts).
+                case "notify": cr.notifyChange(Uri.parse(a), null, Integer.parseInt(b)); res.put("did", "notify " + a + " flags " + b); break;
                 case "mutate_at": {   // sleep on-device until absolute wall time `at`, then mutate; record start/end
                     long at = it.getLongExtra("at", 0);
                     long w; while ((w = at - System.currentTimeMillis()) > 0) Thread.sleep(Math.min(w, 50));

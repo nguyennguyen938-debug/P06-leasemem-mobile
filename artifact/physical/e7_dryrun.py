@@ -43,7 +43,7 @@ RUNS_AWS = [("setup", []), ("B0", ["--allow-reboot"]), ("B1", []), ("B3", []),
             ("B5", ["--trials", "1", "--part", "2", "#no-pilot"]), ("B13", ["--tag", "galaxys25"]), ("B13", ["--tag", "galaxys25", "--modes", "bg_unfrozen,fg,assistant", "#modes"]), ("B13", ["#no-tag"]), ("B0", ["--tag", "galaxys25"]),
             ("B6", []), ("B7", []), ("B11", ["#dropped"]), ("B12", ["#dropped"]), ("B3", ["--budget-min", "0", "#budget"]),
             ("B3", ["#serial=RFCXA0TTMPP", "#blocked"]), ("B3", ["#fake-serialno=RFCXA0TTMPP", "#alias-blocked"]),
-            ("B3", ["#runas-fails"]), ("B1FD", []), ("B1F", []), ("CRESET", []), ("cleanup", [])]   # B3: its setup stops on a failed fixture (B0 keeps probing)
+            ("B3", ["#runas-fails"]), ("B1FD", []), ("B1F", []), ("CRESET", []), ("FLONG", ["--tag", "galaxys25"]), ("NFLAGS", ["--tag", "galaxys25"]), ("FSCREEN", ["--tag", "galaxys25"]), ("cleanup", [])]   # B3: its setup stops on a failed fixture (B0 keeps probing)
 RUNS = RUNS_AWS if AWS else RUNS
 RUNS = [r for r in RUNS if not ARGS[1:] or r[0] in ARGS[1:] or set(r[1]) & set(ARGS[1:])]
 # restore failure cases (review finding 6): the fake adb makes `settings delete global lm_mode` fail with exit 1

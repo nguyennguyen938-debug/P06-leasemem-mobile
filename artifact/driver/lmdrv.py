@@ -109,6 +109,13 @@ PM_CLEAR_AWS_OK = re.compile(r"pm clear --user 0 com\.android\.providers\.contac
 # run-as without --user: refused everywhere except this read-only probe in AWS mode (user 0 is run-as's default), run
 # once by runas_diag() after an unanswered app command, to tell a failing `--user` option from a failing run-as.
 RUNAS_ID_AWS_OK = re.compile(r"run-as org\.leasemem\.\w+ id( 2>)?\s*")
+# AWS mode only, whole commands (F3, 20/11): G10 battery saver on a wiped rented phone (restored by the script) and
+# power state reads; G11 one write to the P06 fixture contact "LM Omar" by the shell uid and the observer table.
+AWS_ONLY_OK = [re.compile(p) for p in (
+    r"settings (get|delete) global low_power", r"settings put global low_power [01]", r"cmd power set-mode [01]",
+    r"dumpsys power \| grep -m\d+ -E '[\w|]+'", r"dumpsys content( \| grep -m\d+ -E '[^']+')?",
+    r"content update --user 0 --uri content://com\.android\.contacts/raw_contacts --bind starred:i:[01] "
+    r"--where \"display_name='LM Omar'\"")]
 # Clock changes, and the cached-apps freezer switch: refused on a personal phone; allowed in AWS mode, where B0 probes
 # whether the shell can set the time and campaign.py turns the freezer on where a rented unit has it off.
 CLOCK = re.compile(r"\bauto_time|\bcached_apps_freezer\b|" + _AT + r"(date\s+(-s|@|\d)|cmd\s+(alarm|time)\b)")
@@ -126,6 +133,8 @@ class GuardError(RuntimeError):
 def phone_violation(cmd, user, aws=False):
     """Why `cmd` may not reach a non-emulator device whose experiment user is `user`, or None. aws=True: a rented
     Device Farm phone (user 0; clock changes allowed). Used by Dev.sh(), the fake adb and the tests."""
+    if aws and any(p.fullmatch(cmd.strip()) for p in AWS_ONLY_OK):
+        return None
     m = BANNED.search(cmd) or (None if aws else CLOCK.search(cmd))
     if m:
         return "banned: %r" % m.group(0)
@@ -393,6 +402,8 @@ class Dev:
             self.sh("settings put global cached_apps_freezer enabled"); time.sleep(2)
         rec["use_freezer_after"] = use()
         rec["turned_on"] = rec["use_freezer_before"] != "true" and rec["use_freezer_after"] == "true"
+        if rec["use_freezer_after"] == "?":   # Android 16 (Pixel 9, B0 run 3511ca63) prints no use_freezer line
+            rec["freez_lines"] = " | ".join(self.sh("dumpsys activity settings | grep -i -E 'freez'").split("\n"))[:300]
         return rec
 
     def frozen(self, pkg=CPKG):

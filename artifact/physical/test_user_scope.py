@@ -18,11 +18,11 @@ A = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(A / "driver"))
 import lmdrv
 
-FILES = ["physical/contacts_reset.py", "driver/lmdrv.py", "driver/e1_coverage.py", "driver/e2v3_gaps.py", "driver/e3v2_boundary.py",
+FILES = ["physical/contacts_reset.py", "physical/freeze_long.py", "physical/notify_flags.py", "physical/freeze_screenoff.py", "driver/lmdrv.py", "driver/e1_coverage.py", "driver/e2v3_gaps.py", "driver/e3v2_boundary.py",
          "driver/e6_pitfalls.py", "driver/e9_frozen.py", "revision/run.py", "followup/deployment.py",
          "physical/campaign.py", "physical/b0_setup.py", "physical/b0_probe.py", "physical/b7_continuous.py",
          "physical/b11_statelog.py", "physical/b12_battery.py"]
-GUARD_NAMES = {"_AT", "SCOPED", "USER_ADMIN", "BANNED", "DUMPSYS_OK", "CLOCK", "PM_CLEAR_AWS_OK", "RUNAS_ID_AWS_OK"}
+GUARD_NAMES = {"_AT", "SCOPED", "USER_ADMIN", "BANNED", "DUMPSYS_OK", "CLOCK", "PM_CLEAR_AWS_OK", "RUNAS_ID_AWS_OK", "AWS_ONLY_OK"}
 GUARD_FUNCS = {("driver/lmdrv.py", "u"), ("driver/lmdrv.py", "phone_violation")}
 # Literals that would be refused on the phone but sit in code that runs only on P06's emulators (and the runtime
 # guard refuses them on any other device). Each entry: (file, literal prefix, why it never reaches the phone).
@@ -52,6 +52,11 @@ EMULATOR_ONLY = [
     ("driver/lmdrv.py", "settings put global cached_apps_freezer enabled", "Dev.freezer_on: called only if d.aws"),
     ("physical/campaign.py", "settings get global auto_time", "restore read-back: only if d.aws"),
     ("physical/campaign.py", "settings get global ", "snapshot: keys from the fixed tuple (lm_mode, lm_target)"),
+    ("physical/freeze_long.py", "settings get global low_power", "G10: exits unless d.aws; the runtime guard allows low_power only in AWS mode (AWS_ONLY_OK)"),
+    ("physical/freeze_long.py", "settings put global low_power", "G10: exits unless d.aws; AWS_ONLY_OK allows only the values 0 and 1"),
+    ("physical/freeze_long.py", "settings delete global low_power", "G10 restore: exits unless d.aws; AWS_ONLY_OK"),
+    ("physical/freeze_long.py", "cmd power set-mode", "G10: exits unless d.aws; AWS_ONLY_OK allows only set-mode 0 and 1"),
+    ("physical/notify_flags.py", "content update --uri", "G11: exits unless d.aws, goes through d.u(); AWS_ONLY_OK allows exactly the starred toggle of the fixture LM Omar in user 0"),
 ]
 
 

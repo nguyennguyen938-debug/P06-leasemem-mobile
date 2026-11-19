@@ -101,6 +101,14 @@ def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=No
                                              "--source", "contacts", "--modes", "bg_freezer", "--n", str(n(20))], [], o("deploy-contacts-freezer"))]
     if task == "CRESET":   # Contacts reset (the contacts_reset case of revision/supplement.py), AWS mode only
         return [("contacts-reset", [PY, P + "/contacts_reset.py", serial, o("contacts-reset"), str(n(20))], [stop_fgs], o("contacts-reset"))]
+    if task == "FLONG":   # G10 (F3 task 13), AWS mode only: long freezer window, screen off, battery saver
+        return [("freeze-long", [PY, P + "/freeze_long.py", serial, o("freeze-long")] + (["0.1", "0.05"] if pilot else []),
+                 [stop_fgs], o("freeze-long"))]
+    if task == "FSCREEN":  # G10b (F3 task 13, screen off), AWS mode only: callbacks while the vendor freezer holds the client
+        return [("freeze-screenoff", [PY, P + "/freeze_screenoff.py", serial, o("freeze-screenoff"), str(n(10))]
+                 + (["5", "5"] if pilot else []), [stop_fgs], o("freeze-screenoff"))]
+    if task == "NFLAGS":  # G11 (F3 task 14), AWS mode only: onChange flags by writer and provider
+        return [("notify-flags", [PY, P + "/notify_flags.py", serial, o("notify-flags"), str(n(10))], [stop_fgs], o("notify-flags"))]
     if task == "B9":     # the effect is a call-log row, or a Contacts Data row where the call log is excluded (AWS)
         return [
             ("boundary", [PY, D + "/e3v2_boundary.py", serial, str(n(100)), sd(2611901), o("boundary")], [stop_fgs], o("boundary")),
@@ -315,7 +323,8 @@ def main():
                 fz = d.freezer_on()
                 runlog(out_root, "- %s %s freezer on %s: use_freezer %s -> %s (cached_apps_freezer was %r)%s" % (
                     time.strftime("%H:%M"), a.task, meta.get("device_instance"), fz["use_freezer_before"], fz["use_freezer_after"],
-                    fz["setting_before"], "; turned on by campaign.py" if fz["turned_on"] else ""))
+                    fz["setting_before"], ("; turned on by campaign.py" if fz["turned_on"] else "")
+                    + ("; settings lines: %s" % fz["freez_lines"] if "freez_lines" in fz else "")))
                 env.update(P06_USE_FREEZER_BEFORE=fz["use_freezer_before"], P06_USE_FREEZER=fz["use_freezer_after"])   # into every record
             runlog(out_root, "- %s %s setup: `campaign.py %s` on %s (`%s`, user %s, excluded %s, foreign rows %s); APK sha256 %s" % (
                 time.strftime("%H:%M"), a.task, a.task, meta["device"], meta["fingerprint"], d.user, sorted(d.excluded),
