@@ -47,14 +47,19 @@ DEBOUNCE = ("device_config set_sync_disabled_for_tests until_reboot; "
             "device_config put activity_manager_native_boot freeze_debounce_timeout %d")
 
 
-def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=None, part=0, tag=None):
+def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=None, part=0, tag=None, modes=None):
     """[(label, argv, pre-commands, main output file)] for one task; pre-commands are user-scoped via {u:...}.
-    trials overrides the trials per step; part K > 0 adds 1000*K to every seed and "-pK" to every file name."""
+    trials overrides the trials per step; part K > 0 adds 1000*K to every seed and "-pK" to every file name;
+    modes (B1, B13, B14) limits the deployments, e.g. without bg_freezer on a model that never freezes (Galaxy S25, G9)."""
+    keep = lambda ms: ",".join(m for m in ms.split(",") if not modes or m in modes.split(","))
     D, P, R = str(A / "driver"), str(A / "physical"), str(A / "revision")
     n = lambda full: 2 if pilot else trials if trials else full
     sd = lambda base: str(base + 1000 * part)
     # --pilot files carry "pilot" in their name (gaps-pilot-none-HHMM...): analyze_phys.py keeps them out of the main numbers
-    t = lambda name: (name.replace("-", "-pilot-", 1) if pilot and "-" in name else name + "-pilot" if pilot else name) + ("-p%d" % part if part else "")
+    # --tag <model>: another model (B13, B14, or its B0 probe); every file starts with b13-<tag>- so the main model's
+    # analyses never read it
+    pre = "b13-%s-" % tag if tag else ""
+    t = lambda name: pre + (name.replace("-", "-pilot-", 1) if pilot and "-" in name else name + "-pilot" if pilot else name) + ("-p%d" % part if part else "")
     o = lambda name: str(out / ("%s-%s.jsonl" % (t(name), hm)))
     sfx = ("-pilot-" if pilot else "-") + ("p%d-" % part if part else "") + hm   # passed as --suffix=<sfx>: a value starting with "-" would read as an option
     stop_fgs = "{u:am stopservice -n %s/.FgService}" % lmdrv.CPKG
@@ -65,9 +70,11 @@ def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=No
                 ("trial", [PY, D + "/e2v3_gaps.py", serial, "none", "1", sd(2611000), o("b0-trial-none")],
                  [stop_fgs, DEBOUNCE % 600000], o("b0-trial-none"))]
     if task == "B1":
+        dm = {src: keep("bg_unfrozen,bg_freezer,fg,assistant" if src == "contacts" else "bg_unfrozen,fg")
+              for src in ("contacts", "media", "calllog") if src not in excluded}
         return [("deploy-" + src, [PY, str(A / "followup/deployment.py"), serial, "--out", o("deploy-" + src),
-                                   "--source", src, "--n", str(n(20))] + (["--modes", "bg_unfrozen,fg"] if src != "contacts" else []),
-                 [], o("deploy-" + src)) for src in ("contacts", "media", "calllog") if src not in excluded]
+                                   "--source", src, "--n", str(n(20)), "--modes", ms],
+                 [], o("deploy-" + src)) for src, ms in dm.items() if ms]
     if task == "B2":
         return [("gap-" + g, [PY, D + "/e2v3_gaps.py", serial, g, str(n(25)), sd(2611201 + i), o("gaps-" + g)],
                  [stop_fgs, DEBOUNCE % (2000 if g == "freeze" else 600000)], o("gaps-" + g))
@@ -75,8 +82,9 @@ def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=No
     if task == "B3":
         return [("coverage", [PY, D + "/e1_coverage.py", serial, str(n(30)), sd(2611301), o("coverage")], [stop_fgs], o("coverage"))]
     if task == "B4":
-        f = str(out / ("stock-%s%s.jsonl" % (serial.replace(":", "_"), sfx)))
-        return [("stock", [PY, R + "/run.py", serial, "stock", "--n", str(n(20)), "--out-dir", str(out), "--suffix=" + sfx], [], f)]
+        f = str(out / ("%sstock-%s%s.jsonl" % (pre, serial.replace(":", "_"), sfx)))
+        return [("stock", [PY, R + "/run.py", serial, "stock", "--n", str(n(20)), "--out-dir", str(out), "--suffix=" + sfx,
+                           "--prefix=" + pre], [], f)]
     if task == "B5":
         return [("frozen", [PY, D + "/e9_frozen.py", serial, str(n(10)), sd(2611501), o("frozen"), "600"], [DEBOUNCE % 2000], o("frozen"))]
     if task == "B6":
@@ -100,16 +108,11 @@ def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=No
              [stop_fgs], o("boundary-band"))]
     if task == "B10":
         return [("pitfalls", [PY, D + "/e6_pitfalls.py", serial, str(n(50)), sd(2611001), o("pitfalls")], [stop_fgs], o("pitfalls"))]
-    if task in ("B13", "B14"):   # another model: B1 Contacts (4 deployments, 10 trials) and B2 with 5 main gaps (10 trials
-        # each); files start with "b13-" (B14: "b13-<tag>-", one tag per model) so the main model's analyses never read them
-        if task == "B14" and not tag:
-            raise SystemExit("B14 needs --tag <model> (file names b13-<tag>-*)")
-        b = "b13-" if task == "B13" else "b13-%s-" % tag
-        return [(b + "deploy-contacts", [PY, str(A / "followup/deployment.py"), serial, "--out", o(b + "deploy-contacts"),
-                                         "--source", "contacts", "--n", str(n(10))], [], o(b + "deploy-contacts"))] + [
-            (b + "gap-" + g, [PY, D + "/e2v3_gaps.py", serial, g, str(n(10)), sd(2621301 + i), o(b + "gaps-" + g)],
-             [stop_fgs, DEBOUNCE % (2000 if g == "freeze" else 600000)], o(b + "gaps-" + g))
-            for i, g in enumerate(["none", "freeze", "dozeidle", "kill", "forcestop"])]
+    if task in ("B13", "B14"):   # another model (G9, 19/11): B1 (Contacts, 4 deployments; MediaStore, bg_unfrozen and fg)
+        # and B4 (stock), with the main model's trial counts; files b13-<tag>-*, one tag per model
+        if not tag:
+            raise SystemExit("%s needs --tag <model> (file names b13-<tag>-*)" % task)
+        return [s for k in ("B1", "B4") for s in steps(k, serial, out, hm, pilot, night, excluded, allow_reboot, trials, part, tag, modes)]
     if task == "B11":
         return [("statelog", [PY, P + "/b11_statelog.py", serial, o("statelog"), "--hours", "0.05" if pilot else "24"], [], o("statelog"))]
     if task == "B12":
@@ -251,7 +254,8 @@ def main():
     ap.add_argument("--trials", type=int, help="trials per step, overriding the plan (one part of a split task)")
     ap.add_argument("--part", type=int, default=0, help="part number: seed offset 1000*K and file tag -pK")
     ap.add_argument("--budget-min", type=float, help="start no new step after this many minutes (Device Farm timeout)")
-    ap.add_argument("--tag", help="B14: model tag in the file names, b13-<tag>-*")
+    ap.add_argument("--tag", help="B13, B14 and their B0: model tag in the file names, b13-<tag>-*")
+    ap.add_argument("--modes", help="B1, B13, B14: comma-separated deployments to keep (bg_unfrozen,bg_freezer,fg,assistant)")
     a = ap.parse_args(); t_start = time.time()
     out_root = Path(a.out_root).resolve()
     if ADB_IS_FAKE and out_root == (A / "results").resolve():
@@ -259,7 +263,7 @@ def main():
     out = out_root / ("physical-" + time.strftime("%Y%m%d")); hm = time.strftime("%H%M")
     if a.dry_run:
         for label, argv, pre, f in steps(a.task, a.serial, out, hm, a.pilot, a.night, set() if lmdrv.AWS else {"sms"},
-                                         a.allow_reboot, a.trials, a.part, a.tag):
+                                         a.allow_reboot, a.trials, a.part, a.tag, a.modes):
             if not a.only or label in a.only.split(","):
                 print("[%s] pre: %s\n    run: %s\n    out: %s" % (label, "; ".join(pre) or "-", " ".join(argv), f))
         print("(dry run: AWS mode excludes nothing)" if lmdrv.AWS else
@@ -290,7 +294,7 @@ def main():
         raise SystemExit("APKs not built: %s (run app/*/build.sh with JAVA_HOME and ANDROID_HOME)" % missing)
     if STATE.exists():
         raise SystemExit("an earlier run did not restore the phone's settings (%s); run `campaign.py --restore` first" % STATE)
-    plan = steps(a.task, a.serial, out, hm, a.pilot, a.night, d.excluded, a.allow_reboot, a.trials, a.part, a.tag)
+    plan = steps(a.task, a.serial, out, hm, a.pilot, a.night, d.excluded, a.allow_reboot, a.trials, a.part, a.tag, a.modes)
     if a.only:
         plan = [p for p in plan if p[0] in a.only.split(",")]
     meta = d.meta(); apk = " ".join("%s %s" % (k, sha(v)) for k, v in APKS.items())

@@ -34,9 +34,11 @@ def setup(serial,out_dir=None):
 
 def main():
  ap=argparse.ArgumentParser();ap.add_argument('serial');ap.add_argument('campaign',choices=['reference','stock','host','tick']);ap.add_argument('--n',type=int,default=20);ap.add_argument('--suffix',default='')
+ # --prefix: file name prefix of another phone model (campaign.py --tag, b13-<tag>-)
+ ap.add_argument('--prefix',default='')
  # --out-dir: physical-phone runs write to results/physical-<date>/; --arms: host campaign arms (B6 adds 'stamp').
  ap.add_argument('--out-dir',default=str(D));ap.add_argument('--arms',default='refresh,validate,memo,relay');a=ap.parse_args();arms=a.arms.split(',')
- c,w=setup(a.serial,a.out_dir);rng=random.Random(20261115);out=Path(a.out_dir)/f"{a.campaign}-{a.serial.replace(':','_')}{a.suffix}.jsonl"
+ c,w=setup(a.serial,a.out_dir);rng=random.Random(20261115);out=Path(a.out_dir)/f"{a.prefix}{a.campaign}-{a.serial.replace(':','_')}{a.suffix}.jsonl"
  with lmdrv.open_new(out) as f:
   def emit(r):f.write(json.dumps({**c.d.meta(),**r})+'\n');f.flush();print(r['trial'],r.get('case'),r.get('error','ok'),flush=True)
   for i in range(a.n):

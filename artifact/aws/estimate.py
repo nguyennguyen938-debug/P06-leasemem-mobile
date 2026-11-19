@@ -84,8 +84,7 @@ PLAN = {"B1": {"B1/bg_unfrozen": 20 + 20, "B1/bg_freezer": 20, "B1/fg": 20 + 20,
         "B3": {"B3": 30},
         "B2": {"B2/" + g: 25 for g in ["none", "freeze", "dozeidle", "bucket", "unregister", "kill", "forcestop", "perm"]},
         "B4": {"B4": 20}, "B9": {"B9": 165 + 100}, "B10": {"B10/mtime": 50, "B10/clock": 50}, "B5": {"B5": 10},
-        "B13": {"B1/bg_unfrozen": 10, "B1/bg_freezer": 10, "B1/fg": 10, "B1/assistant": 10,
-                **{"B2/" + g: 10 for g in ["none", "freeze", "dozeidle", "kill", "forcestop"]}},
+        "B13": {"B1/bg_unfrozen": 20 + 20, "B1/bg_freezer": 20, "B1/fg": 20 + 20, "B1/assistant": 20, "B4": 20},   # B1 + B4 (G9)
         "B6": {"B6": 30}, "B7": {"B6": 30}}     # B7 has no emulator run; its trials resemble B6's continuous case
 B0_MIN = 2.6               # measured: B0 run 1c18f498 (setup, 32 probes, one trial) used 2.60 device min
 

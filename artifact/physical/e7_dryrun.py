@@ -40,8 +40,8 @@ RUNS = [("setup", []), ("B0", ["--allow-reboot"]), ("B1", []), ("B3", []), ("B2"
 RUNS_AWS = [("setup", []), ("B0", ["--allow-reboot"]), ("B1", []), ("B3", []),
             ("B2", ["--allow-reboot", "--only", "gap-none,gap-freeze,gap-reboot", "--part", "1", "#split"]),
             ("B2", ["--only", "gap-dozeidle,gap-kill", "--part", "2", "#split"]), ("B4", []), ("B9", []), ("B10", []),
-            ("B5", ["--trials", "1", "--part", "2", "#no-pilot"]), ("B13", []), ("B6", []), ("B7", []),
-            ("B11", ["#dropped"]), ("B12", ["#dropped"]), ("B3", ["--budget-min", "0", "#budget"]),
+            ("B5", ["--trials", "1", "--part", "2", "#no-pilot"]), ("B13", ["--tag", "galaxys25"]), ("B13", ["--tag", "galaxys25", "--modes", "bg_unfrozen,fg,assistant", "#modes"]), ("B13", ["#no-tag"]), ("B0", ["--tag", "galaxys25"]),
+            ("B6", []), ("B7", []), ("B11", ["#dropped"]), ("B12", ["#dropped"]), ("B3", ["--budget-min", "0", "#budget"]),
             ("B3", ["#serial=RFCXA0TTMPP", "#blocked"]), ("B3", ["#fake-serialno=RFCXA0TTMPP", "#alias-blocked"]),
             ("B3", ["#runas-fails"]), ("B1FD", []), ("B1F", []), ("CRESET", []), ("cleanup", [])]   # B3: its setup stops on a failed fixture (B0 keeps probing)
 RUNS = RUNS_AWS if AWS else RUNS
@@ -54,7 +54,7 @@ INJECT = {"#restore-fails-loud": ("FAKE_FAIL", r"^settings delete global lm_mode
           # B0 runs 7a89358f: the mutator answered but the driver read nothing through run-as. The timeout must carry
           # run-as's own message (runas_diag) so the cause shows in the Device Farm test spec output.
           "#runas-fails": ("FAKE_RUNAS_FAIL", "package not debuggable: org.leasemem.mut")}
-EXPECT_RC = {"#restore-fails-loud": 3, "#restore-fails-silent": 3, "#budget": 4, "#blocked": 1, "#alias-blocked": 1,
+EXPECT_RC = {"#restore-fails-loud": 3, "#restore-fails-silent": 3, "#budget": 4, "#blocked": 1, "#alias-blocked": 1, "#no-tag": 1,
              "#runas-fails": 1}
 EXPECT_OUT = {"#runas-fails": "run-as diagnosis: "}    # in the campaign's own output, with the injected message
 # adb commands the fake may see: none for the blocked serial, get-state and getprop for the device reporting it

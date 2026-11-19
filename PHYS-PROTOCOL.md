@@ -232,12 +232,12 @@ split by `devicefarm.py plan`: B2 by gap (labels packed into runs), single-step 
 | B9 | `driver/e3v2_boundary.py` | 100 changes over the window, 25 without boundary check, 20 + 20 no-change controls; then 100 changes in [-10, +40] ms. Effect on AWS: a Data row of the separate, non-aggregated raw contact "P06 Effect Log" (`effect_store: "contacts"`, `effect_row`), not a call-log row; `dana_version_before/after` show the effect never touches Dana | 2611901, 2611902 | `boundary-HHMM.jsonl`, `boundary-band-HHMM.jsonl` |
 | B10 | `driver/e6_pitfalls.py` | same-second mtime 50; clock rollback 50 (25 transient, 25 persistent) through `cmd alarm set-time` on AWS, each record with `clock_method`, `clock_moved_back_ms`, `lm`, `lm_ts`, `reason`, `reason_ts`; SMS `_id` reuse not run (SMS excluded on AWS) | 2611001 | `pitfalls-HHMM.jsonl` |
 | B5 | `driver/e9_frozen.py` | 10 holds, each frozen for 600 s after the first change, debounce 2 s; 2 runs of 5 | 2611501 + 1000 K: 2612501 (part 1), 2613501 (part 2) | `frozen-p1-HHMM.jsonl`, `frozen-p2-HHMM.jsonl` |
-| B13 | `followup/deployment.py`, `driver/e2v3_gaps.py` | second manufacturer: B1 Contacts, 4 deployments, 10 trials; B2 none, freeze, dozeidle, kill, forcestop, 10 trials each | 2621301 to 2621305 | `b13-deploy-contacts-HHMM.jsonl`, `b13-gaps-<gap>-HHMM.jsonl` |
+| B13 | `followup/deployment.py`, `revision/run.py stock` | second manufacturer (G9, 19/11, `--tag galaxys25`): B1 as on the main model (Contacts, 4 deployments, 20 trials; MediaStore, bg_unfrozen and fg, 20 trials) and B4 (stock, 20 rounds); its B0 probe also runs with `--tag`. On the Galaxy S25 `--modes bg_unfrozen,fg,assistant` drops bg_freezer: the S25 never froze a cached client within 26 s (B0 run 9f8a842d, B1FD run 8f3346a2) | as B1 and B4 | `b13-<tag>-deploy-contacts-HHMM.jsonl`, `b13-<tag>-deploy-media-HHMM.jsonl`, `b13-<tag>-stock-<udid>-HHMM.jsonl`, `b13-<tag>-b0-probe-HHMM.jsonl` |
 | B6 | `revision/run.py host --arms refresh,validate,stamp,relay,memo` | 30 trials for each write pattern: none, one, continuous | 20261115 (driver) | `host-<udid>-HHMM.jsonl` |
 | B7 | `physical/b7_continuous.py` | 30 trials; arms refresh, stamp, relay under a continuous Contacts writer | 2611701 | `continuous-HHMM.jsonl` |
 | B11, B12 | | **dropped**: the rented phones are always charging and a run lasts at most 150 min, so there is no unplugged day and no battery drain. `campaign.py` logs `dropped` in AWS mode; the driver files stay | | |
 
-Pre-commands applied by `campaign.py`: B2 and B13 set the freezer debounce to 2000 ms for `freeze` and 600000 ms for
+Pre-commands applied by `campaign.py`: B2 sets the freezer debounce to 2000 ms for `freeze` and 600000 ms for
 every other gap (DeviceConfig sync disabled until reboot) and stop the FGS; B5 sets 2000 ms; B0, B3, B9, B10 stop
 the FGS. All are restored after the step.
 
@@ -334,7 +334,8 @@ trials rejected by the driver keep `invalid` (for example `not_frozen`).
 
 **File names.** `--pilot` puts `pilot` into every output name (`gaps-pilot-none-HHMM`, `coverage-pilot-HHMM`, ...);
 `analyze_phys.py` keeps those files out of the main numbers. `--part K` adds `-pK` (`gaps-none-p1-HHMM`,
-`frozen-p2-HHMM`, `stock-<udid>-p1-HHMM`). B13 files start with `b13-`.
+`frozen-p2-HHMM`, `stock-<udid>-p1-HHMM`). `--tag <model>` (B13, B14 and their B0 probe) puts `b13-<tag>-` in front of
+every output name (`b13-galaxys25-deploy-contacts-HHMM`, `b13-galaxys25-stock-<udid>-HHMM`).
 
 | File | Record shape | Additions to the emulator schema |
 |---|---|---|
@@ -348,7 +349,7 @@ trials rejected by the driver keep `invalid` (for example `not_frozen`).
 | `pitfalls-*.jsonl` (B10) | `driver/e6_pitfalls.py` | none |
 | `host-*.jsonl` (B6) | `revision/run.py host` | arm `stamp`; batch results gain `reads`, `wall_offset_ms`; `stamp` batches gain `stamp` and `stamp_reads` |
 | `continuous-*.jsonl` (B7) | `physical/b7_continuous.py` | oracle `classify()` in that file |
-| `b13-deploy-*.jsonl`, `b13-gaps-*.jsonl` (B13) | as B1 and B2 | none |
+| `b13-<tag>-*.jsonl` (B13, B14) | as B0, B1 and B4 | none; `device`, `fingerprint` (build) and `device_instance` tell the model and unit |
 | `setup-HHMMSS.json`, `<udid>-setup-<ns>.json` | setup metadata (not JSONL) | install results, APK SHA-256, fixtures, counts of rows not written by P06 |
 
 ## 8. Validity and exclusions
@@ -434,6 +435,6 @@ lasts at most 150 min): `PhysStateHours`, `PhysStateAlivePct`, `PhysStateFrozenP
 `PhysStateKillsPerHour`, `PhysBatteryFgsMahPerHour`, `PhysBatteryBgMahPerHour`, `PhysBatteryFgsBlocks`,
 `PhysBatteryBgBlocks`.
 
-Notes for Results: B13 files (`b13-*`) match none of the B1 or B2 patterns, so the main-model macros never read them;
+Notes for Results: B13 files (`b13-*`) match none of the B0, B1 or B4 patterns, so the main-model macros never read them;
 they are not experiment files of the main model, so `PhysInstances` leaves them out; only `PhysDevice` (the models) reads them.
 B7 (`continuous-*`) has no macro.

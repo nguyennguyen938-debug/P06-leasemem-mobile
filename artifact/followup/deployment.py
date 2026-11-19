@@ -27,6 +27,8 @@ def diag_sample(pkg):
  s['providers']=re.findall(r'- (\S+)->',blk)
  s['oom_line']=[l.strip() for l in d.sh('dumpsys activity oom | grep -m3 leasemem').splitlines()]
  s['proc_status']=d.sh('grep -E "^(State|voluntary_ctxt|nonvoluntary_ctxt)" /proc/%s/status'%p).strip() if p else None
+ # every cgroup line: a vendor may freeze through the v1 freezer controller (Galaxy S25 B0 run 9f8a842d: v2 freeze 0 after 25 s)
+ s['cgroup']=d.sh('cat /proc/%s/cgroup'%p).strip() if p else None
  s['block']=blk
  return s
 

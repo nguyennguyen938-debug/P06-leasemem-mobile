@@ -1,0 +1,33 @@
+identity                     OK   {'ro.product.manufacturer': 'samsung', 'ro.product.model': 'SM-S931U1', 'ro.product.device': 'pa1q', 'ro.build
+user_info                    OK   {'user_id': 0, 'current_user': 0, 'state': 'RUNNING_UNLOCKED', 'restrictions': [], 'excluded_sources': ['calll
+install_user                 OK   ['package:org.leasemem.mut', 'package:org.leasemem.assist', 'package:org.leasemem.trig', 'package:org.leasemem
+run_as_user                  OK   uid=10328(u0_a328) gid=10328(u0_a328) groups=10328(u0_a328),1004(input),1007(log),1011(adb),1015(sdcard_rw),10
+read_app_files               OK   {'mem_json_bytes': 279, 'exclusion_file': 'calllog sms'}
+content_user                 OK   {'fixture_raw_contacts': 2}
+appops                       OK   MANAGE_EXTERNAL_STORAGE: allow; time=+9s45ms ago
+fixtures_ensure_base         OK   {'t_pre': 1795061749646, 'made': 2, 't_post': 1795061749677, 'ok': True}
+mutations_all_kinds          OK   {'contacts.update': 'upd n=1', 'contacts.delete': 'deleted Omar', 'contacts.insert': 'added X61751003', 'media
+client_probe_candidates      NO   {'candidates': ['calendar.count', 'calendar.count_deleted', 'calendar.max_id', 'calendar.sum_dirty', 'contacts
+process_user                 OK   {'pid': '31534', 'uid': '10328', 'oom_score_adj': '905'}
+proc_cgroup_read             OK   {'cgroup': '6:freezer:/\n5:memory:/\n4:cpuset:/background\n3:cpuacct:/\n2:cpu:/background\n1:blkio:/background
+dumpsys_isFrozen             OK   {'isFrozen': 'false', 'pid': '31534'}
+freezer_debounce_2s          NO   {'debounce_get': '2000', 'frozen': '0', 'method': 'cgroup', 'after_s': 25.1}
+am_kill                      OK   {'pid_before': '31534', 'pid_after': ''}
+am_force_stop                OK   {'pid_before': '32734', 'pid_after': ''}
+sigkill_kill9                OK   {'pid_before': '400', 'pid_after': ''}
+pm_revoke_grant              OK   {'after_revoke': False, 'after_grant': True}
+battery_unplug               OK   {'plugged_after_unplug': False, 'plugged_after_reset': True}
+doze_force_idle_deep         OK   {'force_idle': 'Now forced in to deep idle mode', 'deep_state': 'IDLE'}
+standby_bucket               NO   {'set': '', 'bucket': '', 'after_restore': ''}
+assistant_role               OK   {'add': '', 'holders': 'org.leasemem.assist', 'bound': True}
+charge_counter               OK   {'charge_counter_uAh': 4090000, 'level': 100}
+batterystats_uid             OK   {'uid_tag': 'u0a328', 'lines': ['u0a328:', '1000:PER , 1001:PER , 1002:PER , 1027:PER , 1037:NONE, 1068:PER , 
+screen_sleep_wake            OK   {'after_sleep': 'mWakefulness=Dozing', 'after_wakeup': 'mWakefulness=Awake'}
+wireless_debugging           NO   {'tls_port': '', 'transports': ['R3CY101AVYB']}
+host                         OK   {'python': '3.12.12', 'platform': 'Linux-5.10.271-272.1121.amzn2.x86_64-x86_64-with-glibc2.26', 'adb': ['Andro
+clock_set_back               OK   {'auto_time': '1', 'date': 'date: cannot set date: Operation not permitted\nThu Nov 19 03:17:00 UTC 2026', 'al
+sms_role                     NO   {'holders_before': '', 'add': '', 'held': False}
+pm_clear_contacts            NO   {'pm_clear': '', 'refixtured': {'t_pre': 1795061824520, 'made': 0, 't_post': 1795061824544, 'ok': True}, 'fixt
+calllog_diag                 NO   {'insert': {'t_pre': 1795061826134, 'did': 'ins +16660003', 't_post': 1795061826137, 'ok': True}, 'shell_query
+rebooted: waiting for user 0 in the foreground and unlocked
+reboot                       NO   {'rebooted': False, 'survived': False, 'boot_id_before': '1ccab17f-6cdf-4f16-b633-9412aa3ad3ff', 'boot_id_afte
