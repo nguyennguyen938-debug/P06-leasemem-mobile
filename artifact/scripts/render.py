@@ -663,6 +663,14 @@ def e12():
         mac("Scale%sVc" % T, f(vc, 1)); mac("Scale%sRc" % T, f(rc, 1)); mac("Scale%sVm" % T, f(vm, 1)); mac("Scale%sRm" % T, f(rm, 1))
         mac("Scale%sCte" % T, f(cte, 0)); mac("Scale%sRaw" % T, R[0]["raw_contacts"]); mac("Scale%sImg" % T, R[0]["images"])
         mac("Scale%sVcc" % T, f(vcc, 1)); mac("Scale%sVmc" % T, f(vmc, 1)); mac("Scale%sMiss" % T, miss)
+    # least-squares fit of check-to-effect on raw contacts over the Contacts-scaling levels (per trial, not per median)
+    A = [r for r in recs if r.get("act") and r["level"].startswith("contacts")]
+    if len(A) > 2:
+        import statistics as _st
+        x, y = [r["raw_contacts"] for r in A], [r["check_to_effect_ms"] for r in A]
+        lr = _st.linear_regression(x, y)
+        mac("ScaleCteSlope", f(lr.slope * 1000, 2)); mac("ScaleCteIntercept", f(lr.intercept, 1))
+        mac("ScaleCteRsq", f(_st.correlation(x, y) ** 2, 2)); mac("ScaleCteN", len(A))
     table("tab_scale.tex", "tab:scale", "Cost vs.\\ source size (medians, ms). Contacts: \\stamp validation with the VERSION-map adapter (unchanged / after one edit), with the timestamp adapter, and a provider refresh of the 3 Contacts facts (incl.\\ the aggregate over all ``LM'' contacts). MediaStore: validation (unchanged / after one insert) and refresh of the 2 media facts (incl.\\ the newest-photo aggregate). Last column: boundary check to effect.",
           "@{}rrrrrrrrrr@{}", "Raw contacts & Images & C.\\ val. & C.\\ val.\\,$\\Delta$ & C.\\ val.\\ TS & C.\\ refresh & M.\\ val. & M.\\ val.\\,$\\Delta$ & M.\\ refresh & Check$\\to$effect", lines, star=True, size="\\scriptsize")
 

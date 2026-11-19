@@ -46,8 +46,11 @@ NR = 'not run on phone'
 DROPPED = ['PhysStateHours', 'PhysStateAlivePct', 'PhysStateFrozenPct', 'PhysStateDozePct', 'PhysStateKillsPerHour',
            'PhysBatteryFgsMahPerHour', 'PhysBatteryBgMahPerHour', 'PhysBatteryFgsBlocks', 'PhysBatteryBgBlocks']
 WHY = 'dropped: rented Device Farm phones are always charging and a run lasts at most 150\\,min'
-B13 = 'b13-'        # Galaxy S25 files; S25 keys of the data dict: 's25_' + one of S25_FILES
-S25_FILES = {k: FILES[k] for k in ('deploy', 'stock', 'diag', 'b0')}
+B13 = 'b13-'        # other models (campaign.py --tag); data-dict keys '<model>_<experiment>'
+MODELS = {'s25': 'b13-galaxys25-', 'p9': 'b13-pixel9a16-'}     # data-dict prefix -> file prefix
+S25_FILES = dict({k: FILES[k] for k in ('deploy', 'stock', 'diag', 'b0', 'gaps', 'boundary')},
+                 flags='notify-flags-*.jsonl', long='freeze-long-*.jsonl', screenoff='freeze-screenoff-*.jsonl')
+P9_FILES = {k: FILES[k] for k in ('deploy', 'stock', 'b0')}
 # Stopped partial run 06804731 (RUNLOG 11:32 and 13:29 on 19/11): 6 rounds whose seeds repeat the full run's; its
 # records still show the unit's freezer state, but no trial counts.
 PARTIAL = {'b13-galaxys25-stock-R3CY1019X6Y-0426.jsonl'}
@@ -164,12 +167,14 @@ def corrected(r):
     return dict(r, use_freezer='false') if any(run in str(r.get('run_arn')) and r.get('_file') in f for run, f in FREEZER_FIX.items()) else r
 
 
-def needs_freezer(rows, excl):
-    """Rows whose trial depends on the freezer: keep those that ran with it on, count the others by reason."""
+def needs_freezer(rows, excl, seen=None):
+    """Rows whose trial depends on the freezer: keep those that ran with it on, count the others by reason. seen(r): the
+    trial's own cgroup samples show the client frozen, which settles an unknown setting (Android 16 no longer prints
+    use_freezer in `dumpsys activity settings`)."""
     keep = []
     for r in rows:
         fz = freezer_on(r)
-        if fz:
+        if fz or fz is None and seen and seen(r):
             keep.append(r)
         else:
             excl[FZ_WHY[fz]] += 1
@@ -194,7 +199,8 @@ def deploy(rows):
                 continue
             target, excl = '1' if mode == 'bg_freezer' else '0', Counter()
             valid, delays, before, nodelay = [], [], 0, 0
-            for r in needs_freezer(rs, excl) if mode == 'bg_freezer' else rs:
+            frozen_seen = lambda r: (r.get('before') or {}).get('frozen') == '1' and bool(r.get('states')) and all(x.get('frozen') == '1' for x in r['states'])
+            for r in needs_freezer(rs, excl, frozen_seen) if mode == 'bg_freezer' else rs:
                 if 'error' in r or r.get('invalid') or r['before'].get('frozen') != target or any(x.get('frozen') != target for x in r['states']):
                     continue
                 valid.append(r); t = r['mutation']['t_pre']
@@ -324,6 +330,55 @@ def race(rows):
 
 KINDS = ('update', 'insert', 'delete')
 REASON = {'unknown': 'no stamp', 'racy': 'racy mtime'}   # historical.cost reason of a never-certifying source
+
+
+def flag_probe(rows):
+    """S25 flag probe (physical/notify_flags.py): who sets NOTIFY_NO_DELAY. Groups: writes through the Contacts provider
+    (writer mut or shell), an app's own notifyChange (writer notify; `kept`: the callback carries exactly the flags passed,
+    case suffix _f<k>), and writes or notifies on other sources. Each: (with NO_DELAY, trials), median first delay ms."""
+    T = [r for r in rows if r.get('exp') == 'notify_flags' and 'error' not in r and r.get('first_flags') is not None]
+    if not T:
+        return {}
+    grp = {'writes': [r for r in T if r.get('source') == 'contacts' and r.get('writer') != 'notify'],
+           'notify': [r for r in T if r.get('source') == 'contacts' and r.get('writer') == 'notify'],
+           'other': [r for r in T if r.get('source') != 'contacts']}
+    out = {k: (sum(bool(r['first_flags'] & NO_DELAY) for r in v), len(v), st.median(r['first_delay_ms'] for r in v) if v else None) for k, v in grp.items()}
+    out['kept'] = (sum(r['first_flags'] == int(r['case'].rsplit('_f', 1)[1]) for r in grp['notify'] if '_f' in r['case']), len(grp['notify']))
+    out['cases'], out['per_case'] = len({r['case'] for r in T}), min(Counter(r['case'] for r in T).values()) if T else 0
+    return out
+
+
+def v1_frozen(cgroup):
+    """The process sits in a cgroup v1 freezer group named frozen (Samsung), whatever Android's own freezer reports."""
+    return any(':freezer:' in l and l.rstrip().endswith('/frozen') for l in str(cgroup).splitlines())
+
+
+def long_freeze(rows):
+    """S25 long window (physical/freeze_long.py), samples by phase: Android's freezer (isFrozen, cgroup v2) and the cgroup
+    v1 freezer path. Phases run in order; the first screen-off phase is the first whose wakefulness is Dozing."""
+    T = [r for r in rows if r.get('exp') == 'freeze_long']
+    if not T:
+        return {}
+    phases = list(dict.fromkeys(r['phase'] for r in T))
+    on = [r for r in T if r['phase'] == phases[0]]
+    off = next((ph for ph in phases if all('Dozing' in r['wake'] for r in T if r['phase'] == ph)), None)
+    to_v1 = [r['t_s'] for r in T if r['phase'] == off and v1_frozen(r['cgroup'])]
+    return {'n': len(T), 'android_frozen': sum(r['isFrozen'] == 'true' or r['frozen'] == '1' for r in T),
+            'on_s': max(r['t_s'] for r in on), 'on_v1': sum(v1_frozen(r['cgroup']) for r in on), 'to_v1': min(to_v1) if to_v1 else None,
+            'running_in_v1': sum(v1_frozen(r['cgroup']) and 'R (running)' in r['state'] for r in T), 'in_v1': sum(v1_frozen(r['cgroup']) for r in T)}
+
+
+def screen_off(rows):
+    """S25 screen-off trials (physical/freeze_screenoff.py): client in the cgroup v1 frozen group when the change was
+    written; trials that entered it while the screen was off and when (s after screen off); trials whose Contacts and
+    MediaStore callbacks both arrived before the screen came back; the shortest screen-off observation."""
+    T = [r for r in rows if r.get('exp') == 'freeze_screenoff' and 'error' not in r]
+    if not T:
+        return {}
+    later = [next(x['t_s'] for x in r['samples'] if x['v1'] == '/frozen') for r in T if any(x['v1'] == '/frozen' for x in r['samples'])]
+    return {'n': len(T), 'at_write': sum(r['v1_at_mutation'] == '/frozen' for r in T), 'later': later,
+            'callbacks': sum(bool(r['contacts'].get('first_before_wake') and r['media'].get('first_before_wake')) for r in T),
+            'off_s': min(r['samples'][-1]['t_s'] for r in T)}
 
 
 def race_kinds(rows):
@@ -612,16 +667,18 @@ def analyze(D):
     """D: experiment key -> records (with _file); keys 's25_<experiment>' hold the Galaxy S25 (b13-*) records. Returns
     (macros, results of main runs, results of pilot runs)."""
     S = {k[4:]: [r for r in v if not pilot(r)] for k, v in D.items() if k.startswith('s25_')}
+    N = {k[3:]: [r for r in v if not pilot(r)] for k, v in D.items() if k.startswith('p9_')}
     s25u = {r.get('device_instance') for v in S.values() for r in v} - {None}
-    log = [x for x in D.get('runlog', []) if x['device_instance'] not in s25u]       # RUNLOG lines of S25 units count only there
+    p9u = {r.get('device_instance') for v in N.values() for r in v} - {None}
+    log = [x for x in D.get('runlog', []) if x['device_instance'] not in s25u | p9u]   # RUNLOG lines of other models count only there
     s25log = [x for x in D.get('runlog', []) if x['device_instance'] in s25u]
-    D = {k: v if k.endswith('_emu') else log if k == 'runlog' else with_runlog([corrected(r) for r in v], log) for k, v in D.items() if not k.startswith('s25_')}
+    D = {k: v if k.endswith('_emu') else log if k == 'runlog' else with_runlog([corrected(r) for r in v], log) for k, v in D.items() if not k.startswith(('s25_', 'p9_'))}
     M = {k: [r for r in v if not pilot(r)] for k, v in D.items()}
     R = {'deploy': deploy(M['deploy']), 'gaps': gaps(M['gaps']), 'coverage': coverage(M['coverage']), 'race': race(M['stock']),
          'boundary': boundary(M['boundary']), 'pitfalls': pitfalls(M['pitfalls']), 'frozen': frozen(M['frozen']),
          'not_run': not_run(D['b0']), 'reset': reset(M['reset']), 'reset_emu': reset(D.get('reset_emu', [])),
          'host': matched_host(M['host']), 'continuous': continuous(M['continuous']), 'host_order': host_order(M['host'])}
-    s25_trials = S.get('deploy', []) + [r for r in S.get('stock', []) if r['_file'] not in PARTIAL]
+    s25_trials = S.get('deploy', []) + [r for r in S.get('stock', []) if r['_file'] not in PARTIAL] + sum((S.get(k, []) for k in ('gaps', 'boundary', 'flags', 'long', 'screenoff')), [])
     R['s25'] = {'deploy': deploy(S.get('deploy', [])), 'race': race([r for r in S.get('stock', []) if r['_file'] not in PARTIAL]),
                 'froze': froze(S.get('diag', []) + S.get('b0', [])), 'trials': s25_trials, 'partial': sum(r['_file'] in PARTIAL for r in S.get('stock', [])),
                 'units': freezer_units({'s25': [r for v in S.values() for r in v] + s25log})}   # PARTIAL counts: it shows its unit's state
@@ -631,6 +688,14 @@ def analyze(D):
     R['race_kinds'], R['s25']['race_kinds'] = race_kinds(M['stock']), race_kinds(s25_stock)
     R['s25']['same'] = same_by_seed(M['stock'], s25_stock)
     R['emu'] = {'race': race_kinds(D.get('stock_emu', [])), 'deploy': deploy(D.get('deploy_emu', []))}   # emulator cells, same rules
+    R['s25'].update(gaps=gaps(S.get('gaps', [])), boundary=boundary(S.get('boundary', [])), flags=flag_probe(S.get('flags', [])),
+                    long=long_freeze(S.get('long', [])), screen=screen_off(S.get('screenoff', [])),
+                    gap_units=len({r.get('device_instance') for r in S.get('gaps', [])} - {None}),
+                    bnd_changes=sum(bool(r.get('change')) and r.get('mode') == 'bnd' and not r.get('band') for r in S.get('boundary', [])))
+    R['p9'] = {'deploy': deploy(N.get('deploy', [])), 'race_kinds': race_kinds(N.get('stock', [])), 'same': same_by_seed(M['stock'], N.get('stock', [])),
+               'froze': froze(N.get('b0', [])), 'trials': N.get('deploy', []) + N.get('stock', []), 'android': android(N.get('b0', [])),
+               'probe_s': min(((r.get('detail') or {}).get('after_s') for r in N.get('b0', []) if r.get('probe') == 'freezer_debounce_2s'
+                               and (r.get('detail') or {}).get('frozen') == '1'), default=None)}
     X = R['not_run']
     nr = lambda src, val: NR if src in X else val       # a source not run prints NR, not TBD
     P = {'deploy': deploy([r for r in D['deploy'] if pilot(r)]),
@@ -672,6 +737,13 @@ def analyze(D):
     fmin, fmax = rng([v for v in U['fcl'].values()], '%.2f')
     cmin, cmax = rng([v for v in U['cte'].values() if v is not None], '%.1f')
     rreads = sorted({z['reads'][0] for z in HO.values()})
+    (G25, B25, FL, LG, SO), P9 = (R['s25'][k] for k in ('gaps', 'boundary', 'flags', 'long', 'screen')), R['p9']
+    def g25(gs, p):
+        k = [G25[g]['miss']['late', p] for g in gs if g in G25 and G25[g]['miss']['late', p]]
+        return kn(sum(a for a, _ in k), sum(b for _, b in k)) if k and sum(b for _, b in k) else None
+    b25 = lambda m, w: kn(*B25['k'](m, w)) if B25 and B25['k'](m, w)[1] else None
+    n9 = lambda s_, m: dur(st.median(P9['deploy'][s_, m]['delays_ms'])) if (s_, m) in P9['deploy'] and P9['deploy'][s_, m]['delays_ms'] else None
+    nfz = P9['deploy'].get(('contacts', 'bg_freezer'))
     macros = {
         'PhysDevice': ('device model', tex(device(D['all'], 'device'))),
         'PhysFingerprint': ('build fingerprint', builds(exp)),
@@ -718,6 +790,58 @@ def analyze(D):
         'PhysSamsungRaceTrials': ('S25 anchoring-race trials', srn or None),
         'PhysSamsungRaceStale': ('S25 trials with a stale anchor', sum(z['stale'] for z in SR.values()) if srn else None),
         'PhysSamsungRaceStampedStale': ('S25 race: stale FRESH / updates and inserts on certifying sources', rk(R['s25']['race_kinds'], 'stamped')),
+        # Galaxy S25: gaps, boundary, flag probe, long window, screen off (one unit per test unless stated)
+        'PhysSamsungGapTrials': ('S25 valid/attempted gap trials', kn(sum(z['n'] for z in G25.values()), sum(z['att'] for z in G25.values())) if G25 else None),
+        'PhysSamsungGapUnits': ('S25 units behind the gap trials', R['s25']['gap_units'] or None),
+        'PhysSamsungGapNoneEv': ('S25 no gap, late: event-only missed/changed uses', g25(['none'], 'ev')),
+        'PhysSamsungGapLostEv': ('S25 lost-coverage gaps, late: event-only missed/changed uses', g25(LOST, 'ev')),
+        'PhysSamsungGapLostEvr': ('S25 lost-coverage gaps, late: restart-aware missed/changed uses', g25(LOST, 'evr')),
+        'PhysSamsungGapLostLm': ('S25 lost-coverage gaps, late: StampCheck missed/changed uses', g25(LOST, 'lm')),
+        'PhysSamsungBoundaryTrials': ('S25 valid boundary trials', B25.get('n')),
+        'PhysSamsungBndChanges': ('S25 boundary-check changes over the planning window', R['s25']['bnd_changes'] or None),
+        'PhysSamsungBndBandTrials': ('S25 boundary trials with the change in the band', len(B25['band']) if B25 and B25['band'] else None),
+        'PhysSamsungCteMs': ('S25 median check-to-effect interval, ms', '%.1f' % st.median(B25['cte']) if B25 and B25['cte'] else None),
+        'PhysSamsungBndObsStale': ('S25 observation check, change before the action: stale/n', b25('obs', 'before_action')),
+        'PhysSamsungBndBeforeCheckStale': ('S25 boundary check, change before the check: stale/n', b25('bnd', 'before_check')),
+        'PhysSamsungBndOverlapStale': ('S25 boundary check, change overlaps: stale/n', b25('bnd', 'overlaps')),
+        **{'PhysSamsungBndOverlapWall' + w.title()[:5]: ('S25 overlap trials by the number at the effect time: %s' % w, B25['wall_at'][('bnd', 'overlaps', w)] if B25 and B25['wall_at'] else None)
+           for w in ('stale', 'fresh', 'undetermined')},
+        'PhysSamsungFlagWrites': ('S25 flag probe: writes through the Contacts provider whose first callback has NOTIFY_NO_DELAY / trials', kn(*FL['writes'][:2]) if FL and FL['writes'][1] else None),
+        'PhysSamsungFlagNotify': ('S25 flag probe: an app notifyChange on the Contacts URI with NOTIFY_NO_DELAY / trials', kn(*FL['notify'][:2]) if FL and FL['notify'][1] else None),
+        'PhysSamsungFlagKept': ('S25 flag probe: app notifyChange callbacks carrying exactly the flags passed / trials', kn(*FL['kept']) if FL and FL['kept'][1] else None),
+        'PhysSamsungFlagOther': ('S25 flag probe: Calendar, MediaStore, Settings cases with NOTIFY_NO_DELAY / trials', kn(*FL['other'][:2]) if FL and FL['other'][1] else None),
+        'PhysSamsungFlagNotifyDelay': ('S25 flag probe: median first delay after an app notifyChange on the Contacts URI', dur(FL['notify'][2]) if FL and FL['notify'][1] else None),
+        'PhysSamsungFlagCases': ('S25 flag probe cases', FL.get('cases') or None),
+        'PhysSamsungFlagPerCase': ('S25 flag probe trials per case (smallest)', FL.get('per_case') or None),
+        'PhysSamsungLongSamples': ('S25 long window samples', LG.get('n')),
+        'PhysSamsungLongAndroidFrozen': ('S25 long window: samples frozen by Android (isFrozen or cgroup v2) / samples', kn(LG['android_frozen'], LG['n']) if LG else None),
+        'PhysSamsungLongScreenOnS': ('S25 long window: screen-on cached phase, s', '%.0f' % LG['on_s'] if LG else None),
+        'PhysSamsungLongToGroupS': ('S25 long window: first sample in the cgroup v1 frozen group after screen off, s', '%.0f' % LG['to_v1'] if LG and LG['to_v1'] is not None else None),
+        'PhysSamsungLongRunning': ('S25 long window: samples in the v1 frozen group whose /proc state is R / samples in that group', kn(LG['running_in_v1'], LG['in_v1']) if LG and LG['in_v1'] else None),
+        'PhysSamsungScreenTrials': ('S25 screen-off trials', SO.get('n')),
+        'PhysSamsungScreenAtWrite': ('S25 screen-off trials with the client in the v1 frozen group at the write / trials', kn(SO['at_write'], SO['n']) if SO else None),
+        'PhysSamsungScreenLater': ('S25 screen-off trials that entered the v1 frozen group while the screen was off / trials', kn(len(SO['later']), SO['n']) if SO else None),
+        'PhysSamsungScreenLaterMin': ('S25 earliest entry into the v1 frozen group, s after screen off', '%.0f' % min(SO['later']) if SO and SO['later'] else None),
+        'PhysSamsungScreenLaterMax': ('S25 latest entry into the v1 frozen group, s after screen off', '%.0f' % max(SO['later']) if SO and SO['later'] else None),
+        'PhysSamsungScreenCallbacks': ('S25 screen-off trials whose Contacts and MediaStore callbacks arrived before wake / trials', kn(SO['callbacks'], SO['n']) if SO else None),
+        'PhysSamsungScreenOffS': ('S25 shortest screen-off observation, s', '%.0f' % SO['off_s'] if SO else None),
+        # Pixel 9, Android 16 (b13-pixel9a16-*)
+        'PhysNineModel': ('Pixel 9 model', tex(', '.join(sorted({r['device'].split(' ', 1)[-1] for r in P9['trials'] if r.get('device')})) or None)),
+        'PhysNineBuild': ('Pixel 9 build IDs', ', '.join('\\path{%s}' % b for b in build_ids(P9['trials']).split(', ')) if P9['trials'] else None),
+        'PhysNineAndroid': ('Pixel 9 Android release and SDK level', P9['android']),
+        'PhysNineUnits': ('Pixel 9 units behind the reported trials', len({r.get('device_instance') for r in P9['trials']} - {None}) or None),
+        'PhysNineDeployTrials': ('Pixel 9 valid/attempted callback trials', kn(sum(z['valid'] for z in P9['deploy'].values()), sum(z['attempted'] for z in P9['deploy'].values())) if P9['deploy'] else None),
+        'PhysNineBgMedian': ('Pixel 9 Contacts background unfrozen median callback delay', n9('contacts', 'bg_unfrozen')),
+        'PhysNineFgMedian': ('Pixel 9 Contacts FGS median callback delay', n9('contacts', 'fg')),
+        'PhysNineAssistMedian': ('Pixel 9 Contacts bound assistant median callback delay', n9('contacts', 'assistant')),
+        'PhysNineMediaBgMedian': ('Pixel 9 MediaStore background unfrozen median callback delay', n9('media', 'bg_unfrozen')),
+        'PhysNineMediaFgMedian': ('Pixel 9 MediaStore FGS median callback delay', n9('media', 'fg')),
+        'PhysNineFrozen': ('Pixel 9 background frozen Contacts trials valid (frozen before and during the hold) / attempted', kn(nfz['valid'], nfz['attempted']) if nfz else None),
+        'PhysNineFrozenBeforeThaw': ('Pixel 9 frozen trials with a callback before thaw / valid', kn(nfz['before_thaw'], nfz['valid']) if nfz and nfz['valid'] else None),
+        'PhysNineNoDelay': ('Pixel 9 Contacts first callbacks with NOTIFY_NO_DELAY / Contacts first callbacks', nd(P9['deploy'], 'contacts')),
+        'PhysNineRaceStampedStale': ('Pixel 9 race: stale FRESH / updates and inserts on certifying sources', rk(P9['race_kinds'], 'stamped')),
+        'PhysNineRaceSameAsPixel': ('Pixel 9 race trials with the Pixel 8 outcome of the same source, trial and seed / matched', kn(*P9['same']) if P9['same'][1] else None),
+        'PhysNineProbeFrozenS': ('Pixel 9 freezer probe: frozen after, s', '%.1f' % P9['probe_s'] if P9['probe_s'] is not None else None),
         'PhysSamsungRaceSameAsPixel': ('S25 race trials with the Pixel 8 outcome of the same source, trial and seed / matched trials',
                                        kn(*R['s25']['same']) if R['s25']['same'][1] else None),
         'PhysSamsungFrozen': ('S25 freezer attempts, client cached and freezer on: frozen / attempts', kn(*sf[:2]) if sf[1] else None),
@@ -955,35 +1079,72 @@ def tables(gen, R):
           % len({r[1] for r in R['units']}),
           'lllr>{\\raggedright\\arraybackslash}p{7.5cm}', 'Test & Unit & Build & Trials & Per-unit result', rows, 'per-unit trials', star=True, font='\\footnotesize')
 
-    S, rows = R['s25'], []
-    if S['trials']:
-        B1, P = S['deploy'], R['deploy']
+    S, P9, rows = R['s25'], R['p9'], []
+    if S['trials'] or P9['trials']:
+        B1, B9, P = S['deploy'], P9['deploy'], R['deploy']
         cell = lambda D, k: (lambda z: '%s (%s)' % (dur(st.median(z['delays_ms'])), kn(z['valid'], z['attempted'])) if z['delays_ms'] else
-                             'n/a (%s)' % kn(z['valid'], z['attempted']))(D[k]) if k in D else 'not run'
+                             ('held (%s)' if k[1] == 'bg_freezer' and z['valid'] else 'n/a (%s)') % kn(z['valid'], z['attempted']))(D[k]) if k in D else 'not run'
         for src in SOURCES:
             for mode in NAMES:
-                if (src, mode) in B1:
-                    rows.append('%s, %s & %s & %s\\\\' % (SOURCES[src], MODE[mode], cell(B1, (src, mode)), cell(P, (src, mode))))
+                if (src, mode) in B1 or (src, mode) in B9:
+                    rows.append('%s, %s & %s & %s & %s\\\\' % (SOURCES[src], MODE[mode], cell(B1, (src, mode)), cell(B9, (src, mode)), cell(P, (src, mode))))
         nd = lambda D, s: kn(*nodelay(D, s)) if nodelay(D, s)[1] else 'n/a'
-        rows += ['%s, no-delay flag & %s & %s\\\\' % (SOURCES[s], nd(B1, s), nd(P, s)) for s in SOURCES if nodelay(B1, s)[1]]
+        rows += ['%s, no-delay flag & %s & %s & %s\\\\' % (SOURCES[s], nd(B1, s), nd(B9, s), nd(P, s)) for s in SOURCES if nodelay(B1, s)[1] or nodelay(B9, s)[1]]
         rk = lambda K: kn(*K['stamped']) if K['stamped'][1] else 'n/a'
-        rows.append('Race: update, insert stale & %s & %s\\\\' % (rk(S['race_kinds']), rk(R['race_kinds'])))
+        rows.append('Race: update, insert stale & %s & %s & %s\\\\' % (rk(S['race_kinds']), rk(P9['race_kinds']), rk(R['race_kinds'])))
         fz = lambda f: kn(*f[:2]) if f[1] else 'n/a'
-        rows.append('Cached client frozen & %s & %s\\\\' % (fz(S['froze']), fz(R['phone_froze'])))
-        rows.append('Freezer off by default (units with trials) & \\PhysSamsungFreezerOffTrialUnits & \\PhysFreezerOffTrialUnits\\\\')   # as tab:phone-results
+        rows.append('Freezer probe, client frozen & %s & %s & %s\\\\' % (fz(S['froze']), fz(P9['froze']), fz(R['phone_froze'])))
+        rows.append('Freezer off by default (units with trials) & \\PhysSamsungFreezerOffTrialUnits & n/a & \\PhysFreezerOffTrialUnits\\\\')   # as tab:phone-results
     ps, adj = proc_states(S['deploy'].get(('contacts', 'bg_unfrozen'), {}).get('rows', []))
-    bg = (' In every background Contacts trial the client was cached (process state %s, \\texttt{oom\\_adj} %s) and unfrozen at every sample.'
+    bg = (' In every S25 background Contacts trial the client was cached (process state %s, \\texttt{oom\\_adj} %s) and unfrozen at every sample.'
           % (' or '.join(sorted(ps)), ' or '.join(sorted(adj)))) if ps and adj else ''
-    ident = ' (%s, build \\texttt{%s})' % (tex(S['trials'][0]['device'].split()[-1]), tex(build_ids(S['trials']))) if S['trials'] else ''   # no \path in a caption
-    table(gen, 'tab_phys_samsung.tex', 'Galaxy~S25' + ident + ' against Pixel~8, with the rules of Tables~\\ref{tab:phys-deploy}'
-          ' and~\\ref{tab:phys-race}; callbacks: median delay (valid/attempted trials). No-delay flag: the callback\\textquoteright s flags carry'
-          ' \\texttt{ContentResolver}\\textquoteright s hidden \\texttt{NOTIFY\\_NO\\_DELAY} bit, with which \\texttt{ContentService} skips the 10\\,s'
-          ' background deferral.' + bg + ' Frozen: freezer probe and diagnosis attempts with the client cached, \\PhysSamsungFreezeDebounceS\\,s debounce, each watched for at least \\PhysSamsungFreezeWindowS\\,s.'
-          + (' The race uses the same seeded write schedule on both models, and each S25 trial had the outcome of the Pixel~8 trial with the'
-             ' same source, trial and seed (\\PhysSamsungRaceSameAsPixel): the race reproduces on a second vendor\\textquoteright s phone, which is'
-             ' not an independent rate.' if S['same'][1] else '')
-          + (' A stopped partial race run (%d trial%s whose seeds repeat the full run) is excluded.' % (S['partial'], 's' * (S['partial'] != 1)) if S['partial'] else ''),
-          'lrr', 'Measure & Galaxy~S25 & Pixel~8', rows, 'Galaxy S25 trials')
+    ident = lambda T: ' (%s, build \\texttt{%s})' % (tex(T[0]['device'].split(' ', 1)[-1]), tex(build_ids(T))) if T else ''   # no \path in a caption
+    table(gen, 'tab_phys_samsung.tex', 'Galaxy~S25' + ident(S['trials']) + ', Android~15, and Pixel~9' + (' (build \\texttt{%s})' % tex(build_ids(P9['trials'])) if P9['trials'] else '') + ', Android~16, against Pixel~8,'
+          ' with the rules of Tables~\\ref{tab:phys-deploy} and~\\ref{tab:phys-race}; callbacks: median delay (valid/attempted trials). No-delay flag: the'
+          ' callback\\textquoteright s flags carry \\texttt{ContentResolver}\\textquoteright s hidden \\texttt{NOTIFY\\_NO\\_DELAY} bit, with which'
+          ' \\texttt{ContentService} skips the 10\\,s background deferral.' + bg + ' Freezer probe: probe and diagnosis attempts with the client cached,'
+          ' \\PhysSamsungFreezeDebounceS\\,s debounce (S25: each watched for at least \\PhysSamsungFreezeWindowS\\,s). Freezer off: Android~16 no longer'
+          ' prints the setting; the Pixel~9 frozen trials show it on.'
+          + (' The race uses the same seeded write schedule on every model; the S25 (\\PhysSamsungRaceSameAsPixel) and the Pixel~9'
+             ' (\\PhysNineRaceSameAsPixel) matched the Pixel~8 trial by trial, by source, trial and seed: reproducibility, not independent rates.' if S['same'][1] else '')
+          + (' A stopped partial S25 race run (%d trial%s whose seeds repeat the full run) is excluded.' % (S['partial'], 's' * (S['partial'] != 1)) if S['partial'] else ''),
+          'lrrr', 'Measure & Galaxy~S25 & Pixel~9 & Pixel~8', rows, 'other-model trials', star=True)
+
+    G25, B25, FL, LG, SO, rows = S['gaps'], S['boundary'], S['flags'], S['long'], S['screen'], []
+    if G25:
+        rows.append(r'\mgroup{2}{Gaps (background client, late decision; \PhysSamsungGapUnits units, %s trials)}' % kn(sum(z['n'] for z in G25.values()), sum(z['att'] for z in G25.values())))
+        for g, z in G25.items():
+            m = lambda p_: kn(*z['miss']['late', p_]) if z['miss']['late', p_] else 'n/a'
+            rows.append('%s & missed: event-only %s, restart-aware %s, \\stamp %s\\\\' % (GAPNAME.get(g, g), m('ev'), m('evr'), m('lm')))
+    if B25:
+        wall = lambda m_, w: '/'.join(str(B25['wall_at'][m_, w, c]) for c in ('stale', 'fresh', 'undetermined'))
+        rows.append(r'\mgroup{2}{Action boundary (one unit; %d boundary-check changes over the planning window, %d in the band)}' % (S['bnd_changes'], len(B25['band'])))
+        rows += ['observation check; change before action & stale %s\\\\' % kn(*B25['k']('obs', 'before_action')),
+                 'boundary check; change before check & stale %s\\\\' % kn(*B25['k']('bnd', 'before_check')),
+                 'boundary check; change overlaps & stale %s; at effect time %s (stale/fresh/undet.)\\\\' % (kn(*B25['k']('bnd', 'overlaps')), wall('bnd', 'overlaps')),
+                 'check-to-effect, median & %.1f\\,ms (%d trials)\\\\' % (st.median(B25['cte']), len(B25['cte']))]
+    if FL:
+        rows.append(r'\mgroup{2}{Who sets the no-delay flag (one unit, %d cases, %d trials each)}' % (FL['cases'], FL['per_case']))
+        rows += ['write through the Contacts provider (app or shell) & flagged %s\\\\' % kn(*FL['writes'][:2]),
+                 'app\\textquoteright s own notifyChange on the Contacts URI & flagged %s; flags as passed %s; median %s\\\\' % (kn(*FL['notify'][:2]), kn(*FL['kept']), dur(FL['notify'][2])),
+                 'Calendar, MediaStore, Settings writes; Calendar notifyChange & flagged %s\\\\' % kn(*FL['other'][:2])]
+    if LG:
+        rows.append(r'\mgroup{2}{Long freezer window (one unit, %d samples)}' % LG['n'])
+        rows += ['frozen by Android (isFrozen or cgroup v2) & %s samples\\\\' % kn(LG['android_frozen'], LG['n']),
+                 'screen on, cached & %.0f\\,s, never in a v1 frozen group\\\\' % LG['on_s'] if not LG['on_v1'] else 'screen on, cached & %.0f\\,s\\\\' % LG['on_s'],
+                 'screen off & in cgroup v1 \\texttt{/frozen} from %.0f\\,s; /proc state R in %s samples there\\\\' % (LG['to_v1'], kn(LG['running_in_v1'], LG['in_v1']))]
+    if SO:
+        rows.append(r'\mgroup{2}{Screen off, freshly started client (one unit, %d trials)}' % SO['n'])
+        rows += ['in \\texttt{/frozen} when the change was written & %s\\\\' % kn(SO['at_write'], SO['n']),
+                 'entered \\texttt{/frozen} with the screen off & %s, from %.0f to %.0f\\,s after screen off\\\\' % (kn(len(SO['later']), SO['n']), min(SO['later']), max(SO['later'])) if SO['later']
+                 else 'entered \\texttt{/frozen} with the screen off & 0/%d\\\\' % SO['n'],
+                 'Contacts and MediaStore callbacks before wake & %s\\\\' % kn(SO['callbacks'], SO['n'])]
+    table(gen, 'tab_phys_s25.tex', 'Galaxy~S25, tests beyond callbacks and race, each on the unit and sample size given (no generalization beyond them).'
+          ' Gaps and boundary use the rules of Tables~\\ref{tab:phys-gaps} and~\\ref{tab:phys-boundary}. Flag probe: first callback after a write'
+          ' through a provider, or after an app\\textquoteright s own \\texttt{notifyChange} on the same URI. Long window and screen off: Android\\textquoteright s'
+          ' freezer (\\texttt{isFrozen}, cgroup v2) against Samsung\\textquoteright s cgroup v1 freezer group \\texttt{/frozen}; whether that group holds'
+          ' callbacks was not tested.',
+          'l>{\\raggedright\\arraybackslash}p{9.5cm}', 'Test & Result', rows, 'S25 tests', star=True)
 
     for name, what in (('tab_phys_statelog.tex', '24-hour state log'), ('tab_phys_battery.tex', 'battery drain')):
         table(gen, name, 'Phone %s: not run.' % what, 'l', 'Status', [], what, tbd=False, extra=[WHY + r'\\'])
@@ -1002,6 +1163,7 @@ def write(D, gen):
         lines.append(r'\newif\ifPhys%s\Phys%s%s' % (sw, sw, 'true' if R[key] else 'false'))
     S = R['s25']        # Galaxy S25: a valid callback trial or race trial
     lines.append(r'\newif\ifPhysSamsung\PhysSamsung%s' % ('true' if any(z['valid'] for z in S['deploy'].values()) or any(z['n'] for z in S['race'].values()) else 'false'))
+    lines.append(r'\newif\ifPhysNine\PhysNine%s' % ('true' if any(z['valid'] for z in R['p9']['deploy'].values()) or R['p9']['race_kinds']['stamped'][1] else 'false'))
     for name, (what, val) in macros.items():
         lines.append('\\newcommand{\\%s}{%s\\xspace}' % (name, val if val is not None else '\\PhysTBD{%s}' % what))
     (gen / 'physical_macros.tex').write_text('\n'.join(lines) + '\n', encoding='utf-8', newline='\n')
@@ -1031,7 +1193,7 @@ def self_check():
         tabs = sorted(p.name for p in gen.glob('tab_phys_*.tex'))
         dropped = {'tab_phys_statelog.tex', 'tab_phys_battery.tex'}
         assert '(\\PhysTBD{coverage trials} trials)' in tab('tab_phys_coverage.tex')
-        assert len(tabs) == 13 and all(('\\PhysTBD{' in tab(t)) == (t not in dropped) for t in tabs), tabs
+        assert len(tabs) == 14 and all(('\\PhysTBD{' in tab(t)) == (t not in dropped) for t in tabs), tabs
         assert all('Device Farm' in tab(t) for t in dropped)
 
         D = {k: [] for k in FILES}
@@ -1128,11 +1290,13 @@ def self_check():
         sd['memory_before_thaw']['events'][0]['flags'], sm['memory_before_thaw']['events'][0]['flags'] = NO_DELAY | 1, 9
         D['s25_deploy'] = [s25(sd, 'b13-t-deploy-contacts-0600.jsonl'), s25(sm, 'b13-t-deploy-media-0600.jsonl')]
         D['s25_stock'] = [s25(st_(True), 'b13-t-stock-sA-0600.jsonl'), s25(st_(True), next(iter(PARTIAL)))]
+        D['s25_gaps'] = [dict(gap('kill', 8, None, 'A', 'REFRESH'), _file='b13-t-gaps-kill-0600.jsonl', device_instance='sG')]   # S25 test table
         D['s25_diag'] = [s25({'exp': 'freeze_diag', 'variant': x, 'froze': False, 'use_freezer': 'true', 'debounce_ms': 2000,
                               'samples': [{'t_s': 3.8, 'frozen': '0'}, {'t_s': 26.0 if x == 'b' else 9.0, 'frozen': '0'}]}, 'b13-t-diag-0600.jsonl') for x in 'ab']
         D['runlog'] = [{'run_arn': 'arn:run/s', 'device_instance': 'sA', 'use_freezer_before': 'false', 'use_freezer': 'true', '_file': 'RUNLOG.md'}]
         m, _ = write(D, gen); v = {k: x for k, (_, x) in m.items()}
         assert v['PhysSamsungBgMedian'] == '12\\,ms' and v['PhysSamsungMediaBgMedian'] == '10.0\\,s' and v['PhysSamsungNoDelay'] == '1/1' and v['PhysSamsungMediaNoDelay'] == '0/1'
+        assert v['PhysSamsungGapLostEv'] == '1/1' and v['PhysSamsungGapUnits'] == 1 and 'Killed' in tab('tab_phys_s25.tex') and v['PhysGapTrials'] == '3/3', v['PhysSamsungGapLostEv']
         assert v['PhysSamsungRaceStampedStale'] == '1/1' and v['PhysRaceStampedStale'] == '1/2' and v['PhysRaceDeletesCaught'] is None, (v['PhysSamsungRaceStampedStale'], v['PhysRaceStampedStale'])
         assert v['PhysSamsungRaceTrials'] == 1 and v['PhysSamsungRaceStale'] == 1 and v['PhysSamsungFrozen'] == '0/1' and v['PhysSamsungFreezerOffUnits'] == '1/1', \
             (v['PhysSamsungRaceTrials'], v['PhysSamsungFrozen'], v['PhysSamsungFreezerOffUnits'])
@@ -1141,13 +1305,37 @@ def self_check():
         assert (m['PhysSamsungFrozen'][1], m['PhysSamsungFreezeWindowS'][1]) == ('0/2', '25'), 'the shortest watched attempt sets the window'
         assert v['PhysDevice'] == 'Pixel\\_X' and v['PhysInstances'] == 2 and v['PhysFreezerOffUnits'] is None and v['PhysDeployNoDelay'] == '0/2', 'S25 leaked into Pixel macros'
         assert v['PhysSamsungModel'] == 'SM-X' and v['PhysSamsungBuild'] == '\\path{S.1}' and '\\PhysSamsungtrue' in tab('physical_macros.tex')
-        assert 'partial race run (1 trial whose' in tab('tab_phys_samsung.tex') and 'Contacts, no-delay flag & 1/1 & 0/2' in tab('tab_phys_samsung.tex')
+        assert 'partial S25 race run (1 trial whose' in tab('tab_phys_samsung.tex') and 'Contacts, no-delay flag & 1/1 & n/a & 0/2' in tab('tab_phys_samsung.tex'), tab('tab_phys_samsung.tex')
         # per unit: no-gap trials on units A (10.0 s) and B (10.04 s), force-stop on a unit without device_instance
         assert v['PhysUnitsGap'] == 3 and (v['PhysUnitFclMin'], v['PhysUnitFclMax']) == ('10.00', '10.04') and v['PhysUnitsLostAll'] == '1/1', (v['PhysUnitsGap'], v['PhysUnitFclMin'])
         assert '\\path{arn:devinst/B} & \\path{?} & 1/1 & no gap: first cb. 10.04\\,s (deferred)' in tab('tab_phys_units.tex'), tab('tab_phys_units.tex')
         assert v['PhysHostReadsRefresh'] == '11.0' and v['PhysHostReadsStampMin'] == v['PhysHostReadsStampMax'] == '4.0'
         assert 'stale \\Fresh after 1/2 updates or inserts to stamped sources' in tab('tab_phys_units.tex'), 'per-unit race row in the stamped-write form'
-        assert 'Freezer off by default (units with trials) & \\PhysSamsungFreezerOffTrialUnits & \\PhysFreezerOffTrialUnits' in tab('tab_phys_samsung.tex')
+        assert 'Freezer off by default (units with trials) & \\PhysSamsungFreezerOffTrialUnits & n/a & \\PhysFreezerOffTrialUnits' in tab('tab_phys_samsung.tex')
+        # Android 16 (Pixel 9): use_freezer is not printed ('?'); a frozen trial whose own cgroup samples show it frozen counts,
+        # one with unfrozen samples does not; a b13-pixel9a16 file never reaches the Pixel 8 macros
+        p9 = lambda frozen, **k: dict(dep('bg_freezer', frozen, None, 'contacts'), device='Google Pixel 9', fingerprint='google/t/t:16/BP2.1/1:user/release-keys',
+                                      use_freezer='?', use_freezer_before='?', device_instance='n9', _file='b13-pixel9a16-deploy-contacts-0700.jsonl', **k)
+        nine = dict(D, p9_deploy=[p9('1'), p9('0'), dep('fg', '0', 1054, 'contacts') | {'device': 'Google Pixel 9', 'device_instance': 'n9', '_file': 'b13-pixel9a16-deploy-contacts-0700.jsonl'}],
+                    p9_stock=[dict(st_(True), trial=0, seed=1, device_instance='n9s', _file='b13-pixel9a16-stock-0700.jsonl')])
+        m, _ = write(nine, gen); w = {k: x for k, (_, x) in m.items()}
+        assert (w['PhysNineFrozen'], w['PhysNineFgMedian'], w['PhysNineModel'], w['PhysNineUnits'], w['PhysNineRaceStampedStale']) == ('1/2', '54\\,ms', 'Pixel 9', 2, '1/1'), w['PhysNineFrozen']
+        assert w['PhysDeployFgMedian'] == v['PhysDeployFgMedian'] and w['PhysInstances'] == v['PhysInstances'] and '\\PhysNinetrue' in tab('physical_macros.tex')
+        # S25 flag probe, long window and screen off
+        fl = lambda case, src, writer, flags, d=10000: {'exp': 'notify_flags', 'case': case, 'source': src, 'writer': writer, 'first_flags': flags, 'first_delay_ms': d}
+        F = flag_probe([fl('mut_contacts', 'contacts', 'mut', NO_DELAY | 1, 13), fl('notify_contacts_f1', 'contacts', 'notify', 1), fl('notify_contacts_f0', 'contacts', 'notify', 1),
+                        fl('mut_media', 'media', 'mut', 9), dict(fl('mut_contacts', 'contacts', 'mut', 1), error='x')])
+        assert (F['writes'][:2], F['notify'][:2], F['kept'], F['other'][:2], F['cases'], F['per_case']) == ((1, 1), (0, 2), (1, 2), (0, 1), 4, 1), F
+        cg = lambda v1: '6:freezer:%s\n0::/uid_1/pid_2' % v1
+        lf = lambda ph, t, v1, wake='mWakefulness=Awake', fz='false', state='S (sleeping)': {'exp': 'freeze_long', 'phase': ph, 't_s': t, 'cgroup': cg(v1), 'isFrozen': fz,
+                                                                                               'frozen': '0', 'wake': wake, 'state': 'State:\t' + state}
+        L = long_freeze([lf('A', 0.1, '/'), lf('A', 600.0, '/'), lf('B', 0.2, '/', 'mWakefulness=Dozing'), lf('B', 15.0, '/frozen', 'mWakefulness=Dozing', state='R (running)'),
+                         lf('C', 0.1, '/frozen', state='R (running)', fz='true'), {'exp': 'freeze_long_cmd'}])
+        assert (L['n'], L['android_frozen'], L['on_s'], L['on_v1'], L['to_v1'], L['running_in_v1'], L['in_v1']) == (5, 1, 600.0, 0, 15.0, 2, 2), L
+        so = lambda at, later, cb=True: {'exp': 'freeze_screenoff', 'v1_at_mutation': at, 'samples': [{'t_s': 46.0, 'v1': '/'}] + ([{'t_s': later, 'v1': '/frozen'}] if later else []) + [{'t_s': 85.0, 'v1': '/frozen' if later else '/'}],
+                                         'contacts': {'first_before_wake': cb}, 'media': {'first_before_wake': True}}
+        O = screen_off([so('/', 61.3), so('/', None), so('/', 64.0, cb=False)])
+        assert (O['n'], O['at_write'], O['later'], O['callbacks'], O['off_s']) == (3, 0, [61.3, 64.0], 2, 85.0), O
         assert v['PhysEvidCheap'] == 'phone' and v['PhysEvidHost'] == 'phone' and v['PhysHostTrials'] == 2 and v['PhysHostStampGainNone'] == '50.0 [50.0, 50.0]' and v['PhysHostStampGainOne'] is None and v['PhysHostStampGainMin'] == v['PhysHostStampGainMax'] == '50.0'
         assert 'none & 2 & 200.0 & 150.0 & 50.0 & 50.0 [50.0, 50.0] & 11.0 / 4.0' in tab('tab_phys_host.tex'), tab('tab_phys_host.tex')
         assert v['PhysContTrials'] == 1 and v['PhysContStaleCert'] == '1/3' and v['PhysContActionOnly'] == '1/3' and v['PhysContAmbiguous'] == '1/4'
@@ -1242,7 +1430,7 @@ def self_check():
         recs = [fzd('deploy-contacts-2000.jsonl', device_instance='uA', config=cfg('false')),          # old schema, unit off
                 fzd('deploy-contacts-2000.jsonl', device_instance='uB', use_freezer_before='false', use_freezer='true'),   # turned on: valid
                 fzd('deploy-contacts-2000.jsonl', device_instance='uG', config=cfg('true')),           # old schema, on: valid
-                fzd('deploy-contacts-2000.jsonl', device_instance='uF'),                               # unknown
+                dict(dep('bg_freezer', '0', None), _file='deploy-contacts-2000.jsonl', device_instance='uF'),   # unknown, cgroup not frozen                               # unknown
                 fzd('deploy-contacts-2000.jsonl', device_instance='uA', use_freezer='false', config=cfg('true')),   # the field wins
                 fzd('deploy-pilot-contacts-2000.jsonl', device_instance='uE', config=cfg('false'))]   # pilot: no trial, no unit
         b0p = {'probe': 'freezer_debounce_2s', 'ok': True, 'detail': {'frozen': '1'}, 'device_instance': 'uC', '_file': 'b0-probe-2000.jsonl'}
@@ -1278,7 +1466,7 @@ def self_check():
         assert [(x['run_arn'], x['device_instance'], x['use_freezer_before'], x['use_freezer']) for x in log] == [('arn:aws:devicefarm:r:1:run:p/R1', 'uH', 'false', 'true')], log
         recs = [fzd('deploy-contacts-freezer-1747.jsonl', device_instance='uH', run_arn='arn:aws:devicefarm:r:1:run:p/R1', config=cfg('true')),
                 fzd('deploy-contacts-freezer-1747.jsonl', device_instance='uH', run_arn='arn:aws:devicefarm:r:1:run:p/R1'),
-                fzd('deploy-contacts-freezer-1747.jsonl', device_instance='uI', run_arn='arn:aws:devicefarm:r:1:run:p/R2')]
+                dict(dep('bg_freezer', '0', None), _file='deploy-contacts-freezer-1747.jsonl', device_instance='uI', run_arn='arn:aws:devicefarm:r:1:run:p/R2')]
         m, _ = write(dict(empty, deploy=recs, runlog=log), gen); w = {k: x for k, (_, x) in m.items()}
         assert w['PhysDeployFrozenBeforeThaw'] == '0/2' and w['PhysFreezerOffUnits'] == '1/1' and w['PhysInstances'] == 2, (w['PhysDeployFrozenBeforeThaw'], w['PhysFreezerOffUnits'])
         assert 'Excluded frozen trials: 1 (freezer state unknown).' in tab('tab_phys_deploy.tex')
@@ -1359,7 +1547,8 @@ if __name__ == '__main__':
         D = dict({k: load(res, p) for k, p in FILES.items()}, runlog=runlog_freezer(res / 'RUNLOG.md'), reset_emu=emu,
                  stock_emu=emu_files('revision-20261115', 'stock-emulator-*.jsonl'),           # emulator race, same rules
                  deploy_emu=emu_files('followup-20261116', 'deploy-emulator-*.jsonl'),        # emulator callbacks, same rules
-                 **{'s25_' + k: load(res, B13 + '*-' + p) for k, p in S25_FILES.items()})
+                 **{'s25_' + k: load(res, MODELS['s25'] + p) for k, p in S25_FILES.items()},
+                 **{'p9_' + k: load(res, MODELS['p9'] + p) for k, p in P9_FILES.items()})
         m, P = write(D, ROOT / 'manuscript/generated')
         print(json.dumps({'macros': len(m), 'tbd': sum(v is None for _, v in m.values()), 'runs': len({r.get('run_arn') for r in D['all']} - {None}),
                           'pilot_records': P['records'], 'pilot_deploy': summary(P['deploy'])}))
