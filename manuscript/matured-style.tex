@@ -1,8 +1,8 @@
-% matured-style.tex -- shared table/plot look for the MobiSys 2027 papers (same palette as the Figure 1 comics).
+% matured-style.tex: shared table/plot look for the MobiSys 2027 papers (same palette as the Figure 1 comics).
 % Copy into each manuscript and \input{matured-style} after xcolor/booktabs/pgfplots are loaded.
 % Muted, print-safe colours; series also differ by marker/dash so the plots survive greyscale.
 \usepackage{colortbl}
-% ---- palette -----------------------------------------------------------------
+% palette
 \definecolor{mInk}{HTML}{2B2A29}
 \definecolor{mSlate}{HTML}{5E6670}
 \definecolor{mNavy}{HTML}{2F3E55}
@@ -16,7 +16,7 @@
 \definecolor{mHiB}{HTML}{F4E3DF}    % brick tint: bad/unsafe cell
 \definecolor{mHiT}{HTML}{DFEDEA}    % teal tint: good/safe cell
 \definecolor{mHiO}{HTML}{F6EBD6}    % ochre tint: emphasis
-% ---- tables ------------------------------------------------------------------
+% tables
 % \mhead   : first command of a header row  -> shaded header
 % \mgroup{n}{text} : full-width shaded group label row spanning n columns
 % \mbad{x} \mgood{x} \mhi{x} : tinted cells (colortbl \cellcolor)
@@ -29,7 +29,7 @@
 \newcommand{\mtab}{\footnotesize\setlength{\tabcolsep}{3.6pt}\renewcommand{\arraystretch}{1.05}}
 \setlength{\aboverulesep}{0.25ex}\setlength{\belowrulesep}{0.4ex}
 \setlength{\heavyrulewidth}{0.08em}\setlength{\lightrulewidth}{0.05em}
-% ---- plots -------------------------------------------------------------------
+% plots
 \pgfplotscreateplotcyclelist{matured}{%
   {mBrick,mark=*,mark size=1.4pt},
   {mTeal,mark=square*,mark size=1.3pt},

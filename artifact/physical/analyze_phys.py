@@ -322,6 +322,44 @@ def race(rows):
     return dict(by)
 
 
+KINDS = ('update', 'insert', 'delete')
+REASON = {'unknown': 'no stamp', 'racy': 'racy mtime'}   # historical.cost reason of a never-certifying source
+
+
+def race_kinds(rows):
+    """B4 by source and write kind. The schedule is seeded (revision/run.py: kinds cycle update, delete, insert; settings
+    only update), so each (source, kind) cell is a fixed outcome. A source certifies when StampCheck ever returned FRESH or
+    CHANGED for its own facts; otherwise every verdict was UNKNOWN (reasons from historical.cost: 'unknown' = no stamp,
+    'racy' = racy-mtime guard). Returns per source {kind: (stale, n)}, certifying, reasons, and the totals
+    stamped (stale over update or insert), deletes (caught = not stale), stampless (all own facts UNKNOWN)."""
+    by = defaultdict(lambda: {'k': defaultdict(lambda: [0, 0]), 'cert': False, 'why': set(), 'unknown': 0, 'n': 0})
+    for r in rows:
+        if 'error' in r:
+            continue
+        z, kind, own = by[r['case']], r['mutation']['kind'], r['before']['values']
+        stale = any(v != r['after']['values'][f] and r['historical']['verdicts'][f] == 'FRESH' for f, v in own.items())
+        z['k'][kind][0] += stale; z['k'][kind][1] += 1; z['n'] += 1
+        verdicts = {r['historical']['verdicts'][f] for f in own}
+        z['cert'] |= verdicts != {'UNKNOWN'}; z['unknown'] += verdicts == {'UNKNOWN'}
+        z['why'].add((r['historical'].get('cost', {}).get(r['case']) or {}).get('reason'))
+    def tot(f):
+        pairs = [p for z in by.values() for p in f(z)]
+        return sum(a for a, _ in pairs), sum(b for _, b in pairs)
+    return {'src': dict(by),
+            'stamped': tot(lambda z: [(z['k'][k][0], z['k'][k][1]) for k in ('update', 'insert')] if z['cert'] else []),
+            'deletes': tot(lambda z: [(z['k']['delete'][1] - z['k']['delete'][0], z['k']['delete'][1])] if z['cert'] and 'delete' in z['k'] else []),
+            'stampless': tot(lambda z: [(z['unknown'], z['n'])] if not z['cert'] else [])}
+
+
+def same_by_seed(a, b):
+    """(trials of b whose stale outcome equals that of the a trial with the same source, trial and seed, matched trials)."""
+    key = lambda r: (r.get('case'), r.get('trial'), r.get('seed'))
+    stale = lambda r: any(v != r['after']['values'][f] and r['historical']['verdicts'][f] == 'FRESH' for f, v in r['before']['values'].items())
+    A = {key(r): stale(r) for r in a if 'error' not in r}
+    m = [(A[key(r)], stale(r)) for r in b if 'error' not in r and key(r) in A]
+    return sum(x == y for x, y in m), len(m)
+
+
 def boundary(rows):
     """B9, scripts/analyze.py e3 rules, independent of excluded_sources. Stale, in every store: the value the client used
     differs from Dana's number read right after the effect (the client's flag, as in the emulator E3 v2 table). Store
@@ -332,7 +370,9 @@ def boundary(rows):
     the value used, or a no-change trial whose Dana VERSION is missing or moved."""
     rows = [r for r in rows if r.get('res')]
     cls, cte, bins, excl, stores, wall = Counter(), [], {'near': [0, 0], 'late': [0, 0]}, Counter(), set(), Counter()
+    wall_at, band = Counter(), []     # second reading per (mode, placement); planned offsets of band trials
     for r in rows:
+        wc = None
         res, store, mut = r['res'], r.get('effect_store', 'calllog'), r.get('mut') if r['change'] else None
         stale = bool(res.get('stale'))
         if r['change'] and 'mut_start' not in (mut or {}):
@@ -351,7 +391,8 @@ def boundary(rows):
             truth = (res['truth_after_effect'] if not mut or mut['mut_end'] < w else
                      old if old and mut['mut_start'] > w else
                      res['truth_after_effect'] if mut['mut_start'] > res['effect_end'] + res.get('truth_read_ns', 0) / 1e6 else None)
-            wall['undetermined' if truth is None else 'stale' if row['number'] != truth.split(',')[0] else 'fresh'] += 1
+            wc = 'undetermined' if truth is None else 'stale' if row['number'] != truth.split(',')[0] else 'fresh'
+            wall[wc] += 1
         stores.add(store)
         if r['mode'] == 'bnd':
             cte.append(res['effect_end'] - res['check2_start'])
@@ -368,9 +409,13 @@ def boundary(rows):
             else:
                 where = 'before_action' if me < res['effect_start'] else 'after_effect' if ms > res['effect_end'] else 'overlaps'
         cls[r['mode'], where, stale] += 1
+        if wc:
+            wall_at[r['mode'], where, wc] += 1
+        if r.get('band') and r.get('delta_planned_ms') is not None:
+            band.append(r['delta_planned_ms'])
     k = lambda m, w: (cls[m, w, True], cls[m, w, True] + cls[m, w, False])
     n = len(rows) - sum(excl.values())
-    return {'n': n, 'cte': cte, 'k': k, 'bins': bins, 'excluded': excl, 'wall': wall, 'stores': stores} if n else {}
+    return {'n': n, 'cte': cte, 'k': k, 'bins': bins, 'excluded': excl, 'wall': wall, 'wall_at': wall_at, 'band': band, 'stores': stores} if n else {}
 
 
 def pitfalls(rows):
@@ -491,7 +536,7 @@ def per_unit(M):
     its own rules (gaps after the rerun replacement of the whole campaign). Returns table rows (test, unit, build,
     trials, result) and per-unit values: deferred first-callback median, whether event-only missed every lost-coverage
     change, check-to-effect median."""
-    rows, U = [], {'fcl': {}, 'lost': {}, 'cte': {}, 'gap_builds': set()}
+    rows, U = [], {'fcl': {}, 'lost': {}, 'cte': {}, 'gap_builds': set(), 'fcl_builds': set()}
     for u, rs in by_unit(M['deploy']):
         B = deploy(rs)
         res = '; '.join('%s: %s' % (SOURCES[s], ', '.join('%s %s' % (SHORT[m], dur(st.median(z['delays_ms'])) if z['delays_ms'] else 'held' if z['valid'] else 'n/a')
@@ -502,6 +547,7 @@ def per_unit(M):
         d = [x for g in DEFERRED if g in G for x in G[g].get('fcl', [])]
         parts = []
         if d:
+            U['fcl_builds'] |= {build_id(r['fingerprint']) for r in rs if r.get('fingerprint') and r['gap'] in DEFERRED}
             U['fcl'][u] = st.median(d); parts.append('first cb. %.2f\\,s (deferred)' % U['fcl'][u])
         if G.get('freeze', {}).get('fcl'):
             parts.append('%s\\,s (freezer)' % sec(st.median(G['freeze']['fcl'])))
@@ -525,6 +571,28 @@ def per_unit(M):
             rows.append(('Action boundary', u, build_ids(rs), str(BD['n']), 'check-to-effect %s\\,ms; overlap stale %s%s' % (
                 '%.1f' % U['cte'][u] if BD['cte'] else 'n/a', kn(*BD['k']('bnd', 'overlaps')),
                 ' (band schedule only)' if all('band' in r['_file'] for r in rs) else '')))
+    # the other tests, so that every unit behind a reported trial has a row
+    for u, rs in by_unit(M['coverage']):
+        n = coverage(rs).get('n')
+        if n:
+            rows.append(('Coverage', u, build_ids(rs), str(n), 'as Table~\\ref{tab:phys-coverage}'))
+    for u, rs in by_unit(M['frozen']):
+        F = frozen(rs)
+        if F.get('valid'):
+            rows.append(('Frozen holds', u, build_ids(rs), kn(F['valid'], F['run']), 'stayed frozen %d, killed %d' % (F['stayed'], F['died'])))
+    for u, rs in by_unit(M['pitfalls']):
+        PF = pitfalls(rs)
+        if PF:
+            parts = ['%s %s' % (w, kn(*PF[k])) for k, w in (('mtime', 'mtime kept'), ('clock', 'clock stale'), ('sms', 'SMS id reused')) if PF[k][1]]
+            rows.append(('Pitfalls', u, build_ids(rs), str(sum(PF[k][1] for k in ('mtime', 'clock', 'sms'))), '; '.join(parts)))
+    for u, rs in by_unit(M['reset']):
+        RS = reset(rs)
+        if RS:
+            rows.append(('Contacts reset', u, build_ids(rs), str(RS['n']), 'stamp unchanged %s' % kn(RS['same'], RS['n'])))
+    for u, rs in by_unit(M['continuous']):
+        CT = continuous(rs); det = sum(c[k] for c in CT.values() for k in c if k != 'ambiguous')
+        if CT:
+            rows.append(('Continuous writes', u, build_ids(rs), str(len(rs)), 'arm trials stale at certification %s' % kn(sum(c['stale_at_certification'] for c in CT.values()), det)))
     return rows, U
 
 
@@ -547,7 +615,7 @@ def analyze(D):
     s25u = {r.get('device_instance') for v in S.values() for r in v} - {None}
     log = [x for x in D.get('runlog', []) if x['device_instance'] not in s25u]       # RUNLOG lines of S25 units count only there
     s25log = [x for x in D.get('runlog', []) if x['device_instance'] in s25u]
-    D = {k: v if k == 'reset_emu' else log if k == 'runlog' else with_runlog([corrected(r) for r in v], log) for k, v in D.items() if not k.startswith('s25_')}
+    D = {k: v if k.endswith('_emu') else log if k == 'runlog' else with_runlog([corrected(r) for r in v], log) for k, v in D.items() if not k.startswith('s25_')}
     M = {k: [r for r in v if not pilot(r)] for k, v in D.items()}
     R = {'deploy': deploy(M['deploy']), 'gaps': gaps(M['gaps']), 'coverage': coverage(M['coverage']), 'race': race(M['stock']),
          'boundary': boundary(M['boundary']), 'pitfalls': pitfalls(M['pitfalls']), 'frozen': frozen(M['frozen']),
@@ -559,6 +627,10 @@ def analyze(D):
                 'units': freezer_units({'s25': [r for v in S.values() for r in v] + s25log})}   # PARTIAL counts: it shows its unit's state
     R['phone_froze'] = froze(M['b0'] + M['diag'])
     R['units'], U = per_unit(M)
+    s25_stock = [r for r in S.get('stock', []) if r['_file'] not in PARTIAL]
+    R['race_kinds'], R['s25']['race_kinds'] = race_kinds(M['stock']), race_kinds(s25_stock)
+    R['s25']['same'] = same_by_seed(M['stock'], s25_stock)
+    R['emu'] = {'race': race_kinds(D.get('stock_emu', [])), 'deploy': deploy(D.get('deploy_emu', []))}   # emulator cells, same rules
     X = R['not_run']
     nr = lambda src, val: NR if src in X else val       # a source not run prints NR, not TBD
     P = {'deploy': deploy([r for r in D['deploy'] if pilot(r)]),
@@ -592,6 +664,7 @@ def analyze(D):
     smed = lambda s, m: dur(st.median(S1[s, m]['delays_ms'])) if (s, m) in S1 and S1[s, m]['delays_ms'] else None
     srn = sum(z['n'] for z in SR.values())
     nd = lambda B, s: kn(*nodelay(B, s)) if nodelay(B, s)[1] else None
+    rk = lambda K, key: kn(*K[key]) if K[key][1] else None          # race_kinds total
     off = lambda F: kn(sum(not on for on in F.values()), len(F)) if F else None
     sf, pf_ = R['s25']['froze'], R['phone_froze']
     has['S25'] = any(z['valid'] for z in S1.values()) or srn > 0
@@ -616,6 +689,8 @@ def analyze(D):
         'PhysFreezerOffTrialUnits': ('units behind reported trials with the freezer off by default / those with a known state', off(tfu)),
         # per unit (Table tab_phys_units)
         'PhysUnitsGap': ('units behind the gap trials', sum(t == 'Gaps' for t, *_ in R['units']) or None),
+        'PhysUnitsDeferred': ('units behind deferred-only gap trials (no gap, Doze, bucket)', len(U['fcl']) or None),
+        'PhysUnitsDeferredBuilds': ('builds behind deferred-only gap trials', len(U['fcl_builds']) or None),
         'PhysUnitsGapBuilds': ('builds behind the gap trials', len(U['gap_builds']) or None),
         'PhysUnitFclMin': ('smallest per-unit median first callback over deferred-only gaps, s', fmin),
         'PhysUnitFclMax': ('largest per-unit median first callback over deferred-only gaps, s', fmax),
@@ -629,6 +704,8 @@ def analyze(D):
         'PhysSamsungBuild': ('S25 build IDs', ', '.join('\\path{%s}' % b for b in build_ids(R['s25']['trials']).split(', ')) if R['s25']['trials'] else None),
         'PhysSamsungUnits': ('S25 units behind the reported trials', len({r.get('device_instance') for r in R['s25']['trials']} - {None}) or None),
         'PhysSamsungFreezerOffUnits': ('S25 units with the freezer off by default / units with a known state', off(sfu)),
+        'PhysSamsungFreezerOffTrialUnits': ('S25 units behind reported trials with the freezer off by default / those with a known state',
+                                            off({u: on for u, on in sfu.items() if u in {r.get('device_instance') for r in R['s25']['trials']}})),
         'PhysSamsungDeployTrials': ('S25 valid/attempted callback trials', kn(sum(z['valid'] for z in S1.values()), sum(z['attempted'] for z in S1.values())) if S1 else None),
         'PhysSamsungBgMedian': ('S25 Contacts background unfrozen median callback delay', smed('contacts', 'bg_unfrozen')),
         'PhysSamsungFgMedian': ('S25 Contacts FGS median callback delay', smed('contacts', 'fg')),
@@ -640,6 +717,9 @@ def analyze(D):
         'PhysDeployNoDelay': ('Pixel 8 Contacts first callbacks with NOTIFY_NO_DELAY / Contacts first callbacks', nd(B1, 'contacts')),
         'PhysSamsungRaceTrials': ('S25 anchoring-race trials', srn or None),
         'PhysSamsungRaceStale': ('S25 trials with a stale anchor', sum(z['stale'] for z in SR.values()) if srn else None),
+        'PhysSamsungRaceStampedStale': ('S25 race: stale FRESH / updates and inserts on certifying sources', rk(R['s25']['race_kinds'], 'stamped')),
+        'PhysSamsungRaceSameAsPixel': ('S25 race trials with the Pixel 8 outcome of the same source, trial and seed / matched trials',
+                                       kn(*R['s25']['same']) if R['s25']['same'][1] else None),
         'PhysSamsungFrozen': ('S25 freezer attempts, client cached and freezer on: frozen / attempts', kn(*sf[:2]) if sf[1] else None),
         'PhysSamsungFreezeWindowS': ('S25 shortest time a counted freezer attempt was watched, s', '%.0f' % sf[2] if sf[1] and sf[2] is not None else None),
         'PhysSamsungFreezeDebounceS': ('S25 freezer debounce set for those attempts, s', '%g' % sf[3] if sf[1] and sf[3] is not None else None),
@@ -671,11 +751,23 @@ def analyze(D):
         'PhysGapInEpochLm': ('B2 in-epoch gaps, early: StampCheck missed/changed uses', gmiss(INEPOCH, 'early', 'lm')),
         'PhysRaceTrials': ('B4 anchoring-race trials', race_n or None),
         'PhysRaceStale': ('B4 trials with a stale anchor', race_k if race_n else None),
+        'PhysRaceStampedStale': ('race: stale FRESH / updates and inserts on certifying sources', rk(R['race_kinds'], 'stamped')),
+        'PhysRaceDeletesCaught': ('race: deletes caught (no stale FRESH) / deletes on certifying sources', rk(R['race_kinds'], 'deletes')),
+        'PhysRaceStamplessUnknown': ('race: trials with UNKNOWN on every own fact / trials of sources StampCheck never certified', rk(R['race_kinds'], 'stampless')),
+        'PhysRaceEmuStampedStale': ('emulators, same rule as PhysRaceStampedStale', rk(R['emu']['race'], 'stamped')),
+        'PhysEmuNoDelay': ('emulators: Contacts first callbacks with NOTIFY_NO_DELAY / Contacts first callbacks', nd(R['emu']['deploy'], 'contacts')),
+        'PhysEmuFrozen': ('emulators: background frozen Contacts trials valid (frozen before and during the hold) / attempted',
+                          (lambda z: kn(z['valid'], z['attempted']) if z else None)(R['emu']['deploy'].get(('contacts', 'bg_freezer')))),
         'PhysBoundaryTrials': ('B9 valid boundary trials', BD.get('n')),
         'PhysCteMs': ('B9 median check-to-effect interval, ms', f"{st.median(BD['cte']):.1f}" if BD.get('cte') else None),
         'PhysBndObsStale': ('B9 observation check, change before the action: stale/n', bk('obs', 'before_action')),
         'PhysBndBeforeCheckStale': ('B9 boundary check, change before the check: stale/n', bk('bnd', 'before_check')),
         'PhysBndOverlapStale': ('B9 boundary check, change overlaps check or residual: stale/n', bk('bnd', 'overlaps')),
+        **{'PhysBndOverlapWall' + w.title()[:5]: ('B9 overlap trials by the number at the effect time: %s' % w, BD['wall_at'][('bnd', 'overlaps', w)] if BD and BD['wall_at'] else None)
+           for w in ('stale', 'fresh', 'undetermined')},
+        'PhysBndBandTrials': ('B9 trials whose change was drawn in the band around the check', len(BD['band']) if BD and BD['band'] else None),
+        'PhysBndBandMin': ('B9 smallest planned band offset from the check, ms', '$%.1f$' % min(BD['band']) if BD and BD['band'] else None),
+        'PhysBndBandMax': ('B9 largest planned band offset from the check, ms', '$%.1f$' % max(BD['band']) if BD and BD['band'] else None),
         'PhysSmsReuse': ('B10 SMS id reuse trials', nr('sms', pf('sms'))),
         'PhysMtimeSame': ('B10 same-second mtime trials', pf('mtime')),
         'PhysClockTrials': ('B10 valid clock set-back trials', PF['clock'][1] if PF and PF['clock'][1] else None),
@@ -786,30 +878,45 @@ def tables(gen, R):
           'lrrrrrrrrrrrr', r' & & & & \multicolumn{2}{c}{Notified} & & \multicolumn{3}{c}{Missed at +2\,s} & \multicolumn{3}{c}{Missed at +14\,s}\\ \mhead '
           r'Gap & Trials & Surv.\,\% & First cb. & +2\,s\,\% & +14\,s\,\% & Exit & Ev & Evr & \stamp & Ev & Evr & \stamp', rows, 'B2 gap trials', star=True)
 
-    rows = [f"{SRCNAME.get(c, c)} & {z['n']} & {wil(z['stale'], z['n'])} & {z['unknown']}/{z['n']}\\\\" for c, z in sorted(R['race'].items()) if z['n'] and c not in NOT_RUN]
-    table(gen, 'tab_phys_race.tex', 'Pixel~8: a writer races the optimistic anchor; trials whose anchor certified a value that had changed (Wilson 95\\% interval) and trials in which strict \\sys returned \\Unknown.',
-          'lrrr', r'Source & Trials & Stale \Fresh & \Unknown', rows, 'B4 race trials',
-          extra=[r'%s & \multicolumn{3}{l}{%s}\\' % (SRCNAME[x], NR) for x in sorted(NOT_RUN)])
+    K, rows = R['race_kinds'], []
+    for cert, head in ((True, 'Sources whose stamp certified'), (False, 'Sources whose stamp never certified (\\stamp: \\Unknown)')):
+        src = sorted(x for x, z in K['src'].items() if z['cert'] == cert and x not in NOT_RUN)
+        rows += [r'\mgroup{5}{%s}' % head] if src else []
+        for x in src:
+            z = K['src'][x]
+            note = '' if cert else ' (%s)' % ', '.join(sorted(REASON.get(w, str(w)) for w in z['why']))
+            rows.append(f"{SRCNAME.get(x, x)}{note} & " + ' & '.join(kn(*z['k'][k]) if k in z['k'] else 'n/a' for k in KINDS)
+                        + f" & {R['race'][x]['unknown']}/{R['race'][x]['n']}\\\\")
+    table(gen, 'tab_phys_race.tex', 'Pixel~8: a separate app writes once between the optimistic anchor\\textquoteright s fact read and its watermark assignment.'
+          ' Write columns: trials whose anchor certified the changed value as \\Fresh, out of trials with that write; last column: trials in which'
+          ' strict \\sys returned \\Unknown. The write schedule is seeded and deterministic (writes cycle through update, delete and insert;'
+          ' Settings only updates), so each cell is a fixed outcome of source and write kind: the counts are counterexamples, not frequencies.'
+          ' Every update or insert to a source whose stamp certified gave stale \\Fresh (\\PhysRaceStampedStale), every delete there was caught'
+          ' (\\PhysRaceDeletesCaught), and \\stamp returned \\Unknown for every trial of the other sources (\\PhysRaceStamplessUnknown).',
+          'lrrrr', r'Source & Update & Insert & Delete & \Unknown', rows, 'B4 race trials',
+          extra=[r'%s & \multicolumn{4}{l}{%s}\\' % (SRCNAME[x], NR) for x in sorted(NOT_RUN)])
 
     BD, rows, store = R['boundary'], [], ''
     if BD:
         store = ' The effect is %s.' % ' or '.join(sorted({'contacts': "a Data row of a separate raw contact, not Dana's",
                                                          'calllog': 'a call-log row'}[s] for s in BD['stores']))
-        store += " Stale: the value used differs from Dana's number read right after the effect, as in Table~\\ref{tab:boundary}."
+        store += " Overlaps: the change overlaps the check or the check-to-effect interval. Stale: the value used differs from Dana's number read right after the effect, as in Table~\\ref{tab:boundary}."
         if BD['wall']:
-            store += (" The last two rows are a second reading: the number in the effect row against Dana's number at the effect's wall-clock"
-                      " time. Undetermined: a change spans that time, so Dana's number at that instant is unknown.")
-        for lab, m, w in [('check at observation; change before the action', 'obs', 'before_action'), ('boundary check; change before the check', 'bnd', 'before_check'),
-                          ('boundary check; change overlaps check or residual', 'bnd', 'overlaps'), ('boundary check; change after the effect', 'bnd', 'after_effect'),
-                          ('boundary check, no change (control)', 'bnd', 'none'), ('observation check, no change (control)', 'obs', 'none')]:
-            rows.append(f"{lab} & {kn(*BD['k'](m, w))}\\\\")
-        rows += [f"change starts within 10\\,ms of the check & {kn(*BD['bins']['near'])}\\\\", f"change starts 10 to 60\\,ms after it & {kn(*BD['bins']['late'])}\\\\"]
-        if BD['wall']:      # second reading, Contacts store
-            rows += [f"by the number at the effect's time & {kn(BD['wall']['stale'], BD['wall']['stale'] + BD['wall']['fresh'])}\\\\",
-                     f"change spans the effect's time: undetermined & {BD['wall']['undetermined']}\\\\"]
-        rows += [f"excluded: {w} & {c}\\\\" for w, c in sorted(BD['excluded'].items())]
+            store += (" Last column, a second reading: the number in the effect row against Dana's number at the effect's wall-clock time,"
+                      " as stale/fresh/undetermined; undetermined: a change spans that time, so Dana's number at that instant is unknown.")
+        if BD['band']:
+            store += (' Rates depend on where the changes were injected: %d trial%s drew the change in a band around the check (planned'
+                      ' offsets from $%.1f$ to $%.1f$\\,ms), the others over the whole planning window.'
+                      % (len(BD['band']), 's' * (len(BD['band']) != 1), min(BD['band']), max(BD['band'])))
+        wall_at = lambda m, w: '/'.join(str(BD['wall_at'][m, w, c]) for c in ('stale', 'fresh', 'undetermined')) if any(BD['wall_at'][m, w, c] for c in ('stale', 'fresh', 'undetermined')) else 'n/a'
+        for lab, m, w in [('observation check; change before action', 'obs', 'before_action'), ('boundary check; change before check', 'bnd', 'before_check'),
+                          ('boundary check; change overlaps', 'bnd', 'overlaps'), ('boundary check; change after effect', 'bnd', 'after_effect'),
+                          ('boundary check; no change (control)', 'bnd', 'none'), ('observation check; no change (control)', 'obs', 'none')]:
+            rows.append(f"{lab} & {kn(*BD['k'](m, w))} & {wall_at(m, w)}\\\\")
+        rows += [f"change starts within 10\\,ms of check & {kn(*BD['bins']['near'])} & n/a\\\\", f"change starts 10 to 60\\,ms after check & {kn(*BD['bins']['late'])} & n/a\\\\"]
+        rows += [f"excluded: {w} & {c} & \\\\" for w, c in sorted(BD['excluded'].items())]
     table(gen, 'tab_phys_boundary.tex', 'Pixel~8: stale effects by where the change landed relative to the boundary check and the effect (stale/trials); median check-to-effect interval \\PhysCteMs\\,ms.' + store,
-          'lr', 'Placement of the change & Stale effects', rows, 'B9 boundary trials')
+          'lrr', "Placement of the change & Stale & At effect time", rows, 'B9 boundary trials')
 
     PF, rows = R['pitfalls'], []
     if PF:
@@ -844,7 +951,8 @@ def tables(gen, R):
     table(gen, 'tab_phys_units.tex', 'Pixel~8 trials per unit (\\texttt{device\\_instance}) and build, each test with the rules of its own table'
           ' (Tables~\\ref{tab:phys-deploy}, \\ref{tab:phys-gaps}, \\ref{tab:phys-race}, \\ref{tab:phys-host} and \\ref{tab:phys-boundary}). Gaps: first-callback'
           ' median over the no-gap, Doze and bucket gaps (deferred) and over the freezer gap; event-only misses at +14\\,s over the gaps that end'
-          ' observer coverage (lost). Host helper: paired mean per write case. n/a: no valid trial.',
+          ' observer coverage (lost). Host helper: paired mean per write case. n/a: no valid trial. Every unit behind a reported trial has a row (%s units).'
+          % len({r[1] for r in R['units']}),
           'lllr>{\\raggedright\\arraybackslash}p{7.5cm}', 'Test & Unit & Build & Trials & Per-unit result', rows, 'per-unit trials', star=True, font='\\footnotesize')
 
     S, rows = R['s25'], []
@@ -858,8 +966,8 @@ def tables(gen, R):
                     rows.append('%s, %s & %s & %s\\\\' % (SOURCES[src], MODE[mode], cell(B1, (src, mode)), cell(P, (src, mode))))
         nd = lambda D, s: kn(*nodelay(D, s)) if nodelay(D, s)[1] else 'n/a'
         rows += ['%s, no-delay flag & %s & %s\\\\' % (SOURCES[s], nd(B1, s), nd(P, s)) for s in SOURCES if nodelay(B1, s)[1]]
-        rn = lambda Z: kn(sum(z['stale'] for z in Z.values()), sum(z['n'] for z in Z.values())) if Z else 'n/a'
-        rows.append('Race: stale \\Fresh & %s & %s\\\\' % (rn(S['race']), rn(R['race'])))
+        rk = lambda K: kn(*K['stamped']) if K['stamped'][1] else 'n/a'
+        rows.append('Race: update, insert stale & %s & %s\\\\' % (rk(S['race_kinds']), rk(R['race_kinds'])))
         fz = lambda f: kn(*f[:2]) if f[1] else 'n/a'
         rows.append('Cached client frozen & %s & %s\\\\' % (fz(S['froze']), fz(R['phone_froze'])))
         rows.append('Freezer off by default (units) & \\PhysSamsungFreezerOffUnits & \\PhysFreezerOffUnits\\\\')
@@ -871,8 +979,11 @@ def tables(gen, R):
           ' and~\\ref{tab:phys-race}; callbacks: median delay (valid/attempted trials). No-delay flag: the callback\\textquoteright s flags carry'
           ' \\texttt{ContentResolver}\\textquoteright s hidden \\texttt{NOTIFY\\_NO\\_DELAY} bit, with which \\texttt{ContentService} skips the 10\\,s'
           ' background deferral.' + bg + ' Frozen: freezer probe and diagnosis attempts with the client cached, \\PhysSamsungFreezeDebounceS\\,s debounce, each watched for at least \\PhysSamsungFreezeWindowS\\,s.'
+          + (' The race uses the same seeded write schedule on both models, and each S25 trial had the outcome of the Pixel~8 trial with the'
+             ' same source, trial and seed (\\PhysSamsungRaceSameAsPixel): the race reproduces on a second vendor\\textquoteright s phone, which is'
+             ' not an independent rate.' if S['same'][1] else '')
           + (' A stopped partial race run (%d trial%s whose seeds repeat the full run) is excluded.' % (S['partial'], 's' * (S['partial'] != 1)) if S['partial'] else ''),
-          'lrr', 'Measure & Galaxy~S25 & Pixel~8', rows, 'Galaxy S25 trials', font='\\small\\setlength{\\tabcolsep}{4pt}')
+          'lrr', 'Measure & Galaxy~S25 & Pixel~8', rows, 'Galaxy S25 trials')
 
     for name, what in (('tab_phys_statelog.tex', '24-hour state log'), ('tab_phys_battery.tex', 'battery drain')):
         table(gen, name, 'Phone %s: not run.' % what, 'l', 'Status', [], what, tbd=False, extra=[WHY + r'\\'])
@@ -953,9 +1064,15 @@ def self_check():
         # B3, B4, B9, B10
         add('coverage', 'coverage-1200.jsonl', {'fg': False, 'p0': {'contacts.sum_raw_version': '5'}, 'p1': {'contacts.sum_raw_version': '6'},
                                                 'muts': [{'src': 'contacts', 'kind': 'update', 't_pre': 0}], 'events': []})
-        st_ = lambda changed: {'case': 'contacts', 'before': {'values': {'c.dana': 'A'}}, 'after': {'values': {'c.dana': 'B' if changed else 'A'}},
-                               'historical': {'verdicts': {'c.dana': 'FRESH'}}, 'repaired': {'c.dana': {'verdict': 'UNKNOWN'}}}
+        st_ = lambda changed, kind='update', case='contacts', v='FRESH': {
+            'case': case, 'mutation': {'kind': kind}, 'before': {'values': {'c.dana': 'A'}}, 'after': {'values': {'c.dana': 'B' if changed else 'A'}},
+            'historical': {'verdicts': {'c.dana': v}, 'cost': {case: {'reason': 'unknown' if v == 'UNKNOWN' else 'wm_equal'}}}, 'repaired': {'c.dana': {'verdict': 'UNKNOWN'}}}
         add('stock', 'stock-X-1230.jsonl', st_(True), st_(False))
+        # race by write kind: update and insert certified stale, a delete caught, a stampless source UNKNOWN; errors stay out
+        K = race_kinds([st_(True), st_(True, 'insert'), st_(True, 'delete', v='CHANGED'), st_(True, 'update', 'calendar', 'UNKNOWN'), dict(st_(True), error='x')])
+        assert (K['stamped'], K['deletes'], K['stampless']) == ((2, 2), (1, 1), (1, 1)) and K['src']['calendar']['why'] == {'unknown'}, K
+        assert same_by_seed([dict(st_(True), trial=0, seed=1), dict(st_(False), trial=1, seed=1)],
+                            [dict(st_(True), trial=0, seed=1), dict(st_(True), trial=1, seed=1), dict(st_(True), trial=2, seed=1)]) == (1, 2)
         bnd = lambda mode, ms, me, stale: {'mode': mode, 'change': True, 'mut': {'mut_start': ms, 'mut_end': me},
                                            'res': {'stale': stale, 'check2_start': 100, 'effect_start': 120, 'effect_end': 130}}
         add('boundary', 'boundary-1300.jsonl', bnd('bnd', 50, 60, False), bnd('bnd', 105, 112, True), bnd('obs', 50, 60, True))
@@ -1016,6 +1133,7 @@ def self_check():
         D['runlog'] = [{'run_arn': 'arn:run/s', 'device_instance': 'sA', 'use_freezer_before': 'false', 'use_freezer': 'true', '_file': 'RUNLOG.md'}]
         m, _ = write(D, gen); v = {k: x for k, (_, x) in m.items()}
         assert v['PhysSamsungBgMedian'] == '12\\,ms' and v['PhysSamsungMediaBgMedian'] == '10.0\\,s' and v['PhysSamsungNoDelay'] == '1/1' and v['PhysSamsungMediaNoDelay'] == '0/1'
+        assert v['PhysSamsungRaceStampedStale'] == '1/1' and v['PhysRaceStampedStale'] == '1/2' and v['PhysRaceDeletesCaught'] is None, (v['PhysSamsungRaceStampedStale'], v['PhysRaceStampedStale'])
         assert v['PhysSamsungRaceTrials'] == 1 and v['PhysSamsungRaceStale'] == 1 and v['PhysSamsungFrozen'] == '0/1' and v['PhysSamsungFreezerOffUnits'] == '1/1', \
             (v['PhysSamsungRaceTrials'], v['PhysSamsungFrozen'], v['PhysSamsungFreezerOffUnits'])
         assert (v['PhysSamsungFreezeWindowS'], v['PhysSamsungFreezeDebounceS']) == ('26', '2'), 'window of the counted attempt b only (a keeps its FGS)'
@@ -1098,7 +1216,7 @@ def self_check():
             'dana_version_after': '7', 'dana_version_unchanged': True, '_file': 'boundary-1800.jsonl',
             'res': {'stale': (used or num) != truth, 'used': used or num, 'check2_start': 100, 'check2_end': 118, 'effect_start': 120, 'effect_end': 130,
                     'truth_after_effect': truth, 'truth_read_ns': read_ns, 'effect_store': 'contacts'}, **k}
-        recs = recs9 = [bc('bnd', 1, 50, 60), bc('bnd', 1, 105, 112, num='A'), bc('bnd', 1, 122, 128), bc('bnd', 1, 200, 205, num='A', truth='A', dana_number_before='A'),
+        recs = recs9 = [bc('bnd', 1, 50, 60, band=True, delta_planned_ms=-5.0), bc('bnd', 1, 105, 112, num='A'), bc('bnd', 1, 122, 128), bc('bnd', 1, 200, 205, num='A', truth='A', dana_number_before='A'),
                 bc('bnd', 1, 131, 140, read_ns=20e6), bc('bnd', 0), bc('obs', 0, dana_version_after='8', dana_version_unchanged=False),
                 bc('bnd', 0, effect_row={'raw': 'No result found.'}), bc('bnd', 1), bc('obs', 1, 50, 60, num='A'), bc('bnd', 0, num='X', used='B'),
                 bc('bnd', 1, 131, 140, num='A', read_ns=20e6, dana_number_before='A'),
@@ -1107,8 +1225,9 @@ def self_check():
         assert w['PhysBoundaryTrials'] == 8 and w['PhysCteMs'] == '30.0' and w['PhysBndBeforeCheckStale'] == '0/1', (w['PhysBoundaryTrials'], w['PhysCteMs'])
         assert w['PhysBndOverlapStale'] == '1/2' and w['PhysBndObsStale'] == '1/1' and '\\PhysBoundarytrue' in tab('physical_macros.tex'), w['PhysBndOverlapStale']
         bt = tab('tab_phys_boundary.tex')
-        assert 'separate raw contact' in bt and 'after the effect & 1/3' in bt and 'no change (control) & 0/1' in bt, bt
-        assert "by the number at the effect's time & 2/6" in bt and "change spans the effect's time: undetermined & 2" in bt, bt
+        assert 'separate raw contact' in bt and 'after effect & 1/3' in bt and 'no change (control) & 0/1' in bt, bt
+        assert 'change overlaps & 1/2 & 1/0/1' in bt and 'change after effect & 1/3 & 0/2/1' in bt and 'before check & 0/1 & 0/1/0' in bt, bt
+        assert '1 trial drew the change in a band around the check (planned offsets from $-5.0$ to $-5.0$' in bt, bt
         assert "VERSION moved in a control & 1" in bt and 'no effect row & 1' in bt and 'change not made & 1' in bt and 'effect row is not the value used & 1' in bt
         m, _ = write(dict(empty, boundary=[r for r in recs if r['mode'] == 'bnd' and not r['change']][1:]), gen)   # every trial excluded
         assert m['PhysBoundaryTrials'][1] is None and '\\PhysBoundaryfalse' in tab('physical_macros.tex')
@@ -1234,7 +1353,10 @@ if __name__ == '__main__':
         res = ROOT / 'artifact/results'
         emu = [dict(json.loads(l), _file=p.name) for p in sorted((res / 'revision-20261115').glob('supplement-final-emulator-*.jsonl'))
                for l in p.read_text(encoding='utf-8').splitlines() if '"contacts_reset"' in l]     # same rule on the emulators
+        emu_files = lambda d, pat: [dict(json.loads(l), _file=p.name) for p in sorted((res / d).glob(pat)) for l in p.read_text(encoding='utf-8').splitlines() if l.strip()]
         D = dict({k: load(res, p) for k, p in FILES.items()}, runlog=runlog_freezer(res / 'RUNLOG.md'), reset_emu=emu,
+                 stock_emu=emu_files('revision-20261115', 'stock-emulator-*.jsonl'),           # emulator race, same rules
+                 deploy_emu=emu_files('followup-20261116', 'deploy-emulator-*.jsonl'),        # emulator callbacks, same rules
                  **{'s25_' + k: load(res, B13 + '*-' + p) for k, p in S25_FILES.items()})
         m, P = write(D, ROOT / 'manuscript/generated')
         print(json.dumps({'macros': len(m), 'tbd': sum(v is None for _, v in m.values()), 'runs': len({r.get('run_arn') for r in D['all']} - {None}),

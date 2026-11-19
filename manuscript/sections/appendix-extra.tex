@@ -1,6 +1,6 @@
 \section{Physical-Phone Tables}
 \label{app:phys}
-Tables~\ref{tab:phys-deploy} to \ref{tab:phys-units} come from rented Pixel~8 units and Table~\ref{tab:phys-samsung} from Galaxy~S25 units (\S\ref{sec:phys-setup}). They apply the rules of the matching emulator tables to the physical runs only; pilot runs are excluded. Table~\ref{tab:phys-units} splits the Pixel~8 trials by unit and build. Where a test ran on several units, the per-unit results agree: across \PhysUnitsGap units and \PhysUnitsGapBuilds builds, deferred first callbacks had per-unit medians from \PhysUnitFclMin to \PhysUnitFclMax\,s and event-only missed every lost-coverage change on \PhysUnitsLostAll units; the boundary test's per-unit check-to-effect medians were \PhysUnitCteMin and \PhysUnitCteMax\,ms, the second unit running only the band schedule. Each deployment of the callback test, the race and the host helper ran on one unit, so they cannot show a unit effect.
+Tables~\ref{tab:phys-deploy} to \ref{tab:phys-units} come from rented Pixel~8 units and Table~\ref{tab:phys-samsung} from Galaxy~S25 units (\S\ref{sec:phys-setup}). They apply the rules of the matching emulator tables to the physical runs only; pilot runs are excluded. Table~\ref{tab:phys-units} splits the Pixel~8 trials by unit and build, with one row per unit and test. The gap tests agree across units: on the \PhysUnitsDeferred units and \PhysUnitsDeferredBuilds builds with a deferred-only gap, first callbacks had per-unit medians from \PhysUnitFclMin to \PhysUnitFclMax\,s, and event-only missed every lost-coverage change on \PhysUnitsLostAll units. The boundary test's per-unit check-to-effect medians were \PhysUnitCteMin and \PhysUnitCteMax\,ms, but the second unit ran only the band schedule, so unit and schedule are not separable there. Each deployment of the callback test, the race, the host helper, the coverage probe, the reset and the continuous-write test ran on one unit, so they cannot show a unit effect.
 
 \input{generated/tab_phys_deploy}
 \input{generated/tab_phys_coverage}
@@ -25,6 +25,7 @@ Tables~\ref{tab:phys-deploy} to \ref{tab:phys-units} come from rented Pixel~8 un
 
 \input{generated/tab_agent_tasks}
 \input{generated/tab_e8}
+\input{generated/tab_checks_host}
 \input{generated/tab_latency}
 \input{generated/tab_cost}
 \input{generated/tab_policy}

@@ -476,7 +476,7 @@ def sig():
         return
     fmt = lambda x: "$<$10$^{-6}$" if float(x) < 1e-6 else ("%.2g" % float(x))
     PL = {"api33": "Android 13", "api35": "Android 15"}
-    table("tab_sig.tex", "tab:sig", "Trials with at least one stale decision at the early decision, restart-aware event-only vs.\\ \\stamp (background client), for cells where restart-aware has stale trials: Exact paired test on discordant trials, Holm-corrected. The optimistic stamp checker has zero observed misses in these staged cells; this is not a theorem about concurrent writes.",
+    table("tab_sig.tex", "tab:sig", "Trials with at least one stale decision at the early decision, restart-aware event-only vs.\\ \\stamp (background client), for cells where restart-aware has stale trials: Exact paired test on discordant trials, Holm-corrected. The optimistic stamp checker has zero observed misses in these staged cells; this is not a guarantee about concurrent writes.",
           "@{}llrrrr@{}", "Platform & Gap & Restart-aware & \\stamp & $p$ & $p_{\\mathrm{Holm}}$",
           ["%s & %s & %s & %s & %s & %s \\\\" % (PL[r["platform"]], GAPNAME.get(r["gap"], r["gap"]), r["evr"], r["lm"], fmt(r["p"]), fmt(r["p_holm"])) for r in rows],
           size="\\footnotesize", where="!ht")
