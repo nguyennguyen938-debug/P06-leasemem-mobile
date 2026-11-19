@@ -559,7 +559,7 @@ def per_unit(M):
                      '%s: %s' % (', '.join(GSHORT.get(g, g) for g in G), '; '.join(parts) or 'n/a')))
     for u, rs in by_unit(M['stock']):
         Z = race(rs); n = sum(z['n'] for z in Z.values())
-        rows.append(('Anchoring race', u, build_ids(rs), str(n), 'stale \\Fresh %s' % kn(sum(z['stale'] for z in Z.values()), n)))
+        rows.append(('Anchoring race', u, build_ids(rs), str(n), 'stale \\Fresh after %s updates or inserts to stamped sources' % kn(*race_kinds(rs)['stamped'])))
     for u, rs in by_unit(M['host']):
         H = matched_host(rs)
         rows.append(('Host helper', u, build_ids(rs), str(sum(z['n'] for z in H.values())),
@@ -903,7 +903,7 @@ def tables(gen, R):
         store += " Overlaps: the change overlaps the check or the check-to-effect interval. Stale: the value used differs from Dana's number read right after the effect, as in Table~\\ref{tab:boundary}."
         if BD['wall']:
             store += (" Last column, a second reading: the number in the effect row against Dana's number at the effect's wall-clock time,"
-                      " as stale/fresh/undetermined; undetermined: a change spans that time, so Dana's number at that instant is unknown.")
+                      " as stale/fresh/undetermined; undetermined: a change spans or ends at that time, so Dana's number at that instant is unknown.")
         if BD['band']:
             store += (' Rates depend on where the changes were injected: %d trial%s drew the change in a band around the check (planned'
                       ' offsets from $%.1f$ to $%.1f$\\,ms), the others over the whole planning window.'
@@ -970,7 +970,7 @@ def tables(gen, R):
         rows.append('Race: update, insert stale & %s & %s\\\\' % (rk(S['race_kinds']), rk(R['race_kinds'])))
         fz = lambda f: kn(*f[:2]) if f[1] else 'n/a'
         rows.append('Cached client frozen & %s & %s\\\\' % (fz(S['froze']), fz(R['phone_froze'])))
-        rows.append('Freezer off by default (units) & \\PhysSamsungFreezerOffUnits & \\PhysFreezerOffUnits\\\\')
+        rows.append('Freezer off by default (units with trials) & \\PhysSamsungFreezerOffTrialUnits & \\PhysFreezerOffTrialUnits\\\\')   # as tab:phone-results
     ps, adj = proc_states(S['deploy'].get(('contacts', 'bg_unfrozen'), {}).get('rows', []))
     bg = (' In every background Contacts trial the client was cached (process state %s, \\texttt{oom\\_adj} %s) and unfrozen at every sample.'
           % (' or '.join(sorted(ps)), ' or '.join(sorted(adj)))) if ps and adj else ''
@@ -1146,6 +1146,8 @@ def self_check():
         assert v['PhysUnitsGap'] == 3 and (v['PhysUnitFclMin'], v['PhysUnitFclMax']) == ('10.00', '10.04') and v['PhysUnitsLostAll'] == '1/1', (v['PhysUnitsGap'], v['PhysUnitFclMin'])
         assert '\\path{arn:devinst/B} & \\path{?} & 1/1 & no gap: first cb. 10.04\\,s (deferred)' in tab('tab_phys_units.tex'), tab('tab_phys_units.tex')
         assert v['PhysHostReadsRefresh'] == '11.0' and v['PhysHostReadsStampMin'] == v['PhysHostReadsStampMax'] == '4.0'
+        assert 'stale \\Fresh after 1/2 updates or inserts to stamped sources' in tab('tab_phys_units.tex'), 'per-unit race row in the stamped-write form'
+        assert 'Freezer off by default (units with trials) & \\PhysSamsungFreezerOffTrialUnits & \\PhysFreezerOffTrialUnits' in tab('tab_phys_samsung.tex')
         assert v['PhysEvidCheap'] == 'phone' and v['PhysEvidHost'] == 'phone' and v['PhysHostTrials'] == 2 and v['PhysHostStampGainNone'] == '50.0 [50.0, 50.0]' and v['PhysHostStampGainOne'] is None and v['PhysHostStampGainMin'] == v['PhysHostStampGainMax'] == '50.0'
         assert 'none & 2 & 200.0 & 150.0 & 50.0 & 50.0 [50.0, 50.0] & 11.0 / 4.0' in tab('tab_phys_host.tex'), tab('tab_phys_host.tex')
         assert v['PhysContTrials'] == 1 and v['PhysContStaleCert'] == '1/3' and v['PhysContActionOnly'] == '1/3' and v['PhysContAmbiguous'] == '1/4'
