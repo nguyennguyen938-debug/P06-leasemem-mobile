@@ -1148,7 +1148,7 @@ def tables(gen, R):
         rows.append('Race: update, insert stale & %s & %s & %s\\\\' % (rk(S['race_kinds']), rk(P9['race_kinds']), rk(R['race_kinds'])))
         fz = lambda f: kn(*f[:2]) if f[1] else 'n/a'
         rows.append('Freezer probe, client frozen & %s & %s & %s\\\\' % (fz(S['froze']), fz(P9['froze']), fz(R['phone_froze'])))
-        rows.append('Freezer off by default (units with trials) & \\PhysSamsungFreezerOffTrialUnits & n/a & \\PhysFreezerOffTrialUnits\\\\')   # as tab:phone-results
+        rows.append('Freezer off as provisioned (units with trials) & \\PhysSamsungFreezerOffTrialUnits & n/a & \\PhysFreezerOffTrialUnits\\\\')   # as tab:phone-results
     ps, adj = proc_states(S['deploy'].get(('contacts', 'bg_unfrozen'), {}).get('rows', []))
     bg = (' In every S25 background Contacts trial the client was cached (process state %s, \\texttt{oom\\_adj} %s) and unfrozen at every sample.'
           % (' or '.join(sorted(ps)), ' or '.join(sorted(adj)))) if ps and adj else ''
@@ -1371,7 +1371,7 @@ def self_check():
         assert '\\path{arn:devinst/B} & \\path{?} & 1/1 & no gap: first cb. 10.04\\,s (deferred)' in tab('tab_phys_units.tex'), tab('tab_phys_units.tex')
         assert v['PhysHostReadsRefresh'] == '11.0' and v['PhysHostReadsStampMin'] == v['PhysHostReadsStampMax'] == '4.0'
         assert 'stale \\Fresh after 1/2 updates or inserts to stamped sources' in tab('tab_phys_units.tex'), 'per-unit race row in the stamped-write form'
-        assert 'Freezer off by default (units with trials) & \\PhysSamsungFreezerOffTrialUnits & n/a & \\PhysFreezerOffTrialUnits' in tab('tab_phys_samsung.tex')
+        assert 'Freezer off as provisioned (units with trials) & \\PhysSamsungFreezerOffTrialUnits & n/a & \\PhysFreezerOffTrialUnits' in tab('tab_phys_samsung.tex')
         # Android 16 (Pixel 9): use_freezer is not printed ('?'); a frozen trial whose own cgroup samples show it frozen counts,
         # one with unfrozen samples does not; a b13-pixel9a16 file never reaches the Pixel 8 macros
         p9 = lambda frozen, **k: dict(dep('bg_freezer', frozen, None, 'contacts'), device='Google Pixel 9', fingerprint='google/t/t:16/BP2.1/1:user/release-keys',
