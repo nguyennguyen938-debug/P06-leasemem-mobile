@@ -3,28 +3,6 @@
 \paragraph{Emulator platforms.} Android~13: two persistent AVDs (Pixel~6, 3\,GB RAM, \texttt{android-33} \texttt{google\_apis} arm64, build \path{TE1A.240213.009}). Android~15: a third AVD (\texttt{android-35} \texttt{google\_apis} arm64, rev.~9). Emulator 37.2.13, headless, Apple-silicon host; experiment processes ran under \texttt{caffeinate -i}. The 2\,s freezer debounce used for the short freezer gap must be set live with DeviceConfig sync disabled: a reboot reverts it, and sync later overwrites it (\S\ref{sec:eval-validity}).
 
 \paragraph{Facts and mutations.} Table~\ref{tab:facts} lists 16 base facts and 3 derived facts, each standing in for a critical use (text a contact, reply to the newest message, call back, share the newest photo, join a meeting, act on a setting, edit a note).
-
-\begin{table}[t]
-\centering
-\caption{Remembered facts and injected mutations. agg.\ = aggregate. Derived facts: Dana+stand-up, newest photo+Dana, newest SMS+Omar.}
-\label{tab:facts}
-\mtab\scriptsize
-\setlength{\tabcolsep}{2.5pt}
-\begin{tabular}{p{1.25cm}p{3.75cm}p{2.85cm}}
-\toprule
-\mhead Source & Facts & Mutations (another app) \\
-\midrule
-Contacts & Dana's no., Omar's no., \textsc{lm} set (agg.) & edit no., delete, insert \\
-SMS & newest from X (agg.), \#unread (agg.), tracked body & insert, edit body, delete newest \\
-Call log & newest caller (agg.), \#missed (agg.) & insert, change type, delete \\
-MediaStore & newest photo (agg.), tracked names & insert, rename, delete \\
-Calendar & stand-up time, \textsc{lm} events (agg.) & move, delete, insert \\
-Settings & two \texttt{Global} keys & update \\
-Files & \texttt{todo.md} hash, directory list (agg.) & append, create, delete \\
-\bottomrule
-\end{tabular}
-\end{table}
-
 \paragraph{Gap protocol.} A trial ensures base data and waits for deferred notifications from setup to drain. The client then observes all facts, a gap is injected and verified, and each source is mutated with probability 0.5. The gap is held from 0 to 30\,s, ended, and the client decides at +2\,s (\emph{early}) and +14\,s (\emph{late}). Changes are thus from 2 to 32\,s old at the early decision, on both sides of the deferral; a short-hold condition (0 to 4\,s) is in Appendix~\ref{app:extra}. Kill uses \texttt{am kill} for a background client and \texttt{SIGKILL} for an FGS client. Doze is \texttt{force-idle deep} with the battery unplugged; the restricted standby bucket is a separate gap. Process-ending gaps relaunch the client (and restart its FGS) as the agent would. Two longer gaps run about 10~minutes from observation to decision. In the default-debounce freezer gap the client freezes about 10~minutes after observation; the changes are then made while it is frozen and held for 60\,s (the long-hold campaign holds 10~minutes). The stepped Doze gap mutates in deep idle, steps through a maintenance window and mutates again; its logged state at the second batch was a maintenance window in \DozeMaintTwoLongdoze of \NLongdoze trials, so we repeated it with deep idle verified before both batches (\S\ref{sec:eval-validity}). We ran \ETwoBg background and \ETwoFg FGS trials on Android~13 and \ETwoApi on Android~15.
 
 \input{generated/tab_scale}
@@ -50,8 +28,6 @@ Trials are excluded only by outcome-independent rules: harness errors, freezer t
 \paragraph{Provenance inspection.} We inspect the first \RevProvPerClass state-reading tasks in each of the \RevProvClasses census source classes at the pinned AndroidWorld commit. The \RevProvTasks validators use file contents, sent-message outputs or a privileged private database; task names alone overstate cached-input dependence. For example, \texttt{SimpleSmsReply} supplies recipient and reply in its goal. None of these inspected queries establishes strict cached freshness; their verdict is \Unknown. This is selected source inspection, not task execution or population coverage.
 
 \input{generated/tab_aw}
-% Flush every appendix table before the last subsection: balance.sty overfills a last page that carries a table*.
-\clearpage
 \subsection{Extended Frozen-Hold and Source Measurements}
 The gap campaign's freezer gaps are short, so the long-hold campaign holds the client frozen for 10~minutes with changes pending. Per trial, the client observes and goes to the background; the driver waits until its cgroup is frozen, then another app inserts or updates a random source every 3\,s until 600\,s have passed since the first change (about \NineMutMedA changes per trial). The frozen state is sampled every 10 changes. The driver then sends \textsf{DECIDE}, which thaws the client, and decisions follow at +2, +14 and +120\,s. We ran \NineRunA trials on Android~13 and \NineRunB on Android~15 (Table~\ref{tab:frozen}).
 

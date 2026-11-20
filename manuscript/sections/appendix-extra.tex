@@ -1,16 +1,21 @@
+% Appendix layout: floats far outnumber text here, so let them fill columns and pages, and keep single-column
+% tables grouped before table* blocks (LaTeX outputs single and double floats in numbering order).
+\setcounter{topnumber}{5}\setcounter{dbltopnumber}{5}\setcounter{totalnumber}{8}
+\renewcommand{\topfraction}{0.95}\renewcommand{\dbltopfraction}{0.95}\renewcommand{\textfraction}{0.05}
+\renewcommand{\floatpagefraction}{0.75}\renewcommand{\dblfloatpagefraction}{0.75}
 \section{Physical-Phone Tables}
 \label{app:phys}
 Tables~\ref{tab:phys-deploy} to \ref{tab:phys-units} come from rented Pixel~8 units, Table~\ref{tab:phys-samsung} compares Galaxy~S25 and Pixel~9 units with them, and Table~\ref{tab:phys-s25} gives the further S25 tests (\S\ref{sec:phys-setup}). They apply the rules of the matching emulator tables to the physical runs only; pilot runs are excluded. Table~\ref{tab:phys-units} splits the Pixel~8 trials by unit and build, with one row per unit and test. The gap tests agree across units: on the \PhysUnitsDeferred units and \PhysUnitsDeferredBuilds builds with a deferred-only gap, first callbacks had per-unit medians from \PhysUnitFclMin to \PhysUnitFclMax\,s, and event-only missed every lost-coverage change on \PhysUnitsLostAll units. The boundary test's per-unit check-to-effect medians were \PhysUnitCteMin and \PhysUnitCteMax\,ms, but the second unit ran only the band schedule, so unit and schedule are not separable there. Each deployment of the callback test, the race, the host helper, the coverage probe, the reset and the continuous-write test ran on one unit, so they cannot show a unit effect.
 
 \input{generated/tab_phys_deploy}
 \input{generated/tab_phys_coverage}
-\input{generated/tab_phys_gaps}
 \input{generated/tab_phys_race}
 \input{generated/tab_phys_boundary}
 \input{generated/tab_phys_pitfalls}
 \input{generated/tab_phys_frozen}
-\input{generated/tab_phys_host}
 \input{generated/tab_phys_continuous}
+\input{generated/tab_phys_gaps}
+\input{generated/tab_phys_host}
 \input{generated/tab_phys_samsung}
 \input{generated/tab_phys_s25}
 \input{generated/tab_phys_units}
@@ -25,16 +30,35 @@ Tables~\ref{tab:phys-deploy} to \ref{tab:phys-units} come from rented Pixel~8 un
 \paragraph{Resumed LLM tasks: protocol.} A shared prefix records the inputs and the model-generated action, injects the gap and updates Contacts, MediaStore and Calendar with the schedule probability. Each model and schedule has 24 trials rotating three tasks; pairing stays within a model, and both models run at temperature zero with a fixed seed. An execution is timed from input acquisition through model invocation or reuse to the readback of the draft file, which the host writes with \texttt{adb push}, so it is not an on-device app effect; setup, gap and cached-output creation are untimed. The oracle checks exact structured inputs, task identity and a nonempty draft against provider reads after the arm. These are constrained draft tasks, not AndroidWorld completion or a quality evaluation, and no message is sent. Because no write overlaps an arm, the experiment cannot detect a stale action. Evidence minus refresh was \TaskPairEvidAllQwen for Qwen and \TaskPairEvidAllLlama for Llama over all trials (Table~\ref{tab:agent-tasks}).
 
 \input{generated/tab_agent_tasks}
-\input{generated/tab_e8}
 \input{generated/tab_checks_trials}
-\input{generated/tab_checks_host}
 \input{generated/tab_latency}
 \input{generated/tab_cost}
-\input{generated/tab_policy}
+\begin{table}[t]
+\centering
+\caption{Remembered facts and injected mutations. agg.\ = aggregate. Derived facts: Dana+stand-up, newest photo+Dana, newest SMS+Omar.}
+\label{tab:facts}
+\mtab\scriptsize
+\setlength{\tabcolsep}{2.5pt}
+\begin{tabular}{p{1.25cm}p{3.75cm}p{2.85cm}}
+\toprule
+\mhead Source & Facts & Mutations (another app) \\
+\midrule
+Contacts & Dana's no., Omar's no., \textsc{lm} set (agg.) & edit no., delete, insert \\
+SMS & newest from X (agg.), \#unread (agg.), tracked body & insert, edit body, delete newest \\
+Call log & newest caller (agg.), \#missed (agg.) & insert, change type, delete \\
+MediaStore & newest photo (agg.), tracked names & insert, rename, delete \\
+Calendar & stand-up time, \textsc{lm} events (agg.) & move, delete, insert \\
+Settings & two \texttt{Global} keys & update \\
+Files & \texttt{todo.md} hash, directory list (agg.) & append, create, delete \\
+\bottomrule
+\end{tabular}
+\end{table}
 \input{generated/fig_miss}
+\input{generated/tab_e8}
+\input{generated/tab_checks_host}
+\input{generated/tab_policy}
 \input{generated/tab_trial}
-\clearpage
-\input{generated/tab_allcands}
 \input{generated/tab_persource}
+\input{generated/tab_allcands}
 \input{generated/tab_sig}
 
