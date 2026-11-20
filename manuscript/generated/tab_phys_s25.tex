@@ -19,6 +19,7 @@ check-to-effect, median & 21.0\,ms (80 trials)\\
 write through the Contacts provider (app or shell) & flagged 20/20\\
 app\textquoteright s own notifyChange on the Contacts URI & flagged 0/20; flags as passed 20/20; median 10.0\,s\\
 Calendar, MediaStore, Settings writes; Calendar notifyChange & flagged 0/40\\
+every logged Contacts callback after a write through the provider & flagged 2661/2661, on 4 units and 2 builds\\
 \mgroup{2}{Long freezer window (one unit, 70 samples; phases ran in this order on one process, so C and D start where B left it)}
 frozen by Android (isFrozen or cgroup v2), all phases & 0/70 samples\\
 A: screen on, cached & 602\,s, in \texttt{/frozen} 0/31 samples\\

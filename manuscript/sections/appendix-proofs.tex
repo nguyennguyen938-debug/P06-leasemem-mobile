@@ -35,3 +35,34 @@ For Observation~\ref{thm:indist}, take an execution with no relevant write and a
 \paragraph{Units and coverage.} Pixel~8 runs landed on \PhysUnitsTrials units; the freezer was off by default on \PhysFreezerOffTrialUnits of them and on \PhysFreezerOffUnits units whose state is known, counting probe-only units. Where a gap test ran on several Pixel~8 units, per-unit results agreed; each deployment of the callback test, the race and the host test ran on one unit (Table~\ref{tab:phys-units}).\ifPhysSamsung{} The Galaxy~S25 trials come from \PhysSamsungUnits units: the callback and race tests, the lost-coverage gaps (\PhysSamsungGapUnits units), a reduced boundary test, and one-unit probes of the no-delay flag, a long freezer window and screen-off (Table~\ref{tab:phys-s25}). Its freezer was off by default on \PhysSamsungFreezerOffTrialUnits of these units and \PhysSamsungFreezerOffUnits of all known ones; even when on, it never froze a cached client (\PhysSamsungFrozen attempts within \PhysSamsungFreezeWindowS\,s, \PhysSamsungLongAndroidFrozen long-window samples), so the S25 tests omit freezing.\fi\ifPhysNine{} The Pixel~9 ran the callback and race tests on \PhysNineUnits units; its freezer froze the probe client after \PhysNineProbeFrozenS\,s.\fi
 
 \paragraph{Rented-phone limits.} Without root, the drivers read app files, kills and frozen state through \texttt{run-as}, cgroup files and \texttt{dumpsys}. Because call-log writes were not kept, the action-boundary effect on the phones is a row in a separate raw contact, never merged with Dana.
+
+\section{Stock Sources and the Provider Contract}
+\label{app:stock}
+\begin{table*}[tp]
+\centering\mtab
+\caption{Each stock source on the paths and builds we tested: the evidence it offers, whether that evidence certifies, the handling we recommend, and why.}
+\label{tab:stance}
+\begin{tabular}{p{1.5cm}p{4.1cm}p{1.0cm}p{2.4cm}p{4.6cm}p{1.6cm}}\toprule
+\mhead Source & Stamp, deletes, reset & Certifies & Handling & Why & Evidence\\\midrule
+Contacts & Per-row \texttt{VERSION}; deleted flag and deleted-contact log; no provider epoch & No & Hint; refresh before use & Value-then-version pair stale after \PhysRaceStampedStale updates and inserts; a wiped and refilled provider kept its versions (\PhysResetSameStamp) & Tables~\ref{tab:phys-race}, \ref{tab:phone-results}\\
+MediaStore & Volume generation, per-row \texttt{generation\_modified}; deletes move the volume generation; no epoch & No & Hint; refresh before use & Pair stale after \PhysRaceMediaStampedStale updates and inserts; volume generation also moves without changes & Tables~\ref{tab:coverage}, \ref{tab:phys-race}\\
+Call log & \texttt{LAST\_MODIFIED} on the wall clock; deletes need row checks; reset not tested & No & Hint with monotone-clock guard; refresh & Wall-clock stamps: after a one-hour set-back a timestamp adapter passed a stale value (\ClockTsTransientStale/\ClockTsTransientN emulator, \PhysClockTsTransientStale Pixel~8) & \S\ref{sec:eval-pitfalls}\\
+SMS & None; \texttt{\_id} values recur & No & Refresh & A deleted \texttt{\_id} was reused (\SmsReuseK/\SmsReuseN) & \S\ref{sec:eval-pitfalls}\\
+Calendar & None for edits; dirty flags belong to sync & No & Refresh & Edits moved no candidate & Table~\ref{tab:coverage}\\
+Settings & Generation tracker hidden & No & Refresh & No public stamp & \S\ref{sec:meas-coverage}\\
+Shared files & File mtime; pending MediaStore rows & No & Hint with racy-mtime guard; refresh & Same mtime after a second append within a second (\MtimeSameK/\MtimeN emulator; \PhysMtimeSame on the Pixel~8) & \S\ref{sec:eval-pitfalls}\\\bottomrule
+\end{tabular}
+\end{table*}
+
+\paragraph{Minimal contract for joined queries.} A provider can make a joined query certifiable with four additions, each with a matching client guard:
+\begin{enumerate}[nosep,leftmargin=*]
+\item a provider-wide sequence that every commit to any table the query joins advances, returned in the same transaction as the rows; the client certifies only if the sequence is equal before and after its reads;
+\item a reset-safe epoch that a wipe, restore or migration rotates; any epoch change returns \Unknown and forces a full refresh;
+\item delete tombstones kept at least as long as the client may be absent, or an explicit signal that history was truncated; a truncation returns \Unknown;
+\item membership changes, rows entering or leaving the query's predicate, that advance the sequence like any other commit, so that equal sequences also mean equal membership.
+\end{enumerate}
+Our one-row reference meets these by construction (\S\ref{sec:design}); no stock provider we tested exposes the first two.
+
+\paragraph{iOS.} iOS gives readers what Android lacks for Contacts and Photos. A Contacts change-history request returns add, update and delete events since an opaque token~\cite{apple_cnchangehistory}, and a drop-everything event tells the reader that incremental history is no longer possible~\cite{apple_cndropeverything}; Photos returns persistent changes since a change token~\cite{apple_phpersistent} and fails with an expired-token error when the token is older than the kept history~\cite{apple_phtokenexpired}. These give deletions and an explicit restart signal, which play the roles of items 3 and 2 above, but not item 1: the history and the value are separate reads. On iOS the decision table would therefore swap the candidate stamp for the history token, treat a drop-everything event or an expired token as an epoch break, and still bracket the value read by two tokens before certifying. We did not measure iOS.
+
+\paragraph{Conditional effects today.} Contacts writes can already be conditional: a batch that asserts the row's \texttt{VERSION} before updating fails with an \texttt{OperationApplicationException} when the row changed~\cite{android_cpo}, which the client reports as \Unknown and answers by re-reading. Calls, messages and shares cannot: placing a call takes an address, not a contact row and version~\cite{android_telecom}, a message takes a destination address, and a share hands the receiver a content URI that it reads after the check. The closest a client gets is to re-validate just before the effect, pass the certified value itself (the number, or a copied file instead of a live URI), and on a mismatch stop and ask the user, which narrows but does not close the check-to-effect window measured in \S\ref{sec:eval-boundary}. Effect-if-version would let the system reject the call, message or share with an explicit stale-source error when the row no longer has the certified version.

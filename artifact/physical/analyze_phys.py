@@ -48,7 +48,7 @@ DROPPED = ['PhysStateHours', 'PhysStateAlivePct', 'PhysStateFrozenPct', 'PhysSta
 WHY = 'dropped: rented Device Farm phones are always charging and a run lasts at most 150\\,min'
 B13 = 'b13-'        # other models (campaign.py --tag); data-dict keys '<model>_<experiment>'
 MODELS = {'s25': 'b13-galaxys25-', 'p9': 'b13-pixel9a16-'}     # data-dict prefix -> file prefix
-S25_FILES = dict({k: FILES[k] for k in ('deploy', 'stock', 'diag', 'b0', 'gaps', 'boundary')},
+S25_FILES = dict({k: FILES[k] for k in ('deploy', 'stock', 'diag', 'b0', 'gaps', 'boundary')}, all='*.jsonl',
                  flags='notify-flags-*.jsonl', long='freeze-long-*.jsonl', screenoff='freeze-screenoff-*.jsonl')
 P9_FILES = {k: FILES[k] for k in ('deploy', 'stock', 'b0')}
 # Stopped partial run 06804731 (RUNLOG 11:32 and 13:29 on 19/11): 6 rounds whose seeds repeat the full run's; its
@@ -348,6 +348,31 @@ def flag_probe(rows):
     return out
 
 
+def contacts_flags(rows):
+    """S25: every logged Contacts callback that a write through the provider produced. Events anywhere in a record (B1, B2,
+    B0 trials: dicts with src, t and flags, counted once per record) and flag-probe callbacks after a write (writer not
+    notify). Returns (with NOTIFY_NO_DELAY, callbacks), units and fingerprints of the records that logged one."""
+    k = n = 0; units, fps = set(), set()
+    def walk(x, out):
+        if isinstance(x, dict):
+            if {'src', 't', 'flags'} <= x.keys():
+                out.add((x['src'], x['t'], x['flags']))
+            for v in x.values():
+                walk(v, out)
+        elif isinstance(x, list):
+            for v in x:
+                walk(v, out)
+    for r in rows:
+        if r.get('exp') == 'notify_flags':
+            fl = r.get('flags_all') or [] if r.get('source') == 'contacts' and r.get('writer') != 'notify' and 'error' not in r else []
+        else:
+            ev = set(); walk(r, ev); fl = [f for src, _, f in ev if src == 'contacts']
+        if fl:
+            k += sum(bool(f & NO_DELAY) for f in fl); n += len(fl)
+            units.add(r.get('device_instance')); fps.add(r.get('fingerprint'))
+    return (k, n), units - {None}, fps - {None}
+
+
 def v1_frozen(cgroup):
     """The process sits in a cgroup v1 freezer group named frozen (Samsung), whatever Android's own freezer reports."""
     return any(':freezer:' in l and l.rstrip().endswith('/frozen') for l in str(cgroup).splitlines())
@@ -541,7 +566,12 @@ def matched_host(rows):
                                                                          st.mean(r['arms']['stamp']['fact_reads'] for r in T)),
                          'mismatch': sum(r['arms']['stamp'].get('values', r['truth_after']['values']) != r['truth_after']['values'] for r in T),
                          'dev_refresh': st.median((r['arms']['refresh']['end_ns'] - r['arms']['refresh']['start_ns']) / 1e6 for r in T)
-                                        if all('end_ns' in r['arms']['refresh'] for r in T) else None}   # on-device time of the refresh batch
+                                        if all('end_ns' in r['arms']['refresh'] for r in T) else None,   # on-device time of the refresh batch
+                         # per arm: median on-device batch time, and median transport (host round trip minus on-device time)
+                         'dev': {a: st.median((r['arms'][a]['end_ns'] - r['arms'][a]['start_ns']) / 1e6 for r in T) for a in ('refresh', 'stamp')
+                                 if all('end_ns' in r['arms'][a] for r in T)},
+                         'transport': {a: st.median((r['arms'][a]['_host_ns'] - (r['arms'][a]['end_ns'] - r['arms'][a]['start_ns'])) / 1e6 for r in T)
+                                       for a in ('refresh', 'stamp', 'relay') if all(a in r['arms'] and 'end_ns' in r['arms'][a] for r in T)}}
     return out
 
 
@@ -697,7 +727,7 @@ def analyze(D):
     R['emu'] = {'race': race_kinds(D.get('stock_emu', [])), 'deploy': deploy(D.get('deploy_emu', []))}   # emulator cells, same rules
     R['s25'].update(gaps=gaps(S.get('gaps', [])), boundary=boundary(S.get('boundary', [])), flags=flag_probe(S.get('flags', [])),
                     long=long_freeze(S.get('long', [])), screen=screen_off(S.get('screenoff', [])),
-                    gap_units=len({r.get('device_instance') for r in S.get('gaps', [])} - {None}),
+                    gap_units=len({r.get('device_instance') for r in S.get('gaps', [])} - {None}), cflags=contacts_flags(S.get('all', [])),
                     bnd_changes=sum(bool(r.get('change')) and r.get('mode') == 'bnd' and not r.get('band') for r in S.get('boundary', [])))
     R['p9'] = {'deploy': deploy(N.get('deploy', [])), 'race_kinds': race_kinds(N.get('stock', [])), 'same': same_by_seed(M['stock'], N.get('stock', [])),
                'froze': froze(N.get('b0', [])), 'trials': N.get('deploy', []) + N.get('stock', []), 'android': android(N.get('b0', [])),
@@ -818,6 +848,10 @@ def analyze(D):
         'PhysSamsungFlagKept': ('S25 flag probe: app notifyChange callbacks carrying exactly the flags passed / trials', kn(*FL['kept']) if FL and FL['kept'][1] else None),
         'PhysSamsungFlagOther': ('S25 flag probe: Calendar, MediaStore, Settings cases with NOTIFY_NO_DELAY / trials', kn(*FL['other'][:2]) if FL and FL['other'][1] else None),
         'PhysSamsungFlagNotifyDelay': ('S25 flag probe: median first delay after an app notifyChange on the Contacts URI', dur(FL['notify'][2]) if FL and FL['notify'][1] else None),
+        'PhysSamsungFlagCallbacks': ('S25: logged Contacts callbacks after a write through the provider with NOTIFY_NO_DELAY / those callbacks',
+                                     kn(*R['s25']['cflags'][0]) if R['s25']['cflags'][0][1] else None),
+        'PhysSamsungFlagUnits': ('S25 units that logged such callbacks', len(R['s25']['cflags'][1]) or None),
+        'PhysSamsungFlagBuilds': ('S25 build fingerprints of those units', len(R['s25']['cflags'][2]) or None),
         'PhysSamsungFlagCases': ('S25 flag probe cases', FL.get('cases') or None),
         'PhysSamsungFlagPerCase': ('S25 flag probe trials per case (smallest)', FL.get('per_case') or None),
         'PhysSamsungLongSamples': ('S25 long window samples', LG.get('n')),
@@ -857,6 +891,10 @@ def analyze(D):
         'PhysSamsungFreezeDebounceS': ('S25 freezer debounce set for those attempts, s', '%g' % sf[3] if sf[1] and sf[3] is not None else None),
         'PhysFreezerProbeFrozen': ('Pixel 8, same attempts: frozen / attempts', kn(*pf_[:2]) if pf_[1] else None),
         # host helper reads (Table tab_phys_host)
+        'PhysHostTransportMin': ('B6 smallest per-arm median adb transport (host round trip minus on-device time), ms',
+                                 '%.1f' % min(t for z in HO.values() for t in z['transport'].values()) if HO and any(z['transport'] for z in HO.values()) else None),
+        'PhysHostTransportMax': ('B6 largest per-arm median adb transport, ms',
+                                 '%.1f' % max(t for z in HO.values() for t in z['transport'].values()) if HO and any(z['transport'] for z in HO.values()) else None),
         'PhysHostReadsRefresh': ('B6 facts read per refresh batch, mean', ' to '.join('%.1f' % x for x in rreads) if rreads else None),
         'PhysHostReadsStampMin': ('B6 smallest per-case mean facts read per StampCheck batch', '%.1f' % min(z['reads'][1] for z in HO.values()) if HO else None),
         'PhysHostReadsStampMax': ('B6 largest per-case mean facts read per StampCheck batch', '%.1f' % max(z['reads'][1] for z in HO.values()) if HO else None),
@@ -884,7 +922,10 @@ def analyze(D):
         'PhysRaceTrials': ('B4 anchoring-race trials', race_n or None),
         'PhysRaceStale': ('B4 trials with a stale anchor', race_k if race_n else None),
         'PhysRaceStampedStale': ('race: stale FRESH / updates and inserts on certifying sources', rk(R['race_kinds'], 'stamped')),
-        'PhysRaceDeletesCaught': ('race: deletes caught (no stale FRESH) / deletes on certifying sources', rk(R['race_kinds'], 'deletes')),
+        'PhysRaceMediaStampedStale': ('race, MediaStore only: stale FRESH / updates and inserts',
+                                      (lambda z: kn(sum(z['k'][k][0] for k in ('update', 'insert') if k in z['k']), sum(z['k'][k][1] for k in ('update', 'insert') if k in z['k']))
+                                       if any(k in z['k'] for k in ('update', 'insert')) else None)(R['race_kinds']['src']['media']) if 'media' in R['race_kinds']['src'] else None),
+        'PhysRaceDeletesCaught':('race: deletes caught (no stale FRESH) / deletes on certifying sources', rk(R['race_kinds'], 'deletes')),
         'PhysRaceStamplessUnknown': ('race: trials with UNKNOWN on every own fact / trials of sources StampCheck never certified', rk(R['race_kinds'], 'stampless')),
         'PhysRaceEmuStampedStale': ('emulators, same rule as PhysRaceStampedStale', rk(R['emu']['race'], 'stamped')),
         'PhysEmuNoDelay': ('emulators: Contacts first callbacks with NOTIFY_NO_DELAY / Contacts first callbacks', nd(R['emu']['deploy'], 'contacts')),
@@ -959,10 +1000,12 @@ def host_note(HO, order):
     units, alt = order
     if not (HO and alt and all(z['dev_refresh'] is not None for z in HO.values())):
         return ''
+    tr = [t for z in HO.values() for t in z['transport'].values()]
     return (' Write cases alternated trial by trial on %s unit%s and arm order was randomized, so the differences between write cases'
-            ' are not an order, warm-up or unit effect. The on-device time of the refresh batch differs the same way (medians %s\\,ms'
-            ' with %s writes), so the difference arises on the phone; its cause was not measured.'
-            % ({1: 'one'}.get(units, units), 's' if units > 1 else '', ', '.join('%.1f' % z['dev_refresh'] for z in HO.values()), ', '.join(WRITES.get(c, c) for c in HO)))
+            ' are not an order, warm-up or unit effect. On device and adb (refresh / \\stamp): median time of the batch on the phone, and'
+            ' median host round trip minus that time%s, so the differences between arms and between write cases arise on the phone;'
+            ' the cause of the write-case differences was not measured.'
+            % ({1: 'one'}.get(units, units), 's' if units > 1 else '', ', from %.1f to %.1f\\,ms in every arm and case' % (min(tr), max(tr)) if tr else ''))
 
 
 def table(gen, name, caption, cols, header, rows, what, star=False, extra=(), tbd=True, font=''):
@@ -1071,9 +1114,11 @@ def tables(gen, R):
 
     HO = R['host']
     rows = [f"{c} & {z['n']} & {z['refresh']:.1f} & {z['stamp']:.1f} & {'%.1f' % z['relay'] if z['relay'] is not None else 'n/a'} & "
-            f"{'%.1f [%.1f, %.1f]' % z['gain']} & {z['reads'][0]:.1f} / {z['reads'][1]:.1f}\\\\" for c, z in HO.items()]
+            f"{'%.1f [%.1f, %.1f]' % z['gain']} & {z['reads'][0]:.1f} / {z['reads'][1]:.1f} & "
+            + ' & '.join(' / '.join('%.1f' % z[k][a] for a in ('refresh', 'stamp')) if all(a in z[k] for a in ('refresh', 'stamp')) else 'n/a' for k in ('dev', 'transport'))
+            + '\\\\' for c, z in HO.items()]
     table(gen, 'tab_phys_host.tex', 'Pixel~8: matched host helper with a batched \\stamp arm; median batch latency in milliseconds, paired mean of refresh minus \\stamp with trial-bootstrap 95\\% CI, and facts read per batch (refresh / \\stamp); \\stamp re-reads only the facts its stamps do not confirm.' + host_note(HO, R['host_order']),
-          'lrrrrrr', r'Writes & Trials & Refresh & \stamp & Relay & Refresh $-$ \stamp [CI] & Reads', rows, 'B6 host trials', star=True)
+          'lrrrrrrrr', r'Writes & Trials & Refresh & \stamp & Relay & Refresh $-$ \stamp [CI] & Reads & On device & adb', rows, 'B6 host trials', star=True)
     CT = R['continuous']
     rows = [f"{a} & {c['fresh']} & {c['stale_at_certification']} & {c['stale_at_action_only']} & {c['ambiguous']}\\\\" for a, c in sorted(CT.items())]
     table(gen, 'tab_phys_continuous.tex', 'Pixel~8: continuous writes to Dana\\textquoteright s number while each arm certifies and then acts. Each arm trial is judged by the true number, from the writer\\textquoteright s timestamps, at two instants: certification (end of the arm\\textquoteright s read batch) and action (start of its effect). Stale at cert.: the value used differs from the number at certification; for refresh, a write committed between its read and the end of the batch. Stale at action: right at certification, wrong at the action. Ambiguous: an instant falls inside a write\\textquoteright s commit window (from the write call to its completion), where the true number is undefined.',
@@ -1136,6 +1181,9 @@ def tables(gen, R):
         rows += ['write through the Contacts provider (app or shell) & flagged %s\\\\' % kn(*FL['writes'][:2]),
                  'app\\textquoteright s own notifyChange on the Contacts URI & flagged %s; flags as passed %s; median %s\\\\' % (kn(*FL['notify'][:2]), kn(*FL['kept']), dur(FL['notify'][2])),
                  'Calendar, MediaStore, Settings writes; Calendar notifyChange & flagged %s\\\\' % kn(*FL['other'][:2])]
+    if S['cflags'][0][1]:
+        rows.append('every logged Contacts callback after a write through the provider & flagged %s, on %d units and %d builds\\\\'
+                    % (kn(*S['cflags'][0]), len(S['cflags'][1]), len(S['cflags'][2])))
     if LG:
         rows.append(r'\mgroup{2}{Long freezer window (one unit, %d samples; phases ran in this order on one process, so C and D start where B left it)}' % LG['n'])
         rows.append('frozen by Android (isFrozen or cgroup v2), all phases & %s samples\\\\' % kn(LG['android_frozen'], LG['n']))
@@ -1532,6 +1580,16 @@ def self_check():
         m, _ = write(dict(empty, host=h2), gen)
         assert (m['PhysHostStampGainMin'][1], m['PhysHostStampGainMax'][1]) == ('10.0', '50.0')
         assert (m['PhysHostReadsStampMin'][1], m['PhysHostReadsStampMax'][1]) == ('4.0', '7.0')
+        # B6 on-device and adb transport: refresh 200 ms round trip, 150 on device; StampCheck 150 and 90
+        H = matched_host([dict(hr, arms={'refresh': dict(arm(200, 11), start_ns=0, end_ns=150e6), 'stamp': dict(arm(150, 4), start_ns=0, end_ns=90e6)})])
+        assert H['none']['dev'] == {'refresh': 150.0, 'stamp': 90.0} and H['none']['transport'] == {'refresh': 50.0, 'stamp': 60.0}, H['none']
+        # S25: the flag on every logged Contacts callback after a write through the provider; an app notifyChange does not count
+        ev = lambda *fs: {'events': [{'src': s_, 't': t, 'flags': f} for t, (s_, f) in enumerate(fs)]}
+        cf = contacts_flags([{'device_instance': 'u1', 'fingerprint': 'f1', 'memory_before_thaw': ev(('contacts', NO_DELAY | 1), ('media', 9)), 'memory_after_thaw': ev(('contacts', NO_DELAY | 1))},
+                             {'exp': 'notify_flags', 'source': 'contacts', 'writer': 'mut', 'flags_all': [NO_DELAY | 1], 'device_instance': 'u2', 'fingerprint': 'f2'},
+                             {'exp': 'notify_flags', 'source': 'contacts', 'writer': 'notify', 'flags_all': [1], 'device_instance': 'u3', 'fingerprint': 'f3'},
+                             {'device_instance': 'u4', 'fingerprint': 'f4', 'late': ev(('contacts', 1))}])
+        assert cf == ((2, 3), {'u1', 'u2', 'u4'}, {'f1', 'f2', 'f4'}), cf
         # B6 order: write cases that alternate on one unit; a repeated case breaks the alternation
         ho = lambda *cs: [{'case': c, 'start': i, 'device_instance': 'u', 'arms': {}} for i, c in enumerate(cs)]
         assert host_order(ho('none', 'one', 'continuous', 'none')) == (1, True) and host_order(ho('none', 'none', 'one'))[1] is False
