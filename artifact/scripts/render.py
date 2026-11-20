@@ -432,7 +432,7 @@ def e3():
     table("tab_boundary.tex", "tab:boundary",
           "Validation vs.\\ commitment: stale effects by where the injected change landed relative to the boundary check and the effect (a call-log row carrying the number used).",
           "@{}lr@{}", "Placement of the change & Stale effects", lines, size="\\footnotesize")
-    mac("EThreeTrials", S_.get("e3_trials", NA)); mac("CteMs", f(S_.get("e3_check_to_effect_ms"), 1)); mac("CteMax", f(S_.get("e3_cte_max"), 0))
+    mac("EThreeTrials", S_.get("e3_trials", NA)); mac("CteMs", f(S_.get("e3_check_to_effect_ms"), 1)); mac("CteMsInt", f(S_.get("e3_check_to_effect_ms"), 0)); mac("CteMax", f(S_.get("e3_cte_max"), 0))
 
 
 def persource():

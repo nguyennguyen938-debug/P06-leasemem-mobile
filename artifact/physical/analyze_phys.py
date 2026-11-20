@@ -933,6 +933,7 @@ def analyze(D):
                           (lambda z: kn(z['valid'], z['attempted']) if z else None)(R['emu']['deploy'].get(('contacts', 'bg_freezer')))),
         'PhysBoundaryTrials': ('B9 valid boundary trials', BD.get('n')),
         'PhysCteMs': ('B9 median check-to-effect interval, ms', f"{st.median(BD['cte']):.1f}" if BD.get('cte') else None),
+        'PhysCteMsInt': ('B9 median check-to-effect interval, whole ms', f"{st.median(BD['cte']):.0f}" if BD.get('cte') else None),
         'PhysBndObsStale': ('B9 observation check, change before the action: stale/n', bk('obs', 'before_action')),
         'PhysBndBeforeCheckStale': ('B9 boundary check, change before the check: stale/n', bk('bnd', 'before_check')),
         'PhysBndOverlapStale': ('B9 boundary check, change overlaps check or residual: stale/n', bk('bnd', 'overlaps')),
