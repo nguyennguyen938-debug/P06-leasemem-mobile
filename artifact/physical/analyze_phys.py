@@ -988,6 +988,7 @@ def analyze(D):
         'PhysSamsungBndChanges': ('S25 boundary-check changes over the planning window', R['s25']['bnd_changes'] or None),
         'PhysSamsungBndBandTrials': ('S25 boundary trials with the change in the band', len(B25['band']) if B25 and B25['band'] else None),
         'PhysSamsungCteMs': ('S25 median check-to-effect interval, ms', '%.1f' % st.median(B25['cte']) if B25 and B25['cte'] else None),
+        'PhysSamsungCteMsInt': ('S25 median check-to-effect interval, whole ms', '%.0f' % st.median(B25['cte']) if B25 and B25['cte'] else None),
         'PhysSamsungBndObsStale': ('S25 observation check, change before the action: stale/n', b25('obs', 'before_action')),
         'PhysSamsungBndBeforeCheckStale': ('S25 boundary check, change before the check: stale/n', b25('bnd', 'before_check')),
         'PhysSamsungBndOverlapStale': ('S25 boundary check, change overlaps: stale/n', b25('bnd', 'overlaps')),
