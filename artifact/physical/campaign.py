@@ -51,6 +51,11 @@ F6_D = ("G14", "G15", "G16", "G17", "G18", "G19", "G20")   # F6 group D: Device 
 F6_L = ("L1", "L2", "L3", "L4")                              # F6 group L: a wiped lab phone on USB only (P06_TARGET=lab)
 
 
+def prefix(task, tag):
+    return (("phys-%s-%s" % ("l1" if task == "SMSDIAG" else task.lower(), tag + "-" if tag else "")) if task in F6_D + F6_L + ("SMSDIAG",)
+            else "b13-%s-" % tag if tag else "")
+
+
 def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=None, part=0, tag=None, modes=None, pre=None):
     """[(label, argv, pre-commands, main output file)] for one task; pre-commands are user-scoped via {u:...}.
     trials overrides the trials per step; part K > 0 adds 1000*K to every seed and "-pK" to every file name;
@@ -64,8 +69,7 @@ def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=No
     # analyses never read it
     # F6 tasks (G14 to G20, L1 to L4): every file starts with phys-<task>- (and the --tag model after it)
     if pre is None:
-        pre = (("phys-%s-%s" % ("l1" if task == "SMSDIAG" else task.lower(), tag + "-" if tag else "")) if task in F6_D + F6_L + ("SMSDIAG",)
-               else "b13-%s-" % tag if tag else "")
+        pre = prefix(task, tag)
     t = lambda name: pre + (name.replace("-", "-pilot-", 1) if pilot and "-" in name else name + "-pilot" if pilot else name) + ("-p%d" % part if part else "")
     o = lambda name: str(out / ("%s-%s.jsonl" % (t(name), hm)))
     sfx = ("-pilot-" if pilot else "-") + ("p%d-" % part if part else "") + hm   # passed as --suffix=<sfx>: a value starting with "-" would read as an option
@@ -391,6 +395,9 @@ def main():
                     fz["setting_before"], ("; turned on by campaign.py" if fz["turned_on"] else "")
                     + ("; settings lines: %s" % fz["freez_lines"] if "freez_lines" in fz else "")))
                 env.update(P06_USE_FREEZER_BEFORE=fz["use_freezer_before"], P06_USE_FREEZER=fz["use_freezer_after"])   # into every record
+                # F7 G23: the unit's freezer configuration as found, one record per run
+                with lmdrv.open_new(str(out / ("%sfreezer-config-%s-%s.jsonl" % (prefix(a.task, a.tag), a.task.lower(), hm)))) as f:
+                    f.write(json.dumps({**meta, "serial": a.serial, "exp": "freezer_config", "task": a.task, **fz}) + "\n")
             runlog(out_root, "- %s %s setup: `campaign.py %s` on %s (`%s`, user %s, excluded %s, foreign rows %s); APK sha256 %s" % (
                 time.strftime("%H:%M"), a.task, a.task, meta["device"], meta["fingerprint"], d.user, sorted(d.excluded),
                 rec["foreign_before"], apk))

@@ -324,6 +324,7 @@ the table multiplies them by 1.1.
 | `excluded_sources` | sources the drivers and apps never touch on this device. On a rented Device Farm phone `["calllog", "sms"]` (`lmdrv.AWS_EXCLUDED`): the mutator cannot hold the SMS role and its SMS inserts are dropped, and call-log inserts are dropped too (B0 runs 97a66c65 and 1c18f498: no row seen by the shell's `content query`). `analyze_phys.py` reads it from the latest B0 record and prints "not run on phone" (and sets `\ifPhysSms`, `\ifPhysCalllog` false) for every source it lists |
 | `user_no_sms`, `user_no_outgoing_calls` | only meaningful in the superseded personal-phone mode; false on a rented phone |
 | `use_freezer_before`, `use_freezer` | AWS, from package 6fa52525: the unit's cached-apps freezer (`use_freezer` in `dumpsys activity settings`) when `campaign.py` started and after it turned the freezer on where it was off; null elsewhere. Earlier AWS records: the `config` text saved by `followup/deployment.py` (B1) and the RUNLOG line "freezer on <instance>: use_freezer X -> Y" (join on `run_arn`) |
+| `exp` = `freezer_config` (file `[b13-<tag>-]freezer-config-<task>-HHMM.jsonl`, F7 G23) | AWS, from package a25e9621: one record per run, read by `Dev.freezer_on()` before `campaign.py` touches the setting: `use_freezer_before` (`dumpsys activity settings`, "?" where Android 16 and 17 print no such line), `setting_before` (`settings get global cached_apps_freezer`), `device_config_use_freezer` (`device_config get activity_manager_native_boot use_freezer`, the server-side flag), `freez_lines_before` (every `dumpsys activity settings` line matching "freez"), then `use_freezer_after` and `turned_on` |
 | `facts.<f>.lm`, `facts.<f>.lmts`, `lm_cost`, `lmts_cost` (decisions) | client v4: the strict EvCheck (`Revision.validate` on the v4 certificates). On the phone every fact is UNKNOWN with `lm_cost.<fact>` = {`verdict`, `reason`: "strict_epoch_and_snapshot_unavailable", `fact`, `start_ns`, `end_ns`}, i.e. keyed by fact, not by source |
 | `facts.<f>.lm_hist`, `facts.<f>.lmts_hist`, `lm_hist_cost`, `lmts_hist_cost` (decisions) | from package 6aba808d (client SHA-256 367e5771...): StampCheck as in the emulator v3 data (`lmValidateHistorical(all, true, ...)`; the timestamp adapter with its clock guard for `lmts_hist`), cost keyed by source: {`ns`, `reason`}. Derived facts combine their dependencies as for `lm`. B2 is rerun with this package; only records with `lm_hist` feed the StampCheck column |
 | `res.validator` (B9) | `hist` (StampCheck, as in the emulator E3 v2 data) or `strict` (EvCheck); the B9 driver sends `hist` |
@@ -527,3 +528,14 @@ P06_TARGET=lab P06_SERIALS=<lab serial> python physical/campaign.py L4 --serial 
 (`SmsStub`, `MmsStub`, `RespondStub`, `ComposeStub`). None of them sends or reads a message. LeaseMemMut.apk SHA-256 is
 now 27b7e9bd (G11 had 67866bb5; both builds kept under `build/apk-backup/`). L5 (persistent system app) stays on the
 emulator: it needs root or a userdebug build.
+
+## F7. Pixel 8a callback, race and freezer origin (25/11)
+
+Second account, Pixel 8a Android 17 (`arn:aws:devicefarm:us-west-2::device:A571183F1FF74A798C9C5DA2AEC820D8`),
+package a25e9621. G21 is B1 and G22 is B4 with the main model's trial counts, files `b13-pixel8aa17-*`; SMS and the call
+log stay excluded (AWS mode). G23 adds the `freezer_config` record above to every AWS run, so both runs carry it.
+
+```bash
+python aws/devicefarm.py run B1 --device <Pixel 8a ARN> --args="--tag pixel8aa17" --estimate 45 ...
+python aws/devicefarm.py run B4 --device <Pixel 8a ARN> --args="--tag pixel8aa17" --estimate 12 ...
+```

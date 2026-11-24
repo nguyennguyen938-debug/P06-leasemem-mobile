@@ -125,7 +125,9 @@ AWS_ONLY_OK = [re.compile(p) for p in (
     r"dumpsys batterystats --reset",
     # F6 G17: the host agent's three read-only commands on P06's own folder in shared storage
     r"sha1sum /storage/emulated/0/Documents/lm/todo\.md 2>/dev/null \|\| echo absent", r"ls /storage/emulated/0/Documents/lm",
-    r"stat -c '%n %Y %s' /storage/emulated/0/Documents/lm /storage/emulated/0/Documents/lm/\*")]
+    r"stat -c '%n %Y %s' /storage/emulated/0/Documents/lm /storage/emulated/0/Documents/lm/\*",
+    # F7 G23: the server-side DeviceConfig flag behind use_freezer, read once before campaign.py turns the freezer on
+    r"device_config get activity_manager_native_boot use_freezer")]
 # Clock changes, and the cached-apps freezer switch: refused on a personal phone; allowed in AWS mode, where B0 probes
 # whether the shell can set the time and campaign.py turns the freezer on where a rented unit has it off.
 CLOCK = re.compile(r"\bauto_time|\bcached_apps_freezer\b|" + _AT + r"(date\s+(-s|@|\d)|cmd\s+(alarm|time)\b)")
@@ -412,13 +414,18 @@ class Dev:
         through the global setting the freezer observes at runtime (no reboot, which Device Farm forbids) and read it
         back. campaign.py restores the setting from its snapshot at the end of the run."""
         use = lambda: (re.findall(r"use_freezer=(\w+)", self.sh("dumpsys activity settings | grep use_freezer")) or ["?"])[0]
-        rec = {"use_freezer_before": use(), "setting_before": self.sh("settings get global cached_apps_freezer").strip()}
+        lines = lambda: " | ".join(self.sh("dumpsys activity settings | grep -i -E 'freez'").split("\n"))[:600]
+        # F7 G23: where an off freezer comes from (the server-side DeviceConfig flag, the global setting, or the unit),
+        # all read before the setting is touched
+        rec = {"use_freezer_before": use(), "setting_before": self.sh("settings get global cached_apps_freezer").strip(),
+               "device_config_use_freezer": self.sh("device_config get activity_manager_native_boot use_freezer").strip(),
+               "freez_lines_before": lines()}
         if rec["use_freezer_before"] != "true":
             self.sh("settings put global cached_apps_freezer enabled"); time.sleep(2)
         rec["use_freezer_after"] = use()
         rec["turned_on"] = rec["use_freezer_before"] != "true" and rec["use_freezer_after"] == "true"
         if rec["use_freezer_after"] == "?":   # Android 16 (Pixel 9, B0 run 3511ca63) prints no use_freezer line
-            rec["freez_lines"] = " | ".join(self.sh("dumpsys activity settings | grep -i -E 'freez'").split("\n"))[:300]
+            rec["freez_lines"] = lines()
         return rec
 
     def frozen(self, pkg=CPKG):

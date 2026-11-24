@@ -50,6 +50,7 @@ EMULATOR_ONLY = [
     ("physical/campaign.py", "settings get global cached_apps_freezer", "snapshot and restore read-back: only if d.aws"),
     ("driver/lmdrv.py", "settings get global cached_apps_freezer", "Dev.freezer_on: called only if d.aws"),
     ("driver/lmdrv.py", "settings put global cached_apps_freezer enabled", "Dev.freezer_on: called only if d.aws"),
+    ("driver/lmdrv.py", "device_config get activity_manager_native_boot use_freezer", "Dev.freezer_on (F7 G23): called only if d.aws; read only, AWS_ONLY_OK allows exactly this command"),
     ("physical/campaign.py", "settings get global auto_time", "restore read-back: only if d.aws"),
     ("physical/campaign.py", "settings get global ", "snapshot: keys from the fixed tuple (lm_mode, lm_target)"),
     ("physical/freeze_long.py", "settings get global low_power", "G10: exits unless d.aws; the runtime guard allows low_power only in AWS mode (AWS_ONLY_OK)"),
@@ -144,8 +145,10 @@ def aws_examples():
                # F6 (AWS_ONLY_OK): G16 BatteryStats reset, G17 the host agent's reads of P06's own folder
                "dumpsys batterystats --reset", "ls /storage/emulated/0/Documents/lm",
                "sha1sum /storage/emulated/0/Documents/lm/todo.md 2>/dev/null || echo absent",
-               "stat -c '%n %Y %s' /storage/emulated/0/Documents/lm /storage/emulated/0/Documents/lm/*"]
+               "stat -c '%n %Y %s' /storage/emulated/0/Documents/lm /storage/emulated/0/Documents/lm/*",
+               "device_config get activity_manager_native_boot use_freezer"]   # F7 G23
     refused = ["am start -W -n x/.Main", "am start --user 10 -n x/.Main", "pm clear org.leasemem.client",
+               "device_config put activity_manager_native_boot use_freezer true", "device_config get activity_manager_native_boot use_freezer; reboot",
                "dumpsys batterystats --reset; reboot", "ls /storage/emulated/0/DCIM", "cat /storage/emulated/0/Documents/lm/todo.md",
                "pm clear --user 0 org.leasemem.client", "pm clear com.android.providers.contacts",
                "pm clear --user 10 com.android.providers.contacts", "pm clear --user 0 com.android.providers.contacts; pm clear --user 0 com.x",
@@ -154,7 +157,8 @@ def aws_examples():
     bad = [c for c in allowed if v(c)] + [c for c in refused if not v(c)]
     # outside AWS mode the Contacts clear stays banned for any user
     personal = [c for c in ("pm clear --user 10 com.android.providers.contacts", "pm clear --user 0 com.android.providers.contacts",
-                            "run-as org.leasemem.mut id 2>&1", "settings put global cached_apps_freezer enabled")
+                            "run-as org.leasemem.mut id 2>&1", "settings put global cached_apps_freezer enabled",
+                            "device_config get activity_manager_native_boot use_freezer")
                 if not lmdrv.phone_violation(c, 10) or not lmdrv.phone_violation(c, 0)]
     return ["AWS guard example misjudged: %r -> %s" % (c, v(c)) for c in bad] + \
            ["pm clear allowed outside AWS mode: %r" % c for c in personal]
