@@ -5,7 +5,7 @@
 \renewcommand{\floatpagefraction}{0.75}\renewcommand{\dblfloatpagefraction}{0.75}
 \section{Physical-Phone Tables}
 \label{app:phys}
-Tables~\ref{tab:phys-deploy} to \ref{tab:phys-units} come from rented Pixel~8 units, Table~\ref{tab:phys-samsung} compares Galaxy~S25 and Pixel~9 units with them, Table~\ref{tab:phys-s25} gives the further S25 tests, and Tables~\ref{tab:phys-eighta} and~\ref{tab:phys-eighta-scale} give the tests run on a Pixel~8a with Android~17, whose pitfalls share Table~\ref{tab:phys-pitfalls} (\S\ref{sec:phys-setup}). They apply the rules of the matching emulator tables to the physical runs only; pilot runs are excluded. Table~\ref{tab:phys-units} splits the Pixel~8 trials by unit and build, with one row per unit and test. The gap tests agree across units: on the \PhysUnitsDeferred units and \PhysUnitsDeferredBuilds builds with a deferred-only gap, first callbacks had per-unit medians from \PhysUnitFclMin to \PhysUnitFclMax\,s, and event-only missed every lost-coverage change on \PhysUnitsLostAll units. The boundary test's per-unit check-to-effect medians were \PhysUnitCteMin and \PhysUnitCteMax\,ms, but the second unit ran only the band schedule, so unit and schedule are not separable there. Each deployment of the callback test, the race, the host helper, the coverage probe, the reset and the continuous-write test ran on one unit, so they cannot show a unit effect.
+Tables~\ref{tab:phys-deploy} to \ref{tab:phys-units} come from rented Pixel~8 units, Table~\ref{tab:phys-samsung} compares Galaxy~S25, Pixel~9 and Pixel~8a units with them, Table~\ref{tab:phys-s25} gives the further S25 tests, and Tables~\ref{tab:phys-eighta} and~\ref{tab:phys-eighta-scale} give the tests run on a Pixel~8a with Android~17, whose pitfalls share Table~\ref{tab:phys-pitfalls} (\S\ref{sec:phys-setup}). The freezer was off as provisioned exactly where the global setting \texttt{cached\_apps\_freezer} read \texttt{disabled}: of the \PhysFreezerCfgShown Android~15 units (Pixel~8 and S25) that print \texttt{use\_freezer}, it read \texttt{disabled} on \PhysFreezerCfgOffDisabled units with the freezer off and \PhysFreezerCfgOnDisabled with it on. Our harness writes only \texttt{enabled} or the value it read, so the setting came with the rented phone. We do not know who set it, we read the server-side flag only on units whose setting was not \texttt{disabled} (\PhysFreezerCfgFlagDisabled), and on Android~16 and~17, where \PhysFreezerCfgHiddenDisabled units read \texttt{disabled}, nothing shows whether it stops the freezer. They apply the rules of the matching emulator tables to the physical runs only; pilot runs are excluded. Table~\ref{tab:phys-units} splits the Pixel~8 trials by unit and build, with one row per unit and test. The gap tests agree across units: on the \PhysUnitsDeferred units and \PhysUnitsDeferredBuilds builds with a deferred-only gap, first callbacks had per-unit medians from \PhysUnitFclMin to \PhysUnitFclMax\,s, and event-only missed every lost-coverage change on \PhysUnitsLostAll units. The boundary test's per-unit check-to-effect medians were \PhysUnitCteMin and \PhysUnitCteMax\,ms, but the second unit ran only the band schedule, so unit and schedule are not separable there. Each deployment of the callback test, the race, the host helper, the coverage probe, the reset and the continuous-write test ran on one unit, so they cannot show a unit effect.
 
 \input{generated/tab_phys_deploy}
 \input{generated/tab_phys_coverage}
@@ -55,9 +55,9 @@ Files & \texttt{todo.md} hash, directory list (agg.) & append, create, delete \\
 \end{tabular}
 \end{table}
 \input{generated/fig_miss}
+\input{generated/tab_policy}
 \input{generated/tab_e8}
 \input{generated/tab_checks_host}
-\input{generated/tab_policy}
 \input{generated/tab_trial}
 \input{generated/tab_persource}
 \input{generated/tab_allcands}

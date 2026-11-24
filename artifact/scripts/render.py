@@ -430,7 +430,7 @@ def e3():
         mac("BinEarlyK", sum(int(b["stale"]) for b in e_)); mac("BinEarlyN", sum(int(b["n"]) for b in e_))
         mac("BinLateK", sum(int(b["stale"]) for b in l_)); mac("BinLateN", sum(int(b["n"]) for b in l_))
     table("tab_boundary.tex", "tab:boundary",
-          "Validation vs.\\ commitment: stale effects by where the injected change landed relative to the boundary check and the effect (a call-log row carrying the number used).",
+          "Validation vs.\\ commitment: stale effects by where the change landed relative to the boundary check and effect (a call-log row with the number used).",
           "@{}lr@{}", "Placement of the change & Stale effects", lines, size="\\footnotesize")
     mac("EThreeTrials", S_.get("e3_trials", NA)); mac("CteMs", f(S_.get("e3_check_to_effect_ms"), 1)); mac("CteMsInt", f(S_.get("e3_check_to_effect_ms"), 0)); mac("CteMax", f(S_.get("e3_cte_max"), 0))
 

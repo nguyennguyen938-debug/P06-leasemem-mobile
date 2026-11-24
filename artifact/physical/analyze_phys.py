@@ -12,7 +12,8 @@ Freezer trials (B1 bg_freezer, B2 freeze, B5) count only with the freezer on: `u
 Files named b13-* (B13, Galaxy S25, campaign.py --tag) never enter the Pixel 8 macros; they feed the \\PhysSamsung*
 macros and Table tab_phys_samsung with the same B1, B4 and freezer rules. Files named phys-*-pixel8aa17-* and
 b13-pixel8aa17-* (Pixel 8a, Android 17) feed only the \\PhysEightA* macros, Tables tab_phys_eighta*, and the Pixel 8a
-column of tab_phys_pitfalls. Captions name no experiment codes.
+columns of tab_phys_pitfalls and tab_phys_samsung. RUNLOG "freezer on" lines of every model feed \\PhysFreezerCfg*
+(setting per unit, not trials). Captions name no experiment codes.
 Run `python physical/analyze_phys.py --self-check`.
 """
 import json, re, statistics as st, sys, tempfile
@@ -58,7 +59,8 @@ P9_FILES = {k: FILES[k] for k in ('deploy', 'stock', 'b0')}
 P8A_FILES = {'b0': 'b13-pixel8aa17-b0-probe-*.jsonl', 'cost': 'phys-g14-pixel8aa17-cost-persource-*.jsonl',
              'scale': 'phys-g15-pixel8aa17-scale-*.jsonl', 'fgcost': 'phys-g16-pixel8aa17-fgcost-*.jsonl',
              'host': 'phys-g17-pixel8aa17-host-unbatched-*.jsonl', 'longdoze': 'phys-g18-pixel8aa17-longdoze-*.jsonl',
-             'pitfalls': 'phys-l1-pixel8aa17-pitfalls-*.jsonl'}
+             'pitfalls': 'phys-l1-pixel8aa17-pitfalls-*.jsonl', 'deploy': 'b13-pixel8aa17-deploy*.jsonl',
+             'stock': 'b13-pixel8aa17-stock-*.jsonl', 'fzcfg': 'b13-pixel8aa17-freezer-config-*.jsonl'}
 GROUPS = (B13, 'phys-')     # file-name groups of other models (load)
 # Stopped partial run 06804731 (RUNLOG 11:32 and 13:29 on 19/11): 6 rounds whose seeds repeat the full run's; its
 # records still show the unit's freezer state, but no trial counts.
@@ -167,6 +169,17 @@ def runlog_freezer(path):
             out.append({'run_arn': arn, 'device_instance': m.group(1), 'use_freezer_before': m.group(2), 'use_freezer': m.group(3),
                         '_file': path.name})
     return out
+
+
+def freezer_cfg(path):
+    """Freezer setting per unit, every model: RUNLOG "freezer on" lines, read before campaign.py changes anything, give
+    use_freezer as printed ('?' on Android 16 and 17) and the global setting cached_apps_freezer. First reading per unit."""
+    out = {}
+    for line in (path.read_text(encoding='utf-8').splitlines() if path.exists() else ()):
+        m = re.search(r"freezer on (\S+): use_freezer (\S+) -> \S+ \(cached_apps_freezer was '([^']*)'\)", line)
+        if m:
+            out.setdefault(m.group(1), {'device_instance': m.group(1), 'before': m.group(2), 'cached': m.group(3), '_file': path.name})
+    return list(out.values())
 
 
 def with_runlog(rows, log):
@@ -809,8 +822,11 @@ def eighta(P):
     """Pixel 8a results from its data dict (keys without the p8a_ prefix); the SMS part of the pitfalls file is left out."""
     pit = P.get('pitfalls', [])
     sms = [r for r in pit if r.get('exp') == 'sms_reuse']
-    tests = [r for k in ('cost', 'scale', 'fgcost', 'host', 'longdoze', 'pitfalls') for r in P.get(k, [])]
-    return {'cost': persource_cost(P.get('cost', [])), 'scale': scale_cost(P.get('scale', [])), 'fg': fg_cost(P.get('fgcost', [])),
+    tests = [r for k in ('cost', 'scale', 'fgcost', 'host', 'longdoze', 'pitfalls', 'deploy', 'stock') for r in P.get(k, [])]
+    fz = [r for r in P.get('b0', []) if r.get('probe') == 'freezer_debounce_2s' and (r.get('detail') or {}).get('frozen') == '1']
+    return {'deploy': deploy(P.get('deploy', [])), 'race_kinds': race_kinds(P.get('stock', [])), 'froze': froze(P.get('b0', [])),
+            'probe_s': min(((r.get('detail') or {}).get('after_s') for r in fz), default=None),
+            'cost': persource_cost(P.get('cost', [])), 'scale': scale_cost(P.get('scale', [])), 'fg': fg_cost(P.get('fgcost', [])),
             'host': host_unbatched(P.get('host', [])), 'doze': long_doze(P.get('longdoze', [])),
             'pitfalls': pitfalls([r for r in pit if r.get('exp') != 'sms_reuse']), 'sms': (sum(bool(r['res'].get('ok')) for r in sms), len(sms)),
             'tests': tests, 'android': android(P.get('b0', [])), 'units': len({r.get('device_instance') for r in tests} - {None}),
@@ -828,7 +844,8 @@ def analyze(D):
     p8au = {r.get('device_instance') for v in E.values() for r in v} - {None}
     log = [x for x in D.get('runlog', []) if x['device_instance'] not in s25u | p9u | p8au]   # RUNLOG lines of other models count only there
     s25log = [x for x in D.get('runlog', []) if x['device_instance'] in s25u]
-    D = {k: v if k.endswith('_emu') else log if k == 'runlog' else with_runlog([corrected(r) for r in v], log) for k, v in D.items() if not k.startswith(('s25_', 'p9_', 'p8a_'))}
+    FC = {x['device_instance']: (x['before'], x['cached']) for x in D.get('fzcfg', [])}       # every model: setting, not trials
+    D = {k: v if k.endswith('_emu') else log if k == 'runlog' else with_runlog([corrected(r) for r in v], log) for k, v in D.items() if not k.startswith(('s25_', 'p9_', 'p8a_', 'fzcfg'))}
     M = {k: [r for r in v if not pilot(r)] for k, v in D.items()}
     R = {'deploy': deploy(M['deploy']), 'gaps': gaps(M['gaps']), 'coverage': coverage(M['coverage']), 'race': race(M['stock']),
          'boundary': boundary(M['boundary']), 'pitfalls': pitfalls(M['pitfalls']), 'frozen': frozen(M['frozen']),
@@ -853,6 +870,10 @@ def analyze(D):
                'probe_s': min(((r.get('detail') or {}).get('after_s') for r in N.get('b0', []) if r.get('probe') == 'freezer_debounce_2s'
                                and (r.get('detail') or {}).get('frozen') == '1'), default=None)}
     R['p8a'] = eighta(E)
+    R['p8a']['same'] = same_by_seed(M['stock'], E.get('stock', []))
+    shown = [v for v in FC.values() if v[0] != '?']                      # units that print use_freezer (Android 15)
+    hidden = [v for v in FC.values() if v[0] == '?']
+    flag = {r.get('device_instance'): r.get('setting_before') for r in E.get('fzcfg', []) if 'device_config_use_freezer' in r}
     X = R['not_run']
     nr = lambda src, val: NR if src in X else val       # a source not run prints NR, not TBD
     P = {'deploy': deploy([r for r in D['deploy'] if pilot(r)]),
@@ -902,7 +923,9 @@ def analyze(D):
     n9 = lambda s_, m: dur(st.median(P9['deploy'][s_, m]['delays_ms'])) if (s_, m) in P9['deploy'] and P9['deploy'][s_, m]['delays_ms'] else None
     nfz = P9['deploy'].get(('contacts', 'bg_freezer'))
     A8 = R['p8a']
-    C8, FG8, H8, DZ8, PF8 = (A8[k] for k in ('cost', 'fg', 'host', 'doze', 'pitfalls'))
+    C8, FG8, H8, DZ8, PF8, B8 = (A8[k] for k in ('cost', 'fg', 'host', 'doze', 'pitfalls', 'deploy'))
+    n8 = lambda s_, m: dur(st.median(B8[s_, m]['delays_ms'])) if (s_, m) in B8 and B8[s_, m]['delays_ms'] else None
+    efz = B8.get(('contacts', 'bg_freezer'))
     lv8, fit8 = A8['scale'].get('levels', {}), A8['scale'].get('fit')
     f1 = lambda x: None if x is None else '%.1f' % x
     sl = lambda L, k: f1(lv8[L][k]) if L in lv8 else None
@@ -1063,6 +1086,31 @@ def analyze(D):
         'PhysEightAClockTsTransientStale': ('Pixel 8a clock, transient: timestamp StampCheck accepted the stale number/trials', pf8('clock_ts')),
         'PhysEightAClockTsPersistentGuard': ('Pixel 8a clock, persistent: clock guard raised/trials', pf8('clock_guard')),
         'PhysEightASmsValid': ('Pixel 8a SMS id reuse: valid / attempted trials (failed, excluded from every number)', kn(*A8['sms']) if A8['sms'][1] else None),
+        # Pixel 8a callbacks and race (b13-pixel8aa17-deploy*, -stock-*), the rules of the Pixel 9 macros
+        'PhysEightADeployTrials': ('Pixel 8a valid/attempted callback trials', kn(sum(z['valid'] for z in B8.values()), sum(z['attempted'] for z in B8.values())) if B8 else None),
+        **{'PhysEightA%sMedian' % k: ('Pixel 8a %s %s median callback delay' % (SOURCES[s], MODE[m]), n8(s, m))
+           for k, s, m in (('Bg', 'contacts', 'bg_unfrozen'), ('Fg', 'contacts', 'fg'), ('Assist', 'contacts', 'assistant'),
+                           ('MediaBg', 'media', 'bg_unfrozen'), ('MediaFg', 'media', 'fg'))},
+        'PhysEightAFrozen': ('Pixel 8a background frozen Contacts trials valid (frozen before and during the hold) / attempted', kn(efz['valid'], efz['attempted']) if efz else None),
+        'PhysEightAFrozenBeforeThaw': ('Pixel 8a frozen trials with a callback before thaw / valid', kn(efz['before_thaw'], efz['valid']) if efz and efz['valid'] else None),
+        'PhysEightANoDelay': ('Pixel 8a Contacts first callbacks with NOTIFY_NO_DELAY / Contacts first callbacks', nd(B8, 'contacts')),
+        'PhysEightAMediaNoDelay': ('Pixel 8a MediaStore first callbacks with NOTIFY_NO_DELAY / MediaStore first callbacks', nd(B8, 'media')),
+        'PhysEightARaceStampedStale': ('Pixel 8a race: stale FRESH / updates and inserts on certifying sources', rk(A8['race_kinds'], 'stamped')),
+        'PhysEightARaceDeletesCaught': ('Pixel 8a race: deletes caught / deletes on certifying sources', rk(A8['race_kinds'], 'deletes')),
+        'PhysEightARaceStamplessUnknown': ('Pixel 8a race: trials with UNKNOWN on every own fact / trials of sources never certified', rk(A8['race_kinds'], 'stampless')),
+        'PhysEightARaceSameAsPixel': ('Pixel 8a race trials with the Pixel 8 outcome of the same source, trial and seed / matched', kn(*A8['same']) if A8['same'][1] else None),
+        'PhysEightAProbeFrozenS': ('Pixel 8a freezer probe: frozen after, s', '%.1f' % A8['probe_s'] if A8['probe_s'] is not None else None),
+        # freezer setting per unit, every model (RUNLOG "freezer on" lines before any change; Pixel 8a freezer-config records)
+        'PhysFreezerCfgUnits': ('units whose freezer setting was read before any change, every model', len(FC) or None),
+        'PhysFreezerCfgShown': ('of those, units that print use_freezer (Android 15)', len(shown) or None),
+        'PhysFreezerCfgOffDisabled': ('units with use_freezer false whose cached_apps_freezer read disabled / units with use_freezer false',
+                                      kn(sum(c == 'disabled' for b, c in shown if b == 'false'), sum(b == 'false' for b, _ in shown)) if any(b == 'false' for b, _ in shown) else None),
+        'PhysFreezerCfgOnDisabled': ('units with use_freezer true whose cached_apps_freezer read disabled / units with use_freezer true',
+                                     kn(sum(c == 'disabled' for b, c in shown if b == 'true'), sum(b == 'true' for b, _ in shown)) if any(b == 'true' for b, _ in shown) else None),
+        'PhysFreezerCfgHiddenDisabled': ('Android 16 and 17 units (use_freezer not printed) whose cached_apps_freezer read disabled / those units',
+                                         kn(sum(c == 'disabled' for _, c in hidden), len(hidden)) if hidden else None),
+        'PhysFreezerCfgFlagDisabled': ('units whose DeviceConfig use_freezer flag was read and whose global setting read disabled / units whose flag was read',
+                                       kn(sum(v == 'disabled' for v in flag.values()), len(flag)) if flag else None),
         'PhysSamsungRaceSameAsPixel': ('S25 race trials with the Pixel 8 outcome of the same source, trial and seed / matched trials',
                                        kn(*R['s25']['same']) if R['s25']['same'][1] else None),
         'PhysSamsungFrozen': ('S25 freezer attempts, client cached and freezer on: frozen / attempts', kn(*sf[:2]) if sf[1] else None),
@@ -1319,36 +1367,38 @@ def tables(gen, R):
           % len({r[1] for r in R['units']}),
           'lllr>{\\raggedright\\arraybackslash}p{7.5cm}', 'Test & Unit & Build & Trials & Per-unit result', rows, 'per-unit trials', star=True, font='\\footnotesize')
 
-    S, P9, rows = R['s25'], R['p9'], []
+    S, P9, A8, rows = R['s25'], R['p9'], R['p8a'], []
     if S['trials'] or P9['trials']:
-        B1, B9, P = S['deploy'], P9['deploy'], R['deploy']
+        B1, B9, B8, P = S['deploy'], P9['deploy'], A8['deploy'], R['deploy']
         cell = lambda D, k: (lambda z: '%s (%s)' % (dur(st.median(z['delays_ms'])), kn(z['valid'], z['attempted'])) if z['delays_ms'] else
                              ('held (%s)' if k[1] == 'bg_freezer' and z['valid'] else 'n/a (%s)') % kn(z['valid'], z['attempted']))(D[k]) if k in D else 'not run'
         for src in SOURCES:
             for mode in NAMES:
-                if (src, mode) in B1 or (src, mode) in B9:
-                    rows.append('%s, %s & %s & %s & %s\\\\' % (SOURCES[src], MODE[mode], cell(B1, (src, mode)), cell(B9, (src, mode)), cell(P, (src, mode))))
+                if (src, mode) in B1 or (src, mode) in B9 or (src, mode) in B8:
+                    rows.append('%s, %s & %s\\\\' % (SOURCES[src], MODE[mode], ' & '.join(cell(D_, (src, mode)) for D_ in (B1, B9, B8, P))))
         nd = lambda D, s: kn(*nodelay(D, s)) if nodelay(D, s)[1] else 'n/a'
-        rows += ['%s, no-delay flag & %s & %s & %s\\\\' % (SOURCES[s], nd(B1, s), nd(B9, s), nd(P, s)) for s in SOURCES if nodelay(B1, s)[1] or nodelay(B9, s)[1]]
+        rows += ['%s, no-delay flag & %s\\\\' % (SOURCES[s], ' & '.join(nd(D_, s) for D_ in (B1, B9, B8, P))) for s in SOURCES if any(nodelay(D_, s)[1] for D_ in (B1, B9, B8))]
         rk = lambda K: kn(*K['stamped']) if K['stamped'][1] else 'n/a'
-        rows.append('Race: update, insert stale & %s & %s & %s\\\\' % (rk(S['race_kinds']), rk(P9['race_kinds']), rk(R['race_kinds'])))
+        rows.append('Race: update, insert stale & %s\\\\' % ' & '.join(rk(K) for K in (S['race_kinds'], P9['race_kinds'], A8['race_kinds'], R['race_kinds'])))
         fz = lambda f: kn(*f[:2]) if f[1] else 'n/a'
-        rows.append('Freezer probe, client frozen & %s & %s & %s\\\\' % (fz(S['froze']), fz(P9['froze']), fz(R['phone_froze'])))
-        rows.append('Freezer off as provisioned (units with trials) & \\PhysSamsungFreezerOffTrialUnits & n/a & \\PhysFreezerOffTrialUnits\\\\')   # as tab:phone-results
+        rows.append('Freezer probe, client frozen & %s\\\\' % ' & '.join(fz(f) for f in (S['froze'], P9['froze'], A8['froze'], R['phone_froze'])))
+        rows.append('Freezer off as provisioned (units with trials) & \\PhysSamsungFreezerOffTrialUnits & n/a & n/a & \\PhysFreezerOffTrialUnits\\\\')   # as tab:phone-results
     ps, adj = proc_states(S['deploy'].get(('contacts', 'bg_unfrozen'), {}).get('rows', []))
     bg = (' In every S25 background Contacts trial the client was cached (process state %s, \\texttt{oom\\_adj} %s) and unfrozen at every sample.'
           % (' or '.join(sorted(ps)), ' or '.join(sorted(adj)))) if ps and adj else ''
     ident = lambda T: ' (%s, build \\texttt{%s})' % (tex(T[0]['device'].split(' ', 1)[-1]), tex(build_ids(T))) if T else ''   # no \path in a caption
-    table(gen, 'tab_phys_samsung.tex', 'Galaxy~S25' + ident(S['trials']) + ', Android~15, and Pixel~9' + (' (build \\texttt{%s})' % tex(build_ids(P9['trials'])) if P9['trials'] else '') + ', Android~16, against Pixel~8,'
+    same = ['the S25 (\\PhysSamsungRaceSameAsPixel)', 'the Pixel~9 (\\PhysNineRaceSameAsPixel)'] + (['the Pixel~8a (\\PhysEightARaceSameAsPixel)'] if A8['same'][1] else [])
+    table(gen, 'tab_phys_samsung.tex', 'Galaxy~S25' + ident(S['trials']) + ', Android~15, Pixel~9' + (' (build \\texttt{%s})' % tex(build_ids(P9['trials'])) if P9['trials'] else '') + ', Android~16,'
+          + (' and Pixel~8a (build \\texttt{%s}), Android~17,' % tex(build_ids(A8['tests'])) if A8['tests'] else '') + ' against Pixel~8,'
           ' with the rules of Tables~\\ref{tab:phys-deploy} and~\\ref{tab:phys-race}; callbacks: median delay (valid/attempted trials). No-delay flag: the'
           ' callback\\textquoteright s flags carry \\texttt{ContentResolver}\\textquoteright s hidden \\texttt{NOTIFY\\_NO\\_DELAY} bit, with which'
           ' \\texttt{ContentService} skips the 10\\,s background deferral.' + bg + ' Freezer probe: probe and diagnosis attempts with the client cached,'
-          ' \\PhysSamsungFreezeDebounceS\\,s debounce (S25: each watched for at least \\PhysSamsungFreezeWindowS\\,s). Freezer off: Android~16 no longer'
-          ' prints the setting; the Pixel~9 frozen trials show it on.'
-          + (' The race uses the same seeded write schedule on every model; the S25 (\\PhysSamsungRaceSameAsPixel) and the Pixel~9'
-             ' (\\PhysNineRaceSameAsPixel) matched the Pixel~8 trial by trial, by source, trial and seed: reproducibility, not independent rates.' if S['same'][1] else '')
+          ' \\PhysSamsungFreezeDebounceS\\,s debounce (S25: each watched for at least \\PhysSamsungFreezeWindowS\\,s). Freezer off: Android~16'
+          + (' and~17 no longer print the setting; the Pixel~9 and Pixel~8a frozen trials show it on.' if A8['deploy'] else ' no longer prints the setting; the Pixel~9 frozen trials show it on.')
+          + (' The race uses the same seeded write schedule on every model; %s and %s matched the Pixel~8 trial by trial, by source, trial and seed:'
+             ' reproducibility, not independent rates.' % (', '.join(same[:-1]), same[-1]) if S['same'][1] else '')
           + (' A stopped partial S25 race run (%d trial%s whose seeds repeat the full run) is excluded.' % (S['partial'], 's' * (S['partial'] != 1)) if S['partial'] else ''),
-          'lrrr', 'Measure & Galaxy~S25 & Pixel~9 & Pixel~8', rows, 'other-model trials', star=True)
+          'lrrrr', 'Measure & Galaxy~S25 & Pixel~9 & Pixel~8a & Pixel~8', rows, 'other-model trials', star=True)
 
     G25, B25, FL, LG, SO, rows = S['gaps'], S['boundary'], S['flags'], S['long'], S['screen'], []
     if G25:
@@ -1608,13 +1658,13 @@ def self_check():
         assert (m['PhysSamsungFrozen'][1], m['PhysSamsungFreezeWindowS'][1]) == ('0/2', '25'), 'the shortest watched attempt sets the window'
         assert v['PhysDevice'] == 'Pixel\\_X' and v['PhysInstances'] == 2 and v['PhysFreezerOffUnits'] is None and v['PhysDeployNoDelay'] == '0/2', 'S25 leaked into Pixel macros'
         assert v['PhysSamsungModel'] == 'SM-X' and v['PhysSamsungBuild'] == '\\path{S.1}' and '\\PhysSamsungtrue' in tab('physical_macros.tex')
-        assert 'partial S25 race run (1 trial whose' in tab('tab_phys_samsung.tex') and 'Contacts, no-delay flag & 1/1 & n/a & 0/2' in tab('tab_phys_samsung.tex'), tab('tab_phys_samsung.tex')
+        assert 'partial S25 race run (1 trial whose' in tab('tab_phys_samsung.tex') and 'Contacts, no-delay flag & 1/1 & n/a & n/a & 0/2' in tab('tab_phys_samsung.tex'), tab('tab_phys_samsung.tex')
         # per unit: no-gap trials on units A (10.0 s) and B (10.04 s), force-stop on a unit without device_instance
         assert v['PhysUnitsGap'] == 3 and (v['PhysUnitFclMin'], v['PhysUnitFclMax']) == ('10.00', '10.04') and v['PhysUnitsLostAll'] == '1/1', (v['PhysUnitsGap'], v['PhysUnitFclMin'])
         assert '\\path{arn:devinst/B} & \\path{?} & 1/1 & no gap: first cb. 10.04\\,s (deferred)' in tab('tab_phys_units.tex'), tab('tab_phys_units.tex')
         assert v['PhysHostReadsRefresh'] == '11.0' and v['PhysHostReadsStampMin'] == v['PhysHostReadsStampMax'] == '4.0'
         assert 'stale \\Fresh after 1/2 updates or inserts to stamped sources' in tab('tab_phys_units.tex'), 'per-unit race row in the stamped-write form'
-        assert 'Freezer off as provisioned (units with trials) & \\PhysSamsungFreezerOffTrialUnits & n/a & \\PhysFreezerOffTrialUnits' in tab('tab_phys_samsung.tex')
+        assert 'Freezer off as provisioned (units with trials) & \\PhysSamsungFreezerOffTrialUnits & n/a & n/a & \\PhysFreezerOffTrialUnits' in tab('tab_phys_samsung.tex')
         # Android 16 (Pixel 9): use_freezer is not printed ('?'); a frozen trial whose own cgroup samples show it frozen counts,
         # one with unfrozen samples does not; a b13-pixel9a16 file never reaches the Pixel 8 macros
         p9 = lambda frozen, **k: dict(dep('bg_freezer', frozen, None, 'contacts'), device='Google Pixel 9', fingerprint='google/t/t:16/BP2.1/1:user/release-keys',
@@ -1882,7 +1932,9 @@ def self_check():
         E8 = {'p8a_cost': [p8(cr('contacts', 9e6), 'phys-g14-c.jsonl'), p8(cr('calendar', 3e6), 'phys-g14-c.jsonl'), p8(cr('none', 5e6), 'phys-g14-c.jsonl')],
               'p8a_longdoze': [p8(ld(0), 'phys-g18-d.jsonl')],
               'p8a_pitfalls': [p8(r, 'phys-l1-p.jsonl') for r in ({'exp': 'sms_reuse', 'res': {'ok': False}}, {'exp': 'mtime', 'res': [{'ok': True, 'did': '1->2'}, {'ok': True, 'did': '2->3'}]},
-                                                                  ck6('transient', 'CHANGED', 'FRESH'))]}
+                                                                  ck6('transient', 'CHANGED', 'FRESH'))],
+              'p8a_deploy': [p8(dep('fg', '0', 1073, 'contacts'), 'b13-pixel8aa17-deploy-contacts-1.jsonl')],
+              'p8a_stock': [p8(st_(True), 'b13-pixel8aa17-stock-u-1.jsonl'), p8(st_(True, 'insert'), 'b13-pixel8aa17-stock-u-1.jsonl')]}
         m0, _ = write(D, gen)
         m1, _ = write(dict(D, runlog=D.get('runlog', []) + [{'run_arn': None, 'device_instance': 'u8a', 'use_freezer_before': 'false', 'use_freezer': 'true', '_file': 'RUNLOG.md'}], **E8), gen)
         assert {k: v for k, (_, v) in m1.items() if not k.startswith('PhysEightA')} == {k: v for k, (_, v) in m0.items() if not k.startswith('PhysEightA')}
@@ -1890,6 +1942,18 @@ def self_check():
         assert (w['PhysEightASmsValid'], w['PhysEightAMtimeSame'], w['PhysEightAClockTsTransientStale'], w['PhysEightACostContactsStamp'], w['PhysEightADozeTrials']) == ('0/1', '0/1', '1/1', '4.0', '1/1'), w
         assert 'Pitfall & Pixel~8 & Pixel~8a' in tab('tab_phys_pitfalls.tex') and '& failed (0/1 valid)' in tab('tab_phys_pitfalls.tex') and '\\PhysEightAtrue' in tab('physical_macros.tex')
         assert 'answers \\Unknown (no stamp) in 0.1' in tab('tab_phys_eighta.tex') and 'Late decision & missed: event-only 1/1, restart-aware 1/1, \\stamp 0/1' in tab('tab_phys_eighta.tex')
+        assert (w['PhysEightAFgMedian'], w['PhysEightARaceStampedStale']) == ('73\\,ms', '2/2') and 'Contacts, FGS & not run & not run & 73\\,ms (1/1) &' in tab('tab_phys_samsung.tex'), tab('tab_phys_samsung.tex')
+        # freezer setting per unit (F7): the first RUNLOG reading per unit counts; '?' units are the Android 16 and 17 ones
+        (gen / 'RUNLOG.md').write_text("  - 01:00 B0 freezer on U1: use_freezer false -> true (cached_apps_freezer was 'disabled'); settings\n"
+                                       "  - 02:00 B1 freezer on U1: use_freezer true -> true (cached_apps_freezer was 'null'); settings\n"
+                                       "  - 03:00 B1 freezer on U2: use_freezer true -> true (cached_apps_freezer was 'null')\n"
+                                       "  - 04:00 B1 freezer on U3: use_freezer ? -> ? (cached_apps_freezer was 'disabled')\n- freezer on by default). Fix\n", encoding='utf-8')
+        FCx = freezer_cfg(gen / 'RUNLOG.md')
+        assert [(x['device_instance'], x['before'], x['cached']) for x in FCx] == [('U1', 'false', 'disabled'), ('U2', 'true', 'null'), ('U3', '?', 'disabled')], FCx
+        m, _ = write(dict(empty, fzcfg=FCx, p8a_fzcfg=[{'device_instance': 'U4', 'setting_before': 'null', 'device_config_use_freezer': 'null', '_file': 'b13-x.jsonl'}]), gen)
+        w = {k: x for k, (_, x) in m.items()}
+        assert (w['PhysFreezerCfgUnits'], w['PhysFreezerCfgShown'], w['PhysFreezerCfgOffDisabled'], w['PhysFreezerCfgOnDisabled'], w['PhysFreezerCfgHiddenDisabled'],
+                w['PhysFreezerCfgFlagDisabled'], w['PhysFreezerOffUnits']) == (3, 2, '1/1', '0/1', '1/1', '0/1', None), w
     print('analyze_phys self-check ok')
 
 
@@ -1906,7 +1970,7 @@ if __name__ == '__main__':
                  deploy_emu=emu_files('followup-20261116', 'deploy-emulator-*.jsonl'),        # emulator callbacks, same rules
                  **{'s25_' + k: load(res, MODELS['s25'] + p) for k, p in S25_FILES.items()},
                  **{'p9_' + k: load(res, MODELS['p9'] + p) for k, p in P9_FILES.items()},
-                 **{'p8a_' + k: load(res, p) for k, p in P8A_FILES.items()})
+                 **{'p8a_' + k: load(res, p) for k, p in P8A_FILES.items()}, fzcfg=freezer_cfg(res / 'RUNLOG.md'))
         m, P = write(D, ROOT / 'manuscript/generated')
         print(json.dumps({'macros': len(m), 'tbd': sum(v is None for _, v in m.values()), 'runs': len({r.get('run_arn') for r in D['all']} - {None}),
                           'pilot_records': P['records'], 'pilot_deploy': summary(P['deploy'])}))
