@@ -15,7 +15,7 @@ from pathlib import Path
 A = Path(__file__).resolve().parents[1]
 FILES = ["driver/lmdrv.py", "driver/e1_coverage.py", "driver/e2v3_gaps.py", "driver/e3v2_boundary.py",
          "driver/e6_pitfalls.py", "driver/e9_frozen.py", "revision/run.py", "followup/deployment.py",
-         "physical/campaign.py", "physical/b0_setup.py", "physical/b0_probe.py", "physical/b7_continuous.py", "physical/contacts_reset.py", "physical/freeze_long.py", "physical/notify_flags.py", "physical/freeze_screenoff.py",
+         "physical/campaign.py", "physical/b0_setup.py", "physical/b0_probe.py", "physical/b7_continuous.py", "physical/contacts_reset.py", "physical/freeze_long.py", "physical/notify_flags.py", "physical/freeze_screenoff.py", "physical/phys_cost.py", "physical/phys_fgcost.py", "physical/phys_host.py",
          "app/client/build/LeaseMemClient-v4.apk", "app/mut/build/LeaseMemMut.apk", "app/trig/build/LeaseMemTrig.apk",
          "app/assist/build/LeaseMemAssist.apk"]
 # Device Farm rejects a Python test package without a file named test* in tests/

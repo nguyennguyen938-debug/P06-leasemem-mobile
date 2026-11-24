@@ -139,7 +139,7 @@ def main(argv):
         if argv[:1] != ["devicefarm"] or len(argv) < 2:
             raise SystemExit(("only `aws devicefarm ...` is allowed", 2))
         op_cli, rest = argv[1], argv[2:]
-        tail = ["--profile", "devicefarm", "--region", "us-west-2", "--output", "json"]
+        tail = ["--profile", os.environ.get("FAKE_AWS_PROFILE", "devicefarm"), "--region", "us-west-2", "--output", "json"]
         if rest[-6:] != tail:
             raise SystemExit(("every call must end with %s" % " ".join(tail), 2))
         rest = rest[:-6]

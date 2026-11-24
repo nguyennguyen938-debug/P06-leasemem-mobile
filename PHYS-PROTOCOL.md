@@ -441,3 +441,89 @@ lasts at most 150 min): `PhysStateHours`, `PhysStateAlivePct`, `PhysStateFrozenP
 Notes for Results: B13 files (`b13-*`) match none of the B0, B1 or B4 patterns, so the main-model macros never read them;
 they are not experiment files of the main model, so `PhysInstances` leaves them out; only `PhysDevice` (the models) reads them.
 B7 (`continuous-*`) has no macro.
+
+## F6. Emulator-only results on phones (prepared 24/11, nothing run)
+
+The F6 plan replaces the parts of the paper that ran only on the emulators with phone runs. Group D runs on Device
+Farm, in the account the user will give. Group L needs a wiped lab phone on USB that is not anyone's personal phone.
+Nothing below has run on a real device. Every task passed a dry run with the fake adb (`physical/e7_dryrun.py --aws`
+for group D, `--lab` for group L).
+
+**Account.** `aws/devicefarm.py` takes `--profile`, `--region` and `--project` (before or after the command), else the
+environment `P06_AWS_PROFILE`, `P06_AWS_REGION`, `P06_DF_PROJECT`, else the first account's values. The free-minute
+rules are unchanged: 30 minutes of margin before every run, a check after every run, and no card charges.
+
+**File names.** Every F6 output starts with `phys-<task>-` (`phys-g19-gaps-dozeidle-HHMM.jsonl`); `--tag <model>`
+adds the model after the task (`phys-g19-galaxys25-...`). `analyze_phys.py`'s main-model patterns never match them.
+
+### Group D: Device Farm (or a lab phone)
+
+| Task | Driver | What | Trials | Est. device min | Est. basis |
+|---|---|---|---|---|---|
+| G14 | `physical/phys_cost.py persource` | per-use cost: per round, each kept source (5 on Device Farm, 7 in lab mode) and "none": fixtures, OBSERVE, one mutation, DECIDE; all `*_cost` fields and every fact's `refresh_ns` | 10 rounds (60 decisions) | 8 | assumed 7 s a decision |
+| G15 | `physical/phys_cost.py scale` | cost vs. source size: Contacts levels 0, 1000, 5000, 10000; MediaStore 1000, 10000; per level 10 decisions without and 10 after a change, 10 ACT checks (check-to-effect) | 6 levels | 71 | assumed; growth never timed on a phone |
+| G16 | `physical/phys_fgcost.py` | FGS residency: bg and fg windows of 240 s, a mutation every 20 s; CPU ticks, PSS, BatteryStats estimate (`--reset` per window, `battery unplug`) | 5 reps (10 windows) | 44 | window length |
+| G17 | `physical/phys_host.py` | host agent over adb, one `adb shell` per read: global re-read vs. watermark check (11 facts on Device Farm, 16 in lab mode) | 40 decisions | 30 | emulator e13 x 1.1 |
+| G18 | `driver/e2v3_gaps.py longdoze2` | verified long Doze (battery unplug, screen off, `deviceidle force-inactive`, stepped to IDLE before each mutation batch), freezer debounce 600 s | 10 | 110 | emulator longdoze2 x 1.1 |
+| G19 | `driver/e2v3_gaps.py` | B2's Doze, restricted bucket and revoked permission gaps | 25 each | 54 | Pixel 8 B2 |
+| G20 | `physical/b0_probe.py`, `driver/e1_coverage.py` | Android 13 source probes: B0 probe, then 105 coverage trials (emulator API 33) | 105 | 60 | Pixel 8 B3 |
+
+Total: about 376 device minutes, with timeouts of about 476 minutes held across the runs. The minutes come from
+`aws/estimate.py` (`F6_T`), where each value names its source. Three values are assumed, not measured: G14, G15 and
+the growth part of G15.
+
+**Order when minutes are short:** G19, G18, G14, G17, G16, G15, G20.
+
+**Notes before running:**
+- **G19.** Pixel 8 already ran these three gaps (B2, 25/25 each, Table phys-gaps). Run G19 with `--tag` for another
+  model, or skip it.
+- **G18.** Split it into two runs (`--trials 5 --part 1` and `--part 2`, about 55 min each, timeout 70), not the single
+  110-minute run that `plan` prints.
+- **G20.** Needs an Android 13 device on Device Farm. This was not checked: the login had expired on 24/11.
+- **G16.** The phones charge throughout, so its numbers are BatteryStats' model estimate, as on the emulator.
+
+Commands, per run (P = the new upload ARN prefix, D = a device or alias; timeouts from `timeout_for`):
+
+```
+python aws/devicefarm.py run G19 --profile <p> --project <arn> --device <D> --estimate 54 --args="--tag <model>" --app-arn P/<app> --package-arn P/<pkg> --spec-arn P/<spec>
+python aws/devicefarm.py run G18 ... --estimate 56 --args="--trials 5 --part 1"     (then --part 2)
+python aws/devicefarm.py run G14 ... --estimate 8
+python aws/devicefarm.py run G17 ... --estimate 30
+python aws/devicefarm.py run G16 ... --estimate 44
+python aws/devicefarm.py run G15 ... --estimate 71
+python aws/devicefarm.py run G20 ... --device <Android 13 ARN> --estimate 60 --args="--tag <model>"
+```
+
+### Group L: a wiped lab phone on USB (`P06_TARGET=lab`)
+
+**Lab mode** (lmdrv) runs like AWS mode: user 0, the AWS_ONLY_OK commands, and the clock commands. It differs in
+four ways:
+- every source is used, SMS and the call log included;
+- the campaign's `--allow-reboot` permits `adb reboot`;
+- a failed restore stops the campaign, because a lab phone is not wiped after the run;
+- before any install or write, `Dev.lab_preflight()` queries contacts, SMS, call log and photos through the shell. It
+  refuses the phone unless every row is a P06 fixture (names `LM ...`, SMS `+1555...`, calls `+1666...`,
+  `Pictures/lm/`). A source the shell cannot read also stops the run (fail closed).
+
+`b0_setup.py`'s foreign-row check applies too. The user's phone `RFCXA0TTMPP` stays blocked in every mode, by serial
+and by `ro.serialno`. Tasks L1 to L4 refuse to start outside lab mode; G14 to G20 refuse to start on a personal phone.
+
+| Task | Driver | What | Trials | Est. wall time |
+|---|---|---|---|---|
+| L1 | `driver/e6_pitfalls.py` | SMS `_id` reuse, plus e6's same-second mtime and clock parts. The mutator takes the SMS role (`cmd role add-role-holder android.app.role.SMS`); the final restore removes it | 50 each | 10 min |
+| L2 | `followup/deployment.py`, `driver/e3v2_boundary.py`, `revision/run.py stock` | the call log: B1 deployment on it, B9 with the call-log effect (100 changes and 100 in band), B4 stock with the call log | 20, 100 + 100, 20 rounds | 60 min |
+| L3 | `driver/e2v3_gaps.py reboot` | the reboot gap; needs `--allow-reboot` | 25 | 35 min |
+| L4 | `physical/l4_agent.py` | resumed LLM tasks (Qwen2.5-7B, Llama 3.2-3B on Ollama at `http://127.0.0.1:11434` on the host GPU), the draft saved in the client's private files | 24 x 3 gaps x 2 models | about 60 min |
+
+```
+P06_TARGET=lab P06_SERIALS=<lab serial> python physical/campaign.py setup --serial <lab serial>
+P06_TARGET=lab P06_SERIALS=<lab serial> python physical/campaign.py L1 --serial <lab serial>
+P06_TARGET=lab P06_SERIALS=<lab serial> python physical/campaign.py L2 --serial <lab serial>
+P06_TARGET=lab P06_SERIALS=<lab serial> python physical/campaign.py L3 --serial <lab serial> --allow-reboot
+P06_TARGET=lab P06_SERIALS=<lab serial> python physical/campaign.py L4 --serial <lab serial>
+```
+
+**SMS role.** For L1 the mutator APK declares the four components Android requires before an app may hold the SMS role
+(`SmsStub`, `MmsStub`, `RespondStub`, `ComposeStub`). None of them sends or reads a message. LeaseMemMut.apk SHA-256 is
+now 27b7e9bd (G11 had 67866bb5; both builds kept under `build/apk-backup/`). L5 (persistent system app) stays on the
+emulator: it needs root or a userdebug build.

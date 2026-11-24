@@ -13,5 +13,24 @@
   <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"/>
   <application android:label="LeaseMemMut" android:debuggable="true" android:allowBackup="false">
     <receiver android:name=".Cmd" android:exported="true"/>
+    <!-- F6 L1: the components Android requires before an app may hold the SMS role (default SMS app), so that the
+         mutator can write SMS on a lab phone without root. They do nothing: no message is ever sent or received. -->
+    <receiver android:name=".SmsStub" android:permission="android.permission.BROADCAST_SMS" android:exported="true">
+      <intent-filter><action android:name="android.provider.Telephony.SMS_DELIVER"/></intent-filter>
+    </receiver>
+    <receiver android:name=".MmsStub" android:permission="android.permission.BROADCAST_WAP_PUSH" android:exported="true">
+      <intent-filter><action android:name="android.provider.Telephony.WAP_PUSH_DELIVER"/>
+        <data android:mimeType="application/vnd.wap.mms-message"/></intent-filter>
+    </receiver>
+    <service android:name=".RespondStub" android:permission="android.permission.SEND_RESPOND_VIA_MESSAGE" android:exported="true">
+      <intent-filter><action android:name="android.intent.action.RESPOND_VIA_MESSAGE"/>
+        <category android:name="android.intent.category.DEFAULT"/>
+        <data android:scheme="sms"/><data android:scheme="smsto"/><data android:scheme="mms"/><data android:scheme="mmsto"/></intent-filter>
+    </service>
+    <activity android:name=".ComposeStub" android:exported="true">
+      <intent-filter><action android:name="android.intent.action.SEND"/><action android:name="android.intent.action.SENDTO"/>
+        <category android:name="android.intent.category.DEFAULT"/><category android:name="android.intent.category.BROWSABLE"/>
+        <data android:scheme="sms"/><data android:scheme="smsto"/><data android:scheme="mms"/><data android:scheme="mmsto"/></intent-filter>
+    </activity>
   </application>
 </manifest>

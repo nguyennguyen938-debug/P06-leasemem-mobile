@@ -47,7 +47,11 @@ DEBOUNCE = ("device_config set_sync_disabled_for_tests until_reboot; "
             "device_config put activity_manager_native_boot freeze_debounce_timeout %d")
 
 
-def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=None, part=0, tag=None, modes=None):
+F6_D = ("G14", "G15", "G16", "G17", "G18", "G19", "G20")   # F6 group D: Device Farm (or a lab phone)
+F6_L = ("L1", "L2", "L3", "L4")                              # F6 group L: a wiped lab phone on USB only (P06_TARGET=lab)
+
+
+def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=None, part=0, tag=None, modes=None, pre=None):
     """[(label, argv, pre-commands, main output file)] for one task; pre-commands are user-scoped via {u:...}.
     trials overrides the trials per step; part K > 0 adds 1000*K to every seed and "-pK" to every file name;
     modes (B1, B13, B14) limits the deployments, e.g. without bg_freezer on a model that never freezes (Galaxy S25, G9)."""
@@ -58,7 +62,9 @@ def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=No
     # --pilot files carry "pilot" in their name (gaps-pilot-none-HHMM...): analyze_phys.py keeps them out of the main numbers
     # --tag <model>: another model (B13, B14, or its B0 probe); every file starts with b13-<tag>- so the main model's
     # analyses never read it
-    pre = "b13-%s-" % tag if tag else ""
+    # F6 tasks (G14 to G20, L1 to L4): every file starts with phys-<task>- (and the --tag model after it)
+    if pre is None:
+        pre = ("phys-%s-%s" % (task.lower(), tag + "-" if tag else "")) if task in F6_D + F6_L else "b13-%s-" % tag if tag else ""
     t = lambda name: pre + (name.replace("-", "-pilot-", 1) if pilot and "-" in name else name + "-pilot" if pilot else name) + ("-p%d" % part if part else "")
     o = lambda name: str(out / ("%s-%s.jsonl" % (t(name), hm)))
     sfx = ("-pilot-" if pilot else "-") + ("p%d-" % part if part else "") + hm   # passed as --suffix=<sfx>: a value starting with "-" would read as an option
@@ -101,6 +107,41 @@ def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=No
                                              "--source", "contacts", "--modes", "bg_freezer", "--n", str(n(20))], [], o("deploy-contacts-freezer"))]
     if task == "CRESET":   # Contacts reset (the contacts_reset case of revision/supplement.py), AWS mode only
         return [("contacts-reset", [PY, P + "/contacts_reset.py", serial, o("contacts-reset"), str(n(20))], [stop_fgs], o("contacts-reset"))]
+    # ---------------- F6 (24/11): the emulator-only results on rented or lab phones (PHYS-PROTOCOL.md section F6) ----------------
+    sub = lambda k, labels=None: [s for s in steps(k, serial, out, hm, pilot, night, excluded, allow_reboot, trials, part, tag, modes, pre)
+                                  if labels is None or s[0] in labels]
+    if task == "G14":    # per-use cost per source (emulator Table cost and persource): physical/phys_cost.py persource
+        return [("cost-persource", [PY, P + "/phys_cost.py", serial, o("cost-persource"), "persource", str(n(10)), sd(2614001)],
+                 [stop_fgs], o("cost-persource"))]
+    if task == "G15":    # cost vs. source size up to 10k Contacts and 10k images (emulator Table scale); two steps, so the
+        # media levels can go in a run of their own (a new rented phone grows its sources again from 0)
+        lv = {"contacts": "contacts:0,contacts:10" if pilot else "contacts:0,contacts:1000,contacts:5000,contacts:10000",
+              "media": "media:10" if pilot else "media:1000,media:10000"}
+        return [("scale-" + k, [PY, P + "/phys_cost.py", serial, o("scale-" + k), "scale", str(n(10)), sd(2615001 + i), lv[k]],
+                 [stop_fgs], o("scale-" + k)) for i, k in enumerate(("contacts", "media"))]
+    if task == "G16":    # FGS residency cost, 240 s windows, BatteryStats estimate (emulator Table fgcost)
+        return [("fgcost", [PY, P + "/phys_fgcost.py", serial, str(n(5)), "5" if pilot else "240", sd(2616001), o("fgcost")], [], o("fgcost"))]
+    if task == "G17":    # host agent over adb, unbatched (emulator Table host): 40 decisions as on the emulator
+        return [("host-unbatched", [PY, P + "/phys_host.py", serial, str(n(40)), sd(2617001), o("host-unbatched")], [], o("host-unbatched"))]
+    if task == "G18":    # verified long Doze (driver/e2v3_gaps.py longdoze2, about 10 min a trial), freezer kept out (600 s)
+        return [("longdoze", [PY, D + "/e2v3_gaps.py", serial, "longdoze2", str(n(10)), sd(2618001), o("longdoze")],
+                 [stop_fgs, DEBOUNCE % 600000], o("longdoze"))]
+    if task == "G19":    # B2's Doze, restricted-bucket and revoked-permission gaps (Pixel 8 has them: for another --tag model)
+        return sub("B2", ("gap-dozeidle", "gap-bucket", "gap-perm"))
+    if task == "G20":    # source probes on Android 13 (emulator Table allcands, API 33: 105 trials): B0 probe, then B3 x 105
+        return sub("B0", ("probe",)) + [("coverage", [PY, D + "/e1_coverage.py", serial, str(n(105)), sd(2620301), o("coverage")],
+                                         [stop_fgs], o("coverage"))]
+    if task == "L1":     # SMS _id reuse (plus e6's mtime and clock parts): the mutator holds the SMS role on the lab phone
+        role = "{u:cmd role add-role-holder android.app.role.SMS %s 0}" % lmdrv.MPKG
+        return [("pitfalls", [PY, D + "/e6_pitfalls.py", serial, str(n(50)), sd(2621001), o("pitfalls")], [stop_fgs, role], o("pitfalls"))]
+    if task == "L2":     # the call log: B1 deployment on it, B9 with the call-log effect, B4 stock with the call log
+        return sub("B1", ("deploy-calllog",)) + sub("B9") + sub("B4")
+    if task == "L3":     # B2's reboot gap, 25 trials; needs --allow-reboot (the lab phone's owner agrees to reboots)
+        if not allow_reboot:
+            raise SystemExit("L3 is the reboot gap: run it with --allow-reboot")
+        return sub("B2", ("gap-reboot",))
+    if task == "L4":     # resumed LLM tasks (Ollama on the host GPU), effects on the lab phone
+        return [("agent", [PY, P + "/l4_agent.py", serial, o("agent"), str(n(24))], [], o("agent"))]
     if task == "FLONG":   # G10 (F3 task 13), AWS mode only: long freezer window, screen off, battery saver
         return [("freeze-long", [PY, P + "/freeze_long.py", serial, o("freeze-long")] + (["0.1", "0.05"] if pilot else []),
                  [stop_fgs], o("freeze-long"))]
@@ -185,6 +226,9 @@ def restore(d, snap, final=True):
     if lmdrv.APKG in pkgs:
         todo.append(("{u:cmd role remove-role-holder android.app.role.ASSISTANT %s 0}" % lmdrv.APKG,
                      "{u:cmd role get-role-holders android.app.role.ASSISTANT}", lambda got: lmdrv.APKG not in got, "no P06 holder"))
+    if d.lab and lmdrv.MPKG in pkgs:   # F6 L1 gave the mutator the SMS role on the lab phone
+        todo.append(("{u:cmd role remove-role-holder android.app.role.SMS %s 0}" % lmdrv.MPKG,
+                     "{u:cmd role get-role-holders android.app.role.SMS}", lambda got: lmdrv.MPKG not in got, "no P06 holder"))
     for p in (lmdrv.CPKG, lmdrv.TPKG):
         if p in pkgs:
             todo.append(("{u:pm grant %s android.permission.READ_CONTACTS}" % p, lmdrv.DUMP_PKG % p,
@@ -265,6 +309,10 @@ def main():
     ap.add_argument("--tag", help="B13, B14 and their B0: model tag in the file names, b13-<tag>-*")
     ap.add_argument("--modes", help="B1, B13, B14: comma-separated deployments to keep (bg_unfrozen,bg_freezer,fg,assistant)")
     a = ap.parse_args(); t_start = time.time()
+    if a.task in F6_L and not lmdrv.LAB:
+        raise SystemExit("%s runs only on a wiped lab phone over USB: P06_TARGET=lab (PHYS-PROTOCOL.md section F6)" % a.task)
+    if a.task in F6_D and not lmdrv.AWS:
+        raise SystemExit("%s runs on Device Farm (P06_TARGET=aws) or a lab phone (P06_TARGET=lab), never on a personal phone" % a.task)
     out_root = Path(a.out_root).resolve()
     if ADB_IS_FAKE and out_root == (A / "results").resolve():
         raise SystemExit("the fake adb never writes to artifact/results; pass --out-root <scratch dir>")
@@ -361,7 +409,7 @@ def main():
                     ", instance %s, run %s" % (meta["device_instance"], meta["run_arn"]) if d.aws else "", apk, (time.time() - t0) / 60, rc,
                     counts(f), "; " + stopped if stopped else "", "ok" if not failed else "FAILED %s" % failed, Path(f).name, log.name))
                 print(label, "exit", rc, counts(f), stopped or "", flush=True)
-                if stopped or (failed and not d.aws):     # a rented phone is wiped after the run: keep going, failure is logged
+                if stopped or (failed and (not d.aws or d.lab)):   # a rented phone is wiped after the run: keep going, failure is logged; a lab phone is not
                     break
     finally:
         failed = restore(d, snap)

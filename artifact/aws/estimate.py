@@ -86,11 +86,32 @@ PLAN = {"B1": {"B1/bg_unfrozen": 20 + 20, "B1/bg_freezer": 20, "B1/fg": 20 + 20,
         "B4": {"B4": 20}, "B9": {"B9": 165 + 100}, "B10": {"B10/mtime": 50, "B10/clock": 50}, "B5": {"B5": 10},
         "B13": {"B1/bg_unfrozen": 20 + 20, "B1/bg_freezer": 20, "B1/fg": 20 + 20, "B1/assistant": 20, "B4": 20},   # B1 + B4 (G9)
         "B6": {"B6": 30}, "B7": {"B6": 30}}     # B7 has no emulator run; its trials resemble B6's continuous case
+
+# F6 (24/11): the tasks that move emulator-only results to phones, Device Farm group D. Seconds per trial (or per level,
+# window, round) on a phone: measured on Device Farm where the same step ran (RUNLOG step lines, Pixel 8), else the
+# emulator's own trial time x PHONE_PACE, else an assumption marked as such. Not multiplied by PHONE_PACE again.
+F6_T = {
+    "G14/cost": (7.0, "assumed", "one fixtures + OBSERVE + mutation + DECIDE round; B4 stock measured 2.0 s per record without OBSERVE/DECIDE (run fafc315f)"),
+    "G15/contacts-level": (600.0, "assumed", "per Contacts level: 20 decisions, 10 ACT checks and growth by up to 5000 rows (500 per mutator call); growth never timed on a phone"),
+    "G15/media-level": (900.0, "assumed", "per MediaStore level: 20 decisions, 10 ACT checks and growth by up to 9000 images (200 per call)"),
+    "G16/window": (255.0, "driver", "240 s window plus about 15 s of mode switch, reset and readings (raw/e11_fgcost_33.jsonl windows 241 to 242 s)"),
+    "G17/decision": (44.0, "emulator x 1.1", "raw/e13_host_33.jsonl: global re-read 11.9 s and evcheck 8.0 s medians, plus the observation read, waits and fixtures, about 40 s"),
+    "G18/trial": (651.0, "emulator x 1.1", "raw/e2v3_bg_longdoze2*.jsonl: 591 to 601 s between trials"),
+    "G19/dozeidle": (44.4, "Device Farm", "B2 gap-dozeidle 25 trials 18.5 min"),
+    "G19/bucket": (43.4, "Device Farm", "B2 gap-bucket 25 trials 17.8 and 18.3 min"),
+    "G19/perm": (39.5, "Device Farm", "B2 gap-perm 25 trials 16.4 and 16.5 min"),
+    "G20/probe": (90.0, "Device Farm", "B0 probe 1.3 to 1.5 min"),
+    "G20/coverage": (32.6, "Device Farm", "B3 coverage 30 trials 16.3 min"),
+}
+PLAN.update({"G14": {"G14/cost": 60}, "G15": {"G15/contacts-level": 4, "G15/media-level": 2}, "G16": {"G16/window": 10},
+             "G17": {"G17/decision": 40}, "G18": {"G18/trial": 10},
+             "G19": {"G19/dozeidle": 25, "G19/bucket": 25, "G19/perm": 25}, "G20": {"G20/probe": 1, "G20/coverage": 105}})
+F6_ORDER = ["G19", "G18", "G14", "G17", "G16", "G15", "G20"]   # priority when minutes are short (F6 plan)
 B0_MIN = 2.6               # measured: B0 run 1c18f498 (setup, 32 probes, one trial) used 2.60 device min
 
 
 def estimate():
-    T = timings(); out = {}
+    T = timings(); T.update({k: (v[0], v[1], v[2]) for k, v in F6_T.items()}); out = {}
     for task, steps in PLAN.items():
         trial_min = sum(n * (T[s][0] or 0) for s, n in steps.items()) / 60
         runs = max(1, math.ceil(trial_min / RUN_BUDGET_MIN))
@@ -115,7 +136,7 @@ if __name__ == "__main__":
         print(json.dumps({"timings": {k: [v[0], v[1], v[2]] for k, v in T.items()}, "estimate": E}, indent=1)); sys.exit(0)
     print("| Task | Trial time, min | Runs (<= %d min) | Device min incl. %.0f min/run | USD at %.2f/min |" % (RUN_TIMEOUT_MIN, RUN_OVERHEAD_MIN, USD_PER_MIN))
     print("|---|---|---|---|---|")
-    order = ["B0", "B1", "B3", "B2", "B4", "B9", "B10", "B5", "B13", "B6", "B7"]
+    order = ["B0", "B1", "B3", "B2", "B4", "B9", "B10", "B5", "B13", "B6", "B7"] + F6_ORDER
     for k in order:
         e = E[k]; print("| %s | %.1f | %d | %.1f | %.2f |" % (k, e["trial_min"], e["runs"], e["device_min"], e["usd"]))
     core = sum(E[k]["device_min"] for k in ["B0", "B1", "B3", "B2", "B4"]); allm = sum(E[k]["device_min"] for k in order)

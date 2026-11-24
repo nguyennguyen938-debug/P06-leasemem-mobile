@@ -165,10 +165,28 @@ def test_expired():
         del os.environ["FAKE_AWS_EXPIRED"]
 
 
+def test_account():
+    """F6: another account's profile and project reach every call; bad values are refused before any call."""
+    n0 = len(calls()); os.environ["FAKE_AWS_PROFILE"] = "p06-new"
+    try:
+        df.set_account("p06-new", "us-west-2", df.DEFAULT_PROJECT_ARN); df.cmd_minutes(None)
+        new = [c for c in calls()[n0:] if "op" in c]
+        assert new and all(c["argv"][-6:-4] == ["--profile", "p06-new"] for c in new), new[:2]
+        for bad in (("bad profile", None, None), (None, "us-west-2", "arn:aws:devicefarm:us-west-2:1:project:x")):
+            try:
+                df.set_account(*bad); raise AssertionError("accepted %r" % (bad,))
+            except SystemExit:
+                pass
+    finally:
+        del os.environ["FAKE_AWS_PROFILE"]
+        df.PROFILE, df.REGION, df.PROJECT_ARN = df.DEFAULT_PROFILE, df.DEFAULT_REGION, df.DEFAULT_PROJECT_ARN
+
+
 if __name__ == "__main__":
-    for t in (test_upload, test_run_b0, test_parallel_and_free, test_card, test_stop_paths, test_expired):
+    for t in (test_upload, test_run_b0, test_parallel_and_free, test_card, test_stop_paths, test_expired, test_account):
         t(); print("ok", t.__name__, flush=True)
     bad = [c for c in calls() if c.get("model_errors")]
     assert not bad, bad
-    assert all(c["argv"][-6:] == ["--profile", "devicefarm", "--region", "us-west-2", "--output", "json"] for c in calls() if "op" in c)
+    assert all(c["argv"][-6:] in (["--profile", "devicefarm", "--region", "us-west-2", "--output", "json"],
+                                  ["--profile", "p06-new", "--region", "us-west-2", "--output", "json"]) for c in calls() if "op" in c)
     print("devicefarm CLI tests ok: %d aws devicefarm calls, 0 model errors (botocore Device Farm model); %s" % (len(calls()), TMP))

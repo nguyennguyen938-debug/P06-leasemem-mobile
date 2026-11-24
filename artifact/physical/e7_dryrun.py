@@ -20,8 +20,9 @@ import importlib.util, io, json, os, shutil, socket, subprocess, sys, time, zipf
 from pathlib import Path
 A = Path(__file__).resolve().parents[1]
 AWS = "--aws" in sys.argv
-ARGS = [x for x in sys.argv[1:] if x != "--aws"]
-OUT = Path(ARGS[0] if ARGS else A.parent / "build" / ("e7-%sdryrun-%s" % ("aws-" if AWS else "", time.strftime("%H%M%S")))).resolve()
+LAB = "--lab" in sys.argv          # F6 group L: a wiped lab phone on USB (P06_TARGET=lab), fake LLM
+ARGS = [x for x in sys.argv[1:] if x not in ("--aws", "--lab")]
+OUT = Path(ARGS[0] if ARGS else A.parent / "build" / ("e7-%sdryrun-%s" % ("aws-" if AWS else "lab-" if LAB else "", time.strftime("%H%M%S")))).resolve()
 RESULTS = A / "results"
 assert RESULTS.resolve() not in OUT.parents and OUT != RESULTS.resolve(), "OUT must not be inside artifact/results"
 OUT.mkdir(parents=True)
@@ -32,6 +33,8 @@ if AWS:
     ENV.update(FAKE_MODE="aws", P06_TARGET="aws", DEVICEFARM_DEVICE_UDID="FAKE0001",
                DEVICEFARM_RUN_ARN="arn:aws:devicefarm:us-west-2:000000000000:run:fake-project/fake-run",
                DEVICEFARM_DEVICE_ARN="arn:aws:devicefarm:us-west-2::device:FAKEDEVICE")
+if LAB:
+    ENV.update(FAKE_MODE="lab", P06_TARGET="lab", P06_LLM_FAKE="1")
 RUNS = [("setup", []), ("B0", ["--allow-reboot"]), ("B1", []), ("B3", []), ("B2", ["--allow-reboot"]), ("B4", []),
         ("B9", []), ("B10", []), ("B5", []), ("B12", []), ("B11", []), ("B6", []), ("B7", []),
         ("B9", ["#calls-on"]), ("B2", ["#no-reboot-consent"]), ("--restore", []),
@@ -44,7 +47,11 @@ RUNS_AWS = [("setup", []), ("B0", ["--allow-reboot"]), ("B1", []), ("B3", []),
             ("B6", []), ("B7", []), ("B11", ["#dropped"]), ("B12", ["#dropped"]), ("B3", ["--budget-min", "0", "#budget"]),
             ("B3", ["#serial=RFCXA0TTMPP", "#blocked"]), ("B3", ["#fake-serialno=RFCXA0TTMPP", "#alias-blocked"]),
             ("B3", ["#runas-fails"]), ("B1FD", []), ("B1F", []), ("CRESET", []), ("FLONG", ["--tag", "galaxys25"]), ("NFLAGS", ["--tag", "galaxys25"]), ("FSCREEN", ["--tag", "galaxys25"]), ("cleanup", [])]   # B3: its setup stops on a failed fixture (B0 keeps probing)
-RUNS = RUNS_AWS if AWS else RUNS
+RUNS_AWS += [("G14", []), ("G15", []), ("G16", []), ("G17", []), ("G18", []), ("G19", []), ("G20", []),
+             ("G19", ["--tag", "galaxys25"]), ("L1", ["#lab-only"])]
+RUNS_LAB = [("setup", []), ("L1", []), ("L2", []), ("L3", ["--allow-reboot"]), ("L3", ["#no-reboot-l3"]), ("L4", []),
+            ("G14", []), ("L1", ["#personal-data"]), ("cleanup", [])]
+RUNS = RUNS_AWS if AWS else RUNS_LAB if LAB else RUNS
 RUNS = [r for r in RUNS if not ARGS[1:] or r[0] in ARGS[1:] or set(r[1]) & set(ARGS[1:])]
 # restore failure cases (review finding 6): the fake adb makes `settings delete global lm_mode` fail with exit 1
 # (loud) or exit 0 without effect (silent). The campaign must log "final restore FAILED", keep the state file and
@@ -53,12 +60,14 @@ INJECT = {"#restore-fails-loud": ("FAKE_FAIL", r"^settings delete global lm_mode
           "#restore-fails-silent": ("FAKE_IGNORE", r"^settings delete global lm_mode$"),
           # B0 runs 7a89358f: the mutator answered but the driver read nothing through run-as. The timeout must carry
           # run-as's own message (runas_diag) so the cause shows in the Device Farm test spec output.
-          "#runas-fails": ("FAKE_RUNAS_FAIL", "package not debuggable: org.leasemem.mut")}
+          "#runas-fails": ("FAKE_RUNAS_FAIL", "package not debuggable: org.leasemem.mut"),
+          # F6 lab preflight: the phone reports a contact, an SMS, a call and a photo that are not P06 fixtures
+          "#personal-data": ("FAKE_PERSONAL", "1")}
 EXPECT_RC = {"#restore-fails-loud": 3, "#restore-fails-silent": 3, "#budget": 4, "#blocked": 1, "#alias-blocked": 1, "#no-tag": 1,
-             "#runas-fails": 1}
+             "#runas-fails": 1, "#lab-only": 1, "#no-reboot-l3": 1, "#personal-data": 1}
 EXPECT_OUT = {"#runas-fails": "run-as diagnosis: "}    # in the campaign's own output, with the injected message
 # adb commands the fake may see: none for the blocked serial, get-state and getprop for the device reporting it
-EXPECT_ADB_MAX = {"#blocked": 0, "#alias-blocked": 2}
+EXPECT_ADB_MAX = {"#blocked": 0, "#alias-blocked": 2, "#personal-data": 10}   # lab preflight: refused before any install
 EXPECT_LOG = {"#dropped": "dropped:", "#budget": "budget:"}
 
 
@@ -88,7 +97,7 @@ def run_one(task, flags):
         env["FAKE_RESTRICTIONS"] = "no_sms"       # calls enabled for the test user: the call log must be excluded
     argv = [sys.executable, str(A / "physical" / "campaign.py")] + ([task] if task != "--restore" else ["--restore"]) + \
            ["--serial", serial, "--out-root", str(OUT)] + [f for f in flags if not f.startswith("#")] + \
-           (["--pilot"] if task.startswith("B") and "#no-pilot" not in flags else [])
+           (["--pilot"] if task[:1] in ("B", "G", "L") and "#no-pilot" not in flags else [])
     n0 = len(fake_log(env))
     rl0 = len((OUT / "RUNLOG.md").read_text(encoding="utf-8")) if (OUT / "RUNLOG.md").exists() else 0
     t0 = time.time()

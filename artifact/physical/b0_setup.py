@@ -45,7 +45,7 @@ def setup(d, out_dir, strict=True):
     rec = {**d.meta(), "kind": "setup", "t": time.time(), "restrictions": sorted(d.restrictions)}
     rec["foreign_before"] = foreign_rows(d) if not d.emulator else None
     # a personal phone's test user must be empty; a wiped rented phone (AWS) holds nothing personal, counts are kept
-    if not d.aws and rec["foreign_before"] and any(v != 0 for v in rec["foreign_before"].values()):
+    if (not d.aws or d.lab) and rec["foreign_before"] and any(v != 0 for v in rec["foreign_before"].values()):
         raise RuntimeError("the test user holds rows P06 did not write %s; stop (PHYS-PROTOCOL.md section 3)"
                            % rec["foreign_before"])
     rec["install"] = d.provision([(p, A / apk) for p, apk in APPS])

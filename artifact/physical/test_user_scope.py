@@ -18,7 +18,7 @@ A = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(A / "driver"))
 import lmdrv
 
-FILES = ["physical/contacts_reset.py", "physical/freeze_long.py", "physical/notify_flags.py", "physical/freeze_screenoff.py", "driver/lmdrv.py", "driver/e1_coverage.py", "driver/e2v3_gaps.py", "driver/e3v2_boundary.py",
+FILES = ["physical/contacts_reset.py", "physical/freeze_long.py", "physical/notify_flags.py", "physical/freeze_screenoff.py", "physical/phys_cost.py", "physical/phys_fgcost.py", "physical/phys_host.py", "physical/l4_agent.py", "driver/lmdrv.py", "driver/e1_coverage.py", "driver/e2v3_gaps.py", "driver/e3v2_boundary.py",
          "driver/e6_pitfalls.py", "driver/e9_frozen.py", "revision/run.py", "followup/deployment.py",
          "physical/campaign.py", "physical/b0_setup.py", "physical/b0_probe.py", "physical/b7_continuous.py",
          "physical/b11_statelog.py", "physical/b12_battery.py"]
@@ -56,6 +56,7 @@ EMULATOR_ONLY = [
     ("physical/freeze_long.py", "settings put global low_power", "G10: exits unless d.aws; AWS_ONLY_OK allows only the values 0 and 1"),
     ("physical/freeze_long.py", "settings delete global low_power", "G10 restore: exits unless d.aws; AWS_ONLY_OK"),
     ("physical/freeze_long.py", "cmd power set-mode", "G10: exits unless d.aws; AWS_ONLY_OK allows only set-mode 0 and 1"),
+    ("physical/phys_fgcost.py", "dumpsys batterystats --reset", "G16: exits unless d.aws (AWS or lab mode); AWS_ONLY_OK allows exactly this command"),
     ("physical/notify_flags.py", "content update --uri", "G11: exits unless d.aws, goes through d.u(); AWS_ONLY_OK allows exactly the starred toggle of the fixture LM Omar in user 0"),
 ]
 
@@ -139,8 +140,13 @@ def aws_examples():
                "cmd role add-role-holder --user 0 android.app.role.SMS org.leasemem.mut 0", "pm uninstall --user 0 org.leasemem.client",
                "content query --user 0 --uri content://sms --projection _id", "pm clear --user 0 com.android.providers.contacts",
                "run-as org.leasemem.mut id 2>&1", "run-as org.leasemem.client id", "settings put global cached_apps_freezer enabled",
-               "settings get global cached_apps_freezer"]
-    refused = ["am start -W -n x/.Main", "am start --user 10 -n x/.Main", "pm clear org.leasemem.client", "dumpsys batterystats --reset",
+               "settings get global cached_apps_freezer",
+               # F6 (AWS_ONLY_OK): G16 BatteryStats reset, G17 the host agent's reads of P06's own folder
+               "dumpsys batterystats --reset", "ls /storage/emulated/0/Documents/lm",
+               "sha1sum /storage/emulated/0/Documents/lm/todo.md 2>/dev/null || echo absent",
+               "stat -c '%n %Y %s' /storage/emulated/0/Documents/lm /storage/emulated/0/Documents/lm/*"]
+    refused = ["am start -W -n x/.Main", "am start --user 10 -n x/.Main", "pm clear org.leasemem.client",
+               "dumpsys batterystats --reset; reboot", "ls /storage/emulated/0/DCIM", "cat /storage/emulated/0/Documents/lm/todo.md",
                "pm clear --user 0 org.leasemem.client", "pm clear com.android.providers.contacts",
                "pm clear --user 10 com.android.providers.contacts", "pm clear --user 0 com.android.providers.contacts; pm clear --user 0 com.x",
                "cat /sdcard/x", "pm create-user Foo", "setprop persist.x 1", "reboot", "svc power stayon true",

@@ -17,7 +17,8 @@ os.environ.pop("P06_FAKE_TIME", None)     # the fake device keeps real time (plu
 import lmdrv
 
 # FAKE_MODE=aws: a wiped Device Farm phone (only user 0, no restrictions); otherwise a personal phone with user 10.
-AWS = os.environ.get("FAKE_MODE") == "aws"
+AWS = os.environ.get("FAKE_MODE") in ("aws", "lab")        # lab: a wiped lab phone, user 0, nothing preinstalled
+DF = os.environ.get("FAKE_MODE") == "aws"
 SERIAL, USER, APPID = os.environ.get("FAKE_SERIAL", "FAKE0001"), 0 if AWS else 10, 10123
 UID = USER * 100000 + APPID
 STATE = Path(os.environ.get("FAKE_ADB_STATE", "fake-adb-state.json"))
@@ -45,8 +46,8 @@ def load():
     if STATE.exists():
         return json.loads(STATE.read_text(encoding="utf-8"))
     # AWS: Device Farm has already installed its re-signed copy of the app under test (B0 run e035a924, 2026-11-18)
-    return {"cur": USER, "running": {}, "next_pid": 4000, "files": {}, "installed": [PKGS["LeaseMemClient-v4"]] if AWS else [],
-            "resigned": [PKGS["LeaseMemClient-v4"]] if AWS else [], "fgs": False, "fg_app": False,
+    return {"cur": USER, "running": {}, "next_pid": 4000, "files": {}, "installed": [PKGS["LeaseMemClient-v4"]] if DF else [],
+            "resigned": [PKGS["LeaseMemClient-v4"]] if DF else [], "fgs": False, "fg_app": False,
             "frozen": False, "dc": {}, "sync": "none", "settings": {}, "bucket": {}, "grants": {}, "role": None,
             "battery_override": None, "battery_calls": 0, "deep": "ACTIVE", "awake": True, "clock_ms": 0, "back_after": 0}
 
@@ -87,7 +88,8 @@ def client_reply(s, cmd, rid, extras):
     elif cmd == "PING":
         r.update(last_start={"pid": pid, "epoch": "fakeep01"}, n_events=0)
     elif cmd == "ACT":
-        r.update(effect_start=t + 2500, effect_end=t + 2510, used="+15551110000", stale=False, mode=extras.get("mode"),
+        r.update(check2_start=t + 2480, check2_end=t + 2490,      # as LmApp.act() reports them (G15 reads check-to-effect)
+                 effect_start=t + 2500, effect_end=t + 2510, used="+15551110000", stale=False, mode=extras.get("mode"),
                  validator="hist" if extras.get("validator") == "hist" else "strict",
                  effect_store=extras.get("effect", "calllog"))
         if extras.get("effect") == "contacts":           # the effect row of "P06 Effect Log", as the client writes it
@@ -275,6 +277,12 @@ def one(s, c):
             mm = re.fullmatch(r": > (\S+)", part)
             if mm:
                 s["files"][pkg + "/" + mm.group(1)] = ""; continue
+            mm = re.fullmatch(r"mkdir -p (\S+)", part)
+            if mm:
+                continue
+            mm = re.fullmatch(r"echo ([A-Za-z0-9+/=]+) \| base64 -d > (\S+)", part)   # L4: the draft, written as base64
+            if mm:
+                s["files"][pkg + "/" + mm.group(2)] = __import__("base64").b64decode(mm.group(1)).decode(); continue
             mm = re.fullmatch(r"echo (.*) > (\S+)", part)
             if mm:
                 s["files"][pkg + "/" + mm.group(2)] = mm.group(1) + "\n"; continue
@@ -319,6 +327,8 @@ def one(s, c):
             return "Row: 0 _id=1, version=%d" % s.get("dana_version", 3)
         if "phone_v2' AND raw_contact_id IN" in c:
             return "Row: 0 data1=+15551110000"
+        if os.environ.get("FAKE_PERSONAL") and "NOT LIKE" in c:     # lab preflight: a phone with someone's data
+            return "Row: 0 _id=77"
         return "No result found." if ("NOT LIKE" in c or "IS NOT" in c) else "Row: 0 _id=1\nRow: 1 _id=2"
     return None
 

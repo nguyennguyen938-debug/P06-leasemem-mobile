@@ -33,6 +33,9 @@ Commands
   stop RUN_ARN                       stop-run and read the status back
   --selftest                         offline check of plan splitting, timeouts and artifact extraction
 Devices: pixel8 (main), pixel9 (backup), s25 (B13), or a device ARN.
+Account (F6, 24/11): every command takes --profile P, --region R and --project ARN (before or after the command name),
+else the environment P06_AWS_PROFILE, P06_AWS_REGION and P06_DF_PROJECT, else the first account's values below. The
+free-minute rules do not change with the account. Example: `devicefarm.py minutes --profile <new profile>`.
 """
 import argparse, io, json, math, os, re, subprocess, sys, time, urllib.request, zipfile
 from pathlib import Path
@@ -42,8 +45,21 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import estimate
 
 AWS_CLI = os.environ.get("P06_AWS_CLI", "C:/Program Files/Amazon/AWSCLIV2/aws")   # tests point this at aws/fake_aws.py
-PROFILE, REGION = "devicefarm", "us-west-2"
-PROJECT_ARN = "arn:aws:devicefarm:us-west-2:478825889366:project:83e7e695-4f56-4afc-bca4-cb04dea963ec"
+DEFAULT_PROFILE, DEFAULT_REGION = "devicefarm", "us-west-2"
+DEFAULT_PROJECT_ARN = "arn:aws:devicefarm:us-west-2:478825889366:project:83e7e695-4f56-4afc-bca4-cb04dea963ec"
+PROFILE = os.environ.get("P06_AWS_PROFILE") or DEFAULT_PROFILE
+REGION = os.environ.get("P06_AWS_REGION") or DEFAULT_REGION
+PROJECT_ARN = os.environ.get("P06_DF_PROJECT") or DEFAULT_PROJECT_ARN
+
+
+def set_account(profile=None, region=None, project=None):
+    """Command-line values win over the environment, which wins over the defaults."""
+    global PROFILE, REGION, PROJECT_ARN
+    PROFILE, REGION, PROJECT_ARN = profile or PROFILE, region or REGION, project or PROJECT_ARN
+    if not re.fullmatch(r"[\w+=,.@-]+", PROFILE) or not re.fullmatch(r"[a-z]{2}-[a-z]+-\d", REGION):
+        raise SystemExit("bad --profile or --region: %r %r" % (PROFILE, REGION))
+    if not re.fullmatch(r"arn:aws:devicefarm:%s:\d{12}:project:[0-9a-f-]{36}" % re.escape(REGION), PROJECT_ARN):
+        raise SystemExit("--project must be a Device Farm project ARN in region %s: %r" % (REGION, PROJECT_ARN))
 DEVICES = {"pixel8": "arn:aws:devicefarm:us-west-2::device:DE5BD47FF3BD42C3A14BF7A6EFB1BFE7",    # Pixel 8, Android 15
            "pixel9": "arn:aws:devicefarm:us-west-2::device:BCDA2B2CE0B54ABEA1F8B34A54A2752C",    # Pixel 9, Android 15
            "s25": "arn:aws:devicefarm:us-west-2::device:69977E819F314BD481F194580E8EFC16"}       # Galaxy S25, B13
@@ -78,8 +94,8 @@ def aws(op, **req):
     if p.returncode != 0:
         err = (p.stderr or p.stdout).strip()
         if EXPIRED.search(err):
-            raise SystemExit("AWS login expired or missing: the user runs `aws login --profile devicefarm --region us-west-2`; "
-                             "nothing else was done")
+            raise SystemExit("AWS login expired or missing: the user runs `aws login --profile %s --region %s`; "
+                             "nothing else was done" % (PROFILE, REGION))
         raise AwsError("aws devicefarm %s failed: %s" % (op, err[:400]))
     return json.loads(p.stdout) if p.stdout.strip() else {}
 
@@ -410,7 +426,13 @@ def selftest():
 def main():
     if "--selftest" in sys.argv:
         return selftest()
-    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0]); sp = ap.add_subparsers(dest="cmd", required=True)
+    acct = argparse.ArgumentParser(add_help=False)      # accepted before or after the command name
+    acct.add_argument("--profile", default=argparse.SUPPRESS); acct.add_argument("--region", default=argparse.SUPPRESS)
+    acct.add_argument("--project", default=argparse.SUPPRESS, help="Device Farm project ARN")
+    ap = argparse.ArgumentParser(description=__doc__.split("\n")[0], parents=[acct])
+    sp = ap.add_subparsers(dest="cmd", required=True)
+    _add = sp.add_parser
+    sp.add_parser = lambda *x, **k: _add(*x, parents=[acct], **k)
     s = sp.add_parser("devices"); s.add_argument("--text"); s.set_defaults(f=cmd_devices)
     s = sp.add_parser("upload"); s.add_argument("items", nargs="+", help="FILE TYPE pairs"); s.set_defaults(f=cmd_upload)
     s = sp.add_parser("plan"); s.add_argument("task"); s.add_argument("--pilot", action="store_true"); s.add_argument("--allow-reboot", action="store_true")
@@ -425,6 +447,7 @@ def main():
     s = sp.add_parser("minutes"); s.set_defaults(f=cmd_minutes)
     s = sp.add_parser("stop"); s.add_argument("run_arn"); s.set_defaults(f=lambda a: stop_and_check(a.run_arn, "requested"))
     a = ap.parse_args()
+    set_account(getattr(a, "profile", None), getattr(a, "region", None), getattr(a, "project", None))
     if a.cmd == "upload" and len(a.items) % 2:
         raise SystemExit("upload takes FILE TYPE pairs")
     a.f(a)

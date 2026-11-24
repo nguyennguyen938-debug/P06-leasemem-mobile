@@ -9,6 +9,10 @@ Device classes (PHYS-PROTOCOL.md):
   phone. Experiments run in user 0 with every source (SMS and call log included); the guard below still applies,
   except that clock changes are allowed so B0 can probe them. The device is the one Device Farm names in
   DEVICEFARM_DEVICE_UDID; records carry device_instance, device_arn and run_arn.
+- Lab mode (P06_TARGET=lab, F6 group L, 24/11): a wiped lab phone on USB that is not anyone's personal phone, named in
+  P06_SERIALS. Runs like AWS mode (user 0, AWS_ONLY_OK commands) but with every source (SMS and call log included)
+  and with reboots when the campaign allows them; before anything else Dev.lab_preflight() refuses the phone unless
+  its contacts, SMS, call log and photos hold nothing but P06's fixtures.
 - The user's personal Galaxy A35 (serial RFCXA0TTMPP) is blocked in every mode: Dev refuses it before any adb call
   and refuses any device whose ro.serialno is that serial.
 - Any other allowlisted phone (P06_SERIALS) uses the personal-phone isolation of E5, described next. It is kept
@@ -66,7 +70,8 @@ TEST_USER = "P06 Test"
 # device's ro.serialno, so one entry covers a phone over USB and over wireless debugging (whose adb serial changes).
 # The user's personal phone: never used for any experiment, in any mode (it cannot create a second user).
 BLOCKED_SERIALS = {"RFCXA0TTMPP"}
-AWS = os.environ.get("P06_TARGET") == "aws" or bool(os.environ.get("DEVICEFARM_DEVICE_UDID"))
+LAB = os.environ.get("P06_TARGET") == "lab"     # a wiped lab phone on USB: the AWS rules plus SMS, call log, reboot
+AWS = os.environ.get("P06_TARGET") == "aws" or bool(os.environ.get("DEVICEFARM_DEVICE_UDID")) or LAB
 ALLOWED = (EMULATORS | {x.strip() for x in os.environ.get("P06_SERIALS", "").split(",") if x.strip()}
            | ({os.environ["DEVICEFARM_DEVICE_UDID"]} if os.environ.get("DEVICEFARM_DEVICE_UDID") else set()))
 
@@ -115,7 +120,12 @@ AWS_ONLY_OK = [re.compile(p) for p in (
     r"settings (get|delete) global low_power", r"settings put global low_power [01]", r"cmd power set-mode [01]",
     r"dumpsys power \| grep -m\d+ -E '[\w|]+'", r"dumpsys content( \| grep -m\d+ -E '[^']+')?",
     r"content update --user 0 --uri content://com\.android\.contacts/raw_contacts --bind starred:i:[01] "
-    r"--where \"display_name='LM Omar'\"")]
+    r"--where \"display_name='LM Omar'\"",
+    # F6 G16: BatteryStats reset at the start of each window (a rented or lab phone holds nothing else to lose)
+    r"dumpsys batterystats --reset",
+    # F6 G17: the host agent's three read-only commands on P06's own folder in shared storage
+    r"sha1sum /storage/emulated/0/Documents/lm/todo\.md 2>/dev/null \|\| echo absent", r"ls /storage/emulated/0/Documents/lm",
+    r"stat -c '%n %Y %s' /storage/emulated/0/Documents/lm /storage/emulated/0/Documents/lm/\*")]
 # Clock changes, and the cached-apps freezer switch: refused on a personal phone; allowed in AWS mode, where B0 probes
 # whether the shell can set the time and campaign.py turns the freezer on where a rented unit has it off.
 CLOCK = re.compile(r"\bauto_time|\bcached_apps_freezer\b|" + _AT + r"(date\s+(-s|@|\d)|cmd\s+(alarm|time)\b)")
@@ -205,6 +215,7 @@ class Dev:
         self.s, self.seq, self._root, self.frozen_method = serial, 0, None, None
         self.emulator = serial in EMULATORS
         self.aws = AWS and not self.emulator
+        self.lab = LAB and not self.emulator
         self.user, self.excluded, self.restrictions = (0 if self.emulator or self.aws else None), set(), set()
         if blocked(self.sh("getprop ro.serialno", timeout=15).strip()):
             raise GuardError("%s reports the serial of the user's personal phone; P06 never uses it" % serial)
@@ -213,7 +224,9 @@ class Dev:
                 raise RuntimeError("in AWS mode, run drivers through physical/campaign.py")
             if self.rooted:
                 raise RuntimeError("adbd runs as root on this device; P06 runs unrooted")
-            self.excluded = set(AWS_EXCLUDED)
+            self.excluded = set() if self.lab else set(AWS_EXCLUDED)
+            if self.lab:
+                self.lab_preflight()
             self.require_fg()
         elif not self.emulator:
             if not os.environ.get("P06_CAMPAIGN"):
@@ -433,6 +446,28 @@ class Dev:
         """True if dumpsys battery reports any charger (AC, USB, Wireless or Dock powered)."""
         return bool(re.search(r"(AC|USB|Wireless|Dock) powered: true", self.sh("dumpsys battery")))
 
+    LAB_CHECKS = {   # rows that are not P06 fixtures (names "LM ...", SMS +1555..., calls +1666..., Pictures/lm/)
+        "contacts": ("content://com.android.contacts/raw_contacts", "deleted=0 AND (display_name IS NULL OR display_name NOT LIKE 'LM %')"),
+        "sms": ("content://sms", "address IS NULL OR address NOT LIKE '+1555%'"),
+        "calllog": ("content://call_log/calls", "number IS NULL OR number NOT LIKE '+1666%'"),
+        "photos": ("content://media/external/images/media", "relative_path IS NULL OR relative_path NOT LIKE 'Pictures/lm/'")}
+
+    def lab_preflight(self):
+        """Lab mode, before any install or write: the phone must hold no contact, SMS, call or photo that is not a P06
+        fixture. A source the shell cannot read counts as a failure (fail closed): check that phone by hand."""
+        found = {}
+        for k, (uri, where) in self.LAB_CHECKS.items():
+            out = self.sh(self.u('content query --uri %s --projection _id --where "%s"' % (uri, where)), timeout=120)
+            if "Row:" not in out and "No result found" not in out:
+                raise GuardError("lab preflight: cannot read %s through the shell (%r); check the phone by hand, P06 stops"
+                                 % (k, out.strip()[:160]))
+            found[k] = out.count("Row:")
+        if any(found.values()):
+            raise GuardError("lab preflight: the phone holds rows that are not P06 fixtures %s; P06 runs only on an empty "
+                             "lab phone, never on a personal one" % found)
+        self.preflight = found
+        return found
+
     def meta(self):
         """Fields every physical-phone record carries (PHYS-PROTOCOL.md)."""
         if not hasattr(self, "_meta"):
@@ -440,7 +475,8 @@ class Dev:
             self._meta = {"device": "%s %s" % (g("ro.product.manufacturer"), g("ro.product.model")),
                           "fingerprint": g("ro.build.fingerprint"), "sdk": g("ro.build.version.sdk"),
                           # which physical unit and which Device Farm run (a run may land on another unit of the model)
-                          "device_instance": os.environ.get("DEVICEFARM_DEVICE_UDID") if self.aws else self.s,
+                          "device_instance": (os.environ.get("DEVICEFARM_DEVICE_UDID") or self.s) if self.aws else self.s,
+                          "target": "lab" if self.lab else "aws" if self.aws else "emulator" if self.emulator else "personal",
                           "device_arn": os.environ.get("DEVICEFARM_DEVICE_ARN") if self.aws else None,
                           "run_arn": os.environ.get("DEVICEFARM_RUN_ARN") if self.aws else None,
                           "user_id": self.user, "excluded_sources": sorted(self.excluded),
