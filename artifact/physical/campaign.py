@@ -64,7 +64,8 @@ def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=No
     # analyses never read it
     # F6 tasks (G14 to G20, L1 to L4): every file starts with phys-<task>- (and the --tag model after it)
     if pre is None:
-        pre = ("phys-%s-%s" % (task.lower(), tag + "-" if tag else "")) if task in F6_D + F6_L else "b13-%s-" % tag if tag else ""
+        pre = (("phys-%s-%s" % ("l1" if task == "SMSDIAG" else task.lower(), tag + "-" if tag else "")) if task in F6_D + F6_L + ("SMSDIAG",)
+               else "b13-%s-" % tag if tag else "")
     t = lambda name: pre + (name.replace("-", "-pilot-", 1) if pilot and "-" in name else name + "-pilot" if pilot else name) + ("-p%d" % part if part else "")
     o = lambda name: str(out / ("%s-%s.jsonl" % (t(name), hm)))
     sfx = ("-pilot-" if pilot else "-") + ("p%d-" % part if part else "") + hm   # passed as --suffix=<sfx>: a value starting with "-" would read as an option
@@ -134,6 +135,8 @@ def steps(task, serial, out, hm, pilot, night, excluded, allow_reboot, trials=No
     if task == "L1":     # SMS _id reuse (plus e6's mtime and clock parts): the mutator holds the SMS role on the lab phone
         role = "{u:cmd role add-role-holder android.app.role.SMS %s 0}" % lmdrv.MPKG
         return [("pitfalls", [PY, D + "/e6_pitfalls.py", serial, str(n(50)), sd(2621001), o("pitfalls")], [stop_fgs, role], o("pitfalls"))]
+    if task == "SMSDIAG":   # L1 diagnosis (25/11): SMS role, app ops and SMS rows before and after the grant
+        return [("sms-diag", [PY, P + "/sms_diag.py", serial, o("sms-diag")], [stop_fgs], o("sms-diag"))]
     if task == "L2":     # the call log: B1 deployment on it, B9 with the call-log effect, B4 stock with the call log
         return sub("B1", ("deploy-calllog",)) + sub("B9") + sub("B4")
     if task == "L3":     # B2's reboot gap, 25 trials; needs --allow-reboot (the lab phone's owner agrees to reboots)
@@ -185,7 +188,9 @@ def snapshot(d):
             "sync_disabled": g("device_config get_sync_disabled_for_tests"),
             "settings": {k: g("settings get global " + k) for k in ("lm_mode", "lm_target")},
             "buckets": {p: g(d.u("am get-standby-bucket %s" % p)) for p in PKGS}, "t": time.time(),
-            **({"freezer_setting": g("settings get global cached_apps_freezer")} if d.aws else {})}
+            **({"freezer_setting": g("settings get global cached_apps_freezer")} if d.aws else {}),
+            # F6 L1: the SMS role is exclusive, so it is put back by giving it to the earlier holder (run 3d940867)
+            **({"sms_role": g(d.u("cmd role get-role-holders android.app.role.SMS"))} if d.aws and "sms" not in d.excluded else {})}
 
 
 def restore(d, snap, final=True):
@@ -226,8 +231,16 @@ def restore(d, snap, final=True):
     if lmdrv.APKG in pkgs:
         todo.append(("{u:cmd role remove-role-holder android.app.role.ASSISTANT %s 0}" % lmdrv.APKG,
                      "{u:cmd role get-role-holders android.app.role.ASSISTANT}", lambda got: lmdrv.APKG not in got, "no P06 holder"))
-    if d.lab and lmdrv.MPKG in pkgs:   # F6 L1 gave the mutator the SMS role on the lab phone
-        todo.append(("{u:cmd role remove-role-holder android.app.role.SMS %s 0}" % lmdrv.MPKG,
+    # On the Device Farm Pixel 8a (Android 17) the mutator already held the SMS role when the snapshot was taken: Android
+    # gave it to the only qualifying app at install (run 052bc02f). Then there is no earlier holder to give it back to and
+    # the role cannot be left empty, so nothing is restored (the rented phone is wiped after the run).
+    if (d.lab or "sms" not in d.excluded) and d.aws and lmdrv.MPKG in pkgs and (snap.get("sms_role") or "").split()[:1] != [lmdrv.MPKG]:
+        # The SMS role is exclusive: Android refuses to leave it empty, so removing the mutator alone fails (run 3d940867,
+        # read back 'org.leasemem.mut'). Give it back to the holder recorded before the run; with none recorded, remove.
+        old = (snap.get("sms_role") or "").split()
+        old = old[0] if old and old[0] != lmdrv.MPKG and re.fullmatch(r"[\w.]+", old[0]) else None
+        todo.append((("{u:cmd role add-role-holder android.app.role.SMS %s 0}" % old) if old else
+                     "{u:cmd role remove-role-holder android.app.role.SMS %s 0}" % lmdrv.MPKG,
                      "{u:cmd role get-role-holders android.app.role.SMS}", lambda got: lmdrv.MPKG not in got, "no P06 holder"))
     for p in (lmdrv.CPKG, lmdrv.TPKG):
         if p in pkgs:
@@ -309,8 +322,12 @@ def main():
     ap.add_argument("--tag", help="B13, B14 and their B0: model tag in the file names, b13-<tag>-*")
     ap.add_argument("--modes", help="B1, B13, B14: comma-separated deployments to keep (bg_unfrozen,bg_freezer,fg,assistant)")
     a = ap.parse_args(); t_start = time.time()
-    if a.task in F6_L and not lmdrv.LAB:
+    if a.task in F6_L and not (lmdrv.LAB or (a.task == "L1" and lmdrv.AWS)):
         raise SystemExit("%s runs only on a wiped lab phone over USB: P06_TARGET=lab (PHYS-PROTOCOL.md section F6)" % a.task)
+    if a.task in ("L1", "SMSDIAG") and lmdrv.AWS:
+        # L1 on Device Farm (24/11): the Pixel 8a, Android 17 lets the mutator hold the SMS role (B0 run bee6de31), so SMS
+        # is kept for this run only (lmdrv reads P06_INCLUDE_SMS); the mutator writes the SMS provider, it never sends
+        os.environ["P06_INCLUDE_SMS"] = "1"
     if a.task in F6_D and not lmdrv.AWS:
         raise SystemExit("%s runs on Device Farm (P06_TARGET=aws) or a lab phone (P06_TARGET=lab), never on a personal phone" % a.task)
     out_root = Path(a.out_root).resolve()

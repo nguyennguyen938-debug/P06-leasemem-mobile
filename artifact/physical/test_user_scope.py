@@ -18,7 +18,7 @@ A = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(A / "driver"))
 import lmdrv
 
-FILES = ["physical/contacts_reset.py", "physical/freeze_long.py", "physical/notify_flags.py", "physical/freeze_screenoff.py", "physical/phys_cost.py", "physical/phys_fgcost.py", "physical/phys_host.py", "physical/l4_agent.py", "driver/lmdrv.py", "driver/e1_coverage.py", "driver/e2v3_gaps.py", "driver/e3v2_boundary.py",
+FILES = ["physical/contacts_reset.py", "physical/freeze_long.py", "physical/notify_flags.py", "physical/freeze_screenoff.py", "physical/phys_cost.py", "physical/phys_fgcost.py", "physical/phys_host.py", "physical/l4_agent.py", "physical/sms_diag.py", "driver/lmdrv.py", "driver/e1_coverage.py", "driver/e2v3_gaps.py", "driver/e3v2_boundary.py",
          "driver/e6_pitfalls.py", "driver/e9_frozen.py", "revision/run.py", "followup/deployment.py",
          "physical/campaign.py", "physical/b0_setup.py", "physical/b0_probe.py", "physical/b7_continuous.py",
          "physical/b11_statelog.py", "physical/b12_battery.py"]

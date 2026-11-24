@@ -48,7 +48,7 @@ RUNS_AWS = [("setup", []), ("B0", ["--allow-reboot"]), ("B1", []), ("B3", []),
             ("B3", ["#serial=RFCXA0TTMPP", "#blocked"]), ("B3", ["#fake-serialno=RFCXA0TTMPP", "#alias-blocked"]),
             ("B3", ["#runas-fails"]), ("B1FD", []), ("B1F", []), ("CRESET", []), ("FLONG", ["--tag", "galaxys25"]), ("NFLAGS", ["--tag", "galaxys25"]), ("FSCREEN", ["--tag", "galaxys25"]), ("cleanup", [])]   # B3: its setup stops on a failed fixture (B0 keeps probing)
 RUNS_AWS += [("G14", []), ("G15", []), ("G16", []), ("G17", []), ("G18", []), ("G19", []), ("G20", []),
-             ("G19", ["--tag", "galaxys25"]), ("L1", ["#lab-only"])]
+             ("G19", ["--tag", "galaxys25"]), ("L2", ["#lab-only"]), ("L1", ["--tag", "pixel8aa17"]), ("SMSDIAG", ["--tag", "pixel8aa17"])]   # L1 runs on AWS too (SMS kept)
 RUNS_LAB = [("setup", []), ("L1", []), ("L2", []), ("L3", ["--allow-reboot"]), ("L3", ["#no-reboot-l3"]), ("L4", []),
             ("G14", []), ("L1", ["#personal-data"]), ("cleanup", [])]
 RUNS = RUNS_AWS if AWS else RUNS_LAB if LAB else RUNS

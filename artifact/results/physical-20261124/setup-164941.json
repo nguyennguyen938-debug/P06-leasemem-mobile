@@ -1,0 +1,74 @@
+{
+  "device": "Google Pixel 8a",
+  "fingerprint": "google/akita/akita:17/CP2A.260605.012/15430684:user/release-keys",
+  "sdk": "37",
+  "device_instance": "44171JEKB18738",
+  "target": "aws",
+  "device_arn": "arn:aws:devicefarm:us-west-2::device:A571183F1FF74A798C9C5DA2AEC820D8",
+  "run_arn": "arn:aws:devicefarm:us-west-2:228873781800:run:91c864c0-cbdf-47cc-ac2f-1c4ce9b60ea9/52b2b66d-082c-4eb2-9417-4e4782aa1115",
+  "user_id": 0,
+  "excluded_sources": [
+    "calllog",
+    "sms"
+  ],
+  "user_no_sms": false,
+  "user_no_outgoing_calls": false,
+  "use_freezer_before": null,
+  "use_freezer": null,
+  "serial": "44171JEKB18738",
+  "rooted": false,
+  "plugged": true,
+  "kind": "setup",
+  "t": 1795538962.5958288,
+  "restrictions": [],
+  "foreign_before": {
+    "contacts": 0,
+    "calendar": 0,
+    "media": 0
+  },
+  "install": [
+    {
+      "pkg": "org.leasemem.client",
+      "apk": "/tmp/devicefarm-workspace/execution-3cu0imwg/test-package-djdwj6uv/tests/P06/artifact/app/client/build/LeaseMemClient-v4.apk",
+      "result": "Success"
+    },
+    {
+      "pkg": "org.leasemem.mut",
+      "apk": "/tmp/devicefarm-workspace/execution-3cu0imwg/test-package-djdwj6uv/tests/P06/artifact/app/mut/build/LeaseMemMut.apk",
+      "result": "Success"
+    },
+    {
+      "pkg": "org.leasemem.trig",
+      "apk": "/tmp/devicefarm-workspace/execution-3cu0imwg/test-package-djdwj6uv/tests/P06/artifact/app/trig/build/LeaseMemTrig.apk",
+      "result": "Success"
+    },
+    {
+      "pkg": "org.leasemem.assist",
+      "apk": "/tmp/devicefarm-workspace/execution-3cu0imwg/test-package-djdwj6uv/tests/P06/artifact/app/assist/build/LeaseMemAssist.apk",
+      "result": "Success"
+    }
+  ],
+  "apks": {
+    "app/client/build/LeaseMemClient-v4.apk": "367e577140645b618dfd2531bb80fd102621fd274eda03323849f2f41e475f84",
+    "app/mut/build/LeaseMemMut.apk": "27b7e9bd67f516296bbfc9d598c8753bc830f66eb8616a5a2027c981d3744b37",
+    "app/trig/build/LeaseMemTrig.apk": "dd87a55e80f4a0a1c345e96758c3f5d515ae0290b82c7a58c2e7931ab6677a8a",
+    "app/assist/build/LeaseMemAssist.apk": "0dcc8b692b717068185094b1891799fdcee78fb4eb1cf9d2ac002e936be8cfd9"
+  },
+  "fixtures": {
+    "t_pre": 1795538975868,
+    "made": 10,
+    "t_post": 1795538976569,
+    "ok": true
+  },
+  "foreign_after": {
+    "contacts": 0,
+    "calendar": 0,
+    "media": 0
+  },
+  "packages": [
+    "package:org.leasemem.mut",
+    "package:org.leasemem.assist",
+    "package:org.leasemem.trig",
+    "package:org.leasemem.client"
+  ]
+}

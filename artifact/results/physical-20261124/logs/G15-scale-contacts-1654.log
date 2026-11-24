@@ -1,0 +1,4 @@
+level contacts+0 {'raw_contacts': 2, 'images': 3, 'grow_s': 0.0}
+level contacts+1000 {'raw_contacts': 1003, 'images': 13, 'grow_s': 6.0}
+level contacts+5000 {'raw_contacts': 5003, 'images': 23, 'grow_s': 24.1}
+level contacts+10000 {'raw_contacts': 10003, 'images': 33, 'grow_s': 28.9}

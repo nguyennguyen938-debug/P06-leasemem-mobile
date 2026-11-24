@@ -225,6 +225,8 @@ class Dev:
             if self.rooted:
                 raise RuntimeError("adbd runs as root on this device; P06 runs unrooted")
             self.excluded = set() if self.lab else set(AWS_EXCLUDED)
+            if os.environ.get("P06_INCLUDE_SMS") == "1":   # campaign.py L1 on a Device Farm unit whose mutator holds the SMS role
+                self.excluded.discard("sms")
             if self.lab:
                 self.lab_preflight()
             self.require_fg()

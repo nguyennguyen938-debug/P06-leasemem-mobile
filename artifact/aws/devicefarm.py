@@ -94,8 +94,8 @@ def aws(op, **req):
     if p.returncode != 0:
         err = (p.stderr or p.stdout).strip()
         if EXPIRED.search(err):
-            raise SystemExit("AWS login expired or missing: the user runs `aws login --profile %s --region %s`; "
-                             "nothing else was done" % (PROFILE, REGION))
+            raise SystemExit("AWS login expired or missing: the user runs `aws login --profile %s --region %s` (or logs in the "
+                             "profile that %s takes its credentials from); nothing else was done" % (PROFILE, REGION, PROFILE))
         raise AwsError("aws devicefarm %s failed: %s" % (op, err[:400]))
     return json.loads(p.stdout) if p.stdout.strip() else {}
 
@@ -359,9 +359,9 @@ def cmd_run(a):
               executionConfiguration={"jobTimeoutMinutes": timeout, "videoCapture": False},
               configuration={"environmentVariables": [{"name": "P06_TASK", "value": a.task}, {"name": "P06_ARGS", "value": p06_args}]})["run"]
     ledger_add({"kind": "scheduled", "run_arn": run["arn"], "task": a.task, "args": p06_args, "device_arn": device,
-                "timeout_min": timeout, "estimate_min": est, "free_before": free})
-    append_runlog("- %s AWS schedule %s `%s` on %s: %s; timeout %d min (estimate %.0f); free minutes %.2f, open runs may use %.0f; P06 used %.1f" % (
-        time.strftime("%H:%M"), a.task, p06_args, device, run["arn"], timeout, est, free, sum(m for _, m in held), used))
+                "timeout_min": timeout, "estimate_min": est, "free_before": free, "profile": PROFILE, "project_arn": PROJECT_ARN})
+    append_runlog("- %s AWS schedule %s `%s` on %s: %s; timeout %d min (estimate %.0f); free minutes %.2f, open runs may use %.0f; P06 used %.1f; profile %s, project %s" % (
+        time.strftime("%H:%M"), a.task, p06_args, device, run["arn"], timeout, est, free, sum(m for _, m in held), used, PROFILE, PROJECT_ARN))
     print("scheduled", run["arn"], "timeout", timeout, flush=True)
     r = None
     try:
