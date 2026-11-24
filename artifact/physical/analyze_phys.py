@@ -10,7 +10,9 @@ Optional per-record fields of the AWS runs: `device_instance` (counted by \\Phys
 stdout); records without them still load. B6 (host-*) has one macro, B7 (continuous-*) none; B11 and B12 are dropped.
 Freezer trials (B1 bg_freezer, B2 freeze, B5) count only with the freezer on: `use_freezer`, else the saved settings.
 Files named b13-* (B13, Galaxy S25, campaign.py --tag) never enter the Pixel 8 macros; they feed the \\PhysSamsung*
-macros and Table tab_phys_samsung with the same B1, B4 and freezer rules. Captions name no experiment codes.
+macros and Table tab_phys_samsung with the same B1, B4 and freezer rules. Files named phys-*-pixel8aa17-* and
+b13-pixel8aa17-* (Pixel 8a, Android 17) feed only the \\PhysEightA* macros, Tables tab_phys_eighta*, and the Pixel 8a
+column of tab_phys_pitfalls. Captions name no experiment codes.
 Run `python physical/analyze_phys.py --self-check`.
 """
 import json, re, statistics as st, sys, tempfile
@@ -21,7 +23,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'artifact/scripts'))
 sys.path[:0] = [str(ROOT / 'artifact/revision'), str(ROOT / 'artifact/physical')]
 import analyze as ea                      # noqa: E402  emulator analysis rules
-from render import GAPNAME, SRCNAME       # noqa: E402
+from render import GAPNAME, SRCNAME, sci  # noqa: E402
 from oracle import boot                   # noqa: E402  the emulator host table's paired bootstrap (mean, 95%)
 from b7_continuous import classify as b7_classify   # noqa: E402  B7 oracle
 
@@ -51,6 +53,13 @@ MODELS = {'s25': 'b13-galaxys25-', 'p9': 'b13-pixel9a16-'}     # data-dict prefi
 S25_FILES = dict({k: FILES[k] for k in ('deploy', 'stock', 'diag', 'b0', 'gaps', 'boundary')}, all='*.jsonl',
                  flags='notify-flags-*.jsonl', long='freeze-long-*.jsonl', screenoff='freeze-screenoff-*.jsonl')
 P9_FILES = {k: FILES[k] for k in ('deploy', 'stock', 'b0')}
+# Pixel 8a, Android 17 (second Device Farm account, campaign.py --tag pixel8aa17; experiment report F6): data-dict
+# keys 'p8a_<test>', macros \PhysEightA*. Its L1 SMS part (0/50 valid, writes dropped) never enters a number.
+P8A_FILES = {'b0': 'b13-pixel8aa17-b0-probe-*.jsonl', 'cost': 'phys-g14-pixel8aa17-cost-persource-*.jsonl',
+             'scale': 'phys-g15-pixel8aa17-scale-*.jsonl', 'fgcost': 'phys-g16-pixel8aa17-fgcost-*.jsonl',
+             'host': 'phys-g17-pixel8aa17-host-unbatched-*.jsonl', 'longdoze': 'phys-g18-pixel8aa17-longdoze-*.jsonl',
+             'pitfalls': 'phys-l1-pixel8aa17-pitfalls-*.jsonl'}
+GROUPS = (B13, 'phys-')     # file-name groups of other models (load)
 # Stopped partial run 06804731 (RUNLOG 11:32 and 13:29 on 19/11): 6 rounds whose seeds repeat the full run's; its
 # records still show the unit's freezer state, but no trial counts.
 PARTIAL = {'b13-galaxys25-stock-R3CY1019X6Y-0426.jsonl'}
@@ -69,9 +78,10 @@ def not_run(b0):
 
 
 def load(res, pattern):
-    """All records of one experiment, with the file name; nothing is rewritten. b13-* files load only for a b13-*
-    pattern, so no Galaxy S25 record reaches a Pixel 8 macro."""
-    return [dict(json.loads(l), _file=p.name) for p in sorted(res.glob('physical-*/' + pattern)) if p.name.startswith(B13) == pattern.startswith(B13)
+    """All records of one experiment, with the file name; nothing is rewritten. Files of another model (b13-*, phys-*)
+    load only for a pattern of the same group, so no Galaxy S25, Pixel 9 or Pixel 8a record reaches a Pixel 8 macro."""
+    grp = lambda s: next((g for g in GROUPS if s.startswith(g)), '')
+    return [dict(json.loads(l), _file=p.name) for p in sorted(res.glob('physical-*/' + pattern)) if grp(p.name) == grp(pattern)
             for l in p.read_text(encoding='utf-8').splitlines() if l.strip()]
 
 
@@ -98,6 +108,11 @@ def wil(k, n):
 
 def pct(k, n):
     return f'{100 * k / n:.0f}' if n else 'n/a'
+
+
+def span(v):
+    """Sorted values as 'lo to hi', or the one value."""
+    return ' to '.join(str(a) for a in dict.fromkeys((v[0], v[-1])))
 
 
 # ------------------------------------------------------------------ freezer state (some Device Farm units ship it off)
@@ -700,16 +715,120 @@ def android(b0):
     return '; '.join(v) if v else None
 
 
+# ------------------------------------------------------------------ Pixel 8a, Android 17: cost tests (emulator rules)
+COST_SRC = ('contacts', 'media', 'calendar', 'settings', 'files')
+SCALE = {'contacts+0': 'Zero', 'contacts+1000': 'OneK', 'contacts+5000': 'FiveK', 'contacts+10000': 'TenK',
+         'media+1000': 'MediaOneK', 'media+10000': 'MediaTenK'}       # phys_cost.py scale levels -> macro suffix
+
+
+def persource_cost(rows):
+    """Per-use cost (phys_cost.py persource; each round changes one source or none): per source, median ms to refresh
+    one of its facts (every record) and of its \\stamp check (lm_hist_cost, the emulator `lm` of tab:cost) after that
+    source changed and when it did not; stamp: some check found evidence (reason not 'unknown')."""
+    rows, out = [r for r in rows if 'error' not in r], {}
+    for s in COST_SRC:
+        ref = [ns / 1e6 for r in rows for f, ns in r['refresh_ns'].items() if r['fact_src'].get(f) == s]
+        sc = {ch: [r['costs']['lm_hist_cost'][s]['ns'] / 1e6 for r in rows if (r['source'] == s) == ch and s in r['costs']['lm_hist_cost']] for ch in (True, False)}
+        if ref and sc[True] and sc[False]:
+            out[s] = {'refresh': st.median(ref), 'changed': st.median(sc[True]), 'unchanged': st.median(sc[False]),
+                      'stamp': any(r['costs']['lm_hist_cost'][s]['reason'] != 'unknown' for r in rows if s in r['costs']['lm_hist_cost'])}
+    return out
+
+
+def scale_cost(rows):
+    """Cost versus source size (phys_cost.py scale): the columns of the emulator Table tab:scale (scripts/render.py e12)
+    with \\stamp = lm_hist_cost and its timestamp adapter lmts_hist_cost; per level, medians over decisions without and
+    after a change, refresh of the 3 Contacts and the 2 media facts, check-to-effect of the ACT records. fit: e12's
+    least-squares line of check-to-effect on raw contacts over the ACT records of the Contacts levels."""
+    rows, lv = [r for r in rows if 'error' not in r], {}
+    med = lambda v: st.median(v) if v else None
+    for L in dict.fromkeys(r['level'] for r in rows):
+        R = [r for r in rows if r['level'] == L and not r.get('act')]; A = [r for r in rows if r['level'] == L and r.get('act')]
+        if not R:
+            continue
+        sc = lambda key, s, ch: med([r['costs'][key][s]['ns'] / 1e6 for r in R if bool(r['change']) == ch and s in r['costs'].get(key, {})])
+        rf = lambda fs: med([sum(r['refresh_ns'][f] for f in fs) / 1e6 for r in R])
+        lv[L] = {'raw': R[0]['raw_contacts'], 'img': R[0]['images'], 'vc': sc('lm_hist_cost', 'contacts', False), 'vcc': sc('lm_hist_cost', 'contacts', True),
+                 'vts': sc('lmts_hist_cost', 'contacts', False), 'rc': rf(('c.dana', 'c.omar', 'c.set')), 'vm': sc('lm_hist_cost', 'media', False),
+                 'vmc': sc('lm_hist_cost', 'media', True), 'rm': rf(('m.latest', 'm.tracked')), 'cte': med([a['check_to_effect_ms'] for a in A]),
+                 'n': len(R), 'acts': len(A), 'miss': sum(r.get('lm_miss', 0) for r in R)}
+    A = [r for r in rows if r.get('act') and r['level'].startswith('contacts')]
+    fit = None
+    if len(A) > 2:
+        x, y = [r['raw_contacts'] for r in A], [r['check_to_effect_ms'] for r in A]
+        lr = st.linear_regression(x, y)
+        fit = {'slope': lr.slope * 1000, 'intercept': lr.intercept, 'rsq': st.correlation(x, y) ** 2, 'n': len(A)}
+    return {'levels': lv, 'fit': fit} if lv else {}
+
+
+def fg_cost(rows):
+    """FGS cost (phys_fgcost.py), as the emulator Table tab:fgcost (scripts/render.py e11): per mode, windows, changes
+    and length per window, median CPU time (ticks / 100), PSS, BatteryStats' estimated charge over the windows that list
+    the UID, and oom_score_adj. Estimates only: the phone stayed plugged in."""
+    out = {}
+    for mode in ('bg', 'fg'):
+        R = [r for r in rows if r.get('mode') == mode and 'error' not in r]
+        if R:
+            pw = [r['est_power_mah'] for r in R if r.get('est_power_mah') is not None]
+            out[mode] = {'n': len(R), 'window_s': st.median(r['window_s'] for r in R), 'changes': st.median(r['mutations'] for r in R),
+                         'cpu_s': st.median(r['cpu_ticks'] for r in R) / 100, 'pss_mb': st.median(r['pss_kb'] for r in R) / 1024,
+                         'power': st.median(pw) if pw else None, 'listed': len(pw), 'adj': sorted({int(r['oom_score_adj']) for r in R})}
+    return out
+
+
+def host_unbatched(rows):
+    """Unbatched host agent (phys_host.py; one adb call per read, as the emulator Table tab:host): median ms to re-read
+    every fact (global) and to read the watermarks and re-read what they do not certify (evcheck, \\stamp of tab:host),
+    per decision kind (one change, none) and over all; the ratio of the medians; facts re-read; changed facts and those
+    missed; median adb time of one content query (Contacts, MediaStore and Calendar facts, prefixes c. m. k.)."""
+    T = [r for r in rows if 'error' not in r]
+    if not T:
+        return {}
+    case = lambda C: {'n': len(C), 'gl': st.median(r['t_global_ms'] for r in C), 'ev': st.median(r['t_evcheck_ms'] for r in C),
+                      'faster': sum(r['t_evcheck_ms'] < r['t_global_ms'] for r in C), 'reread': st.mean(r['n_reread'] for r in C),
+                      'changed': sum(len(r['changed']) for r in C), 'missed': sum(len(r['evcheck_miss']) for r in C)}
+    out = dict(case(T), facts=max(r['n_global'] for r in T), reread_med=st.median(r['n_reread'] for r in T),
+               query_ms=st.median(v for r in T for f, v in r['ms_global'].items() if f[:2] in ('c.', 'm.', 'k.')),
+               cases={ch: case(C) for ch in (True, False) for C in [[r for r in T if bool(r.get('change')) == ch]] if C})
+    out['ratio'] = out['ev'] / out['gl']
+    return out
+
+
+def long_doze(rows):
+    """Verified long Doze (e2v3_gaps.py longdoze2): gaps() with the emulator validity rule (IDLE at both mutation
+    batches, client cgroup not frozen at either); the shortest Doze span of a valid trial, min; units."""
+    z = gaps(rows).get('longdoze2')
+    if not z:
+        return {}
+    V = [r for r in rows if ea.valid(r)[0]]
+    return dict(z, span_min=min((r['t_gap_end'] - r['t_gap_start']) / 60000 for r in V) if V else None,
+                units=len({r.get('device_instance') for r in rows} - {None}))
+
+
+def eighta(P):
+    """Pixel 8a results from its data dict (keys without the p8a_ prefix); the SMS part of the pitfalls file is left out."""
+    pit = P.get('pitfalls', [])
+    sms = [r for r in pit if r.get('exp') == 'sms_reuse']
+    tests = [r for k in ('cost', 'scale', 'fgcost', 'host', 'longdoze', 'pitfalls') for r in P.get(k, [])]
+    return {'cost': persource_cost(P.get('cost', [])), 'scale': scale_cost(P.get('scale', [])), 'fg': fg_cost(P.get('fgcost', [])),
+            'host': host_unbatched(P.get('host', [])), 'doze': long_doze(P.get('longdoze', [])),
+            'pitfalls': pitfalls([r for r in pit if r.get('exp') != 'sms_reuse']), 'sms': (sum(bool(r['res'].get('ok')) for r in sms), len(sms)),
+            'tests': tests, 'android': android(P.get('b0', [])), 'units': len({r.get('device_instance') for r in tests} - {None}),
+            'cost_n': sum('error' not in r for r in P.get('cost', []))}
+
+
 def analyze(D):
     """D: experiment key -> records (with _file); keys 's25_<experiment>' hold the Galaxy S25 (b13-*) records. Returns
     (macros, results of main runs, results of pilot runs)."""
     S = {k[4:]: [r for r in v if not pilot(r)] for k, v in D.items() if k.startswith('s25_')}
     N = {k[3:]: [r for r in v if not pilot(r)] for k, v in D.items() if k.startswith('p9_')}
+    E = {k[4:]: [r for r in v if not pilot(r)] for k, v in D.items() if k.startswith('p8a_')}
     s25u = {r.get('device_instance') for v in S.values() for r in v} - {None}
     p9u = {r.get('device_instance') for v in N.values() for r in v} - {None}
-    log = [x for x in D.get('runlog', []) if x['device_instance'] not in s25u | p9u]   # RUNLOG lines of other models count only there
+    p8au = {r.get('device_instance') for v in E.values() for r in v} - {None}
+    log = [x for x in D.get('runlog', []) if x['device_instance'] not in s25u | p9u | p8au]   # RUNLOG lines of other models count only there
     s25log = [x for x in D.get('runlog', []) if x['device_instance'] in s25u]
-    D = {k: v if k.endswith('_emu') else log if k == 'runlog' else with_runlog([corrected(r) for r in v], log) for k, v in D.items() if not k.startswith(('s25_', 'p9_'))}
+    D = {k: v if k.endswith('_emu') else log if k == 'runlog' else with_runlog([corrected(r) for r in v], log) for k, v in D.items() if not k.startswith(('s25_', 'p9_', 'p8a_'))}
     M = {k: [r for r in v if not pilot(r)] for k, v in D.items()}
     R = {'deploy': deploy(M['deploy']), 'gaps': gaps(M['gaps']), 'coverage': coverage(M['coverage']), 'race': race(M['stock']),
          'boundary': boundary(M['boundary']), 'pitfalls': pitfalls(M['pitfalls']), 'frozen': frozen(M['frozen']),
@@ -733,6 +852,7 @@ def analyze(D):
                'froze': froze(N.get('b0', [])), 'trials': N.get('deploy', []) + N.get('stock', []), 'android': android(N.get('b0', [])),
                'probe_s': min(((r.get('detail') or {}).get('after_s') for r in N.get('b0', []) if r.get('probe') == 'freezer_debounce_2s'
                                and (r.get('detail') or {}).get('frozen') == '1'), default=None)}
+    R['p8a'] = eighta(E)
     X = R['not_run']
     nr = lambda src, val: NR if src in X else val       # a source not run prints NR, not TBD
     P = {'deploy': deploy([r for r in D['deploy'] if pilot(r)]),
@@ -781,6 +901,13 @@ def analyze(D):
     b25 = lambda m, w: kn(*B25['k'](m, w)) if B25 and B25['k'](m, w)[1] else None
     n9 = lambda s_, m: dur(st.median(P9['deploy'][s_, m]['delays_ms'])) if (s_, m) in P9['deploy'] and P9['deploy'][s_, m]['delays_ms'] else None
     nfz = P9['deploy'].get(('contacts', 'bg_freezer'))
+    A8 = R['p8a']
+    C8, FG8, H8, DZ8, PF8 = (A8[k] for k in ('cost', 'fg', 'host', 'doze', 'pitfalls'))
+    lv8, fit8 = A8['scale'].get('levels', {}), A8['scale'].get('fit')
+    f1 = lambda x: None if x is None else '%.1f' % x
+    sl = lambda L, k: f1(lv8[L][k]) if L in lv8 else None
+    dz = lambda ph, p: kn(*DZ8['miss'][ph, p]) if DZ8 and DZ8['miss'][ph, p] else None
+    pf8 = lambda k: kn(*PF8[k]) if PF8 and PF8[k][1] else None
     macros = {
         'PhysDevice': ('device model', tex(device(D['all'], 'device'))),
         'PhysFingerprint': ('build fingerprint', builds(exp)),
@@ -884,6 +1011,58 @@ def analyze(D):
         'PhysNineRaceStampedStale': ('Pixel 9 race: stale FRESH / updates and inserts on certifying sources', rk(P9['race_kinds'], 'stamped')),
         'PhysNineRaceSameAsPixel': ('Pixel 9 race trials with the Pixel 8 outcome of the same source, trial and seed / matched', kn(*P9['same']) if P9['same'][1] else None),
         'PhysNineProbeFrozenS': ('Pixel 9 freezer probe: frozen after, s', '%.1f' % P9['probe_s'] if P9['probe_s'] is not None else None),
+        # Pixel 8a, Android 17 (phys-*-pixel8aa17-*, b13-pixel8aa17-b0-*): cost, scale, FGS cost, unbatched host, long Doze, B10
+        'PhysEightAModel': ('Pixel 8a model', tex(', '.join(sorted({r['device'].split(' ', 1)[-1] for r in A8['tests'] if r.get('device')})) or None)),
+        'PhysEightABuild': ('Pixel 8a build IDs', ', '.join('\\path{%s}' % b for b in build_ids(A8['tests']).split(', ')) if A8['tests'] else None),
+        'PhysEightAAndroid': ('Pixel 8a Android release and SDK level', A8['android']),
+        'PhysEightAUnits': ('Pixel 8a units behind the reported tests', A8['units'] or None),
+        'PhysEightACostDecisions': ('Pixel 8a per-source cost decisions', A8['cost_n'] or None),
+        **{'PhysEightACost%s%s' % (s.title(), k): ('Pixel 8a %s: median ms, %s' % (s, w), f1(C8[s][key]) if s in C8 else None) for s in COST_SRC
+           for k, key, w in (('Refresh', 'refresh', 'refresh of one fact'), ('Stamp', 'unchanged', 'StampCheck, source unchanged'),
+                             ('StampChanged', 'changed', 'StampCheck after the source changed'))},
+        **{'PhysEightAScale%s%s' % (sfx, k): ('Pixel 8a scale level %s: %s' % (L, w), sl(L, key)) for L, sfx in SCALE.items()
+           for k, key, w in (('Vc', 'vc', 'Contacts StampCheck, unchanged, ms'), ('Vcc', 'vcc', 'Contacts StampCheck after a change, ms'),
+                             ('Rc', 'rc', 'refresh of the 3 Contacts facts, ms'), ('Vm', 'vm', 'MediaStore StampCheck, unchanged, ms'),
+                             ('Vmc', 'vmc', 'MediaStore StampCheck after a change, ms'), ('Rm', 'rm', 'refresh of the 2 media facts, ms'))},
+        # check-to-effect medians are whole or half ms (medians of whole ms)
+        **{'PhysEightAScale%sCte' % sfx: ('Pixel 8a scale level %s: median check-to-effect, ms' % L, '%g' % lv8[L]['cte'] if L in lv8 and lv8[L]['cte'] is not None else None)
+           for L, sfx in SCALE.items()},
+        **{'PhysEightAScale%s%s' % (sfx, k): ('Pixel 8a scale level %s: %s' % (L, key), '{:,}'.format(lv8[L][key]).replace(',', '{,}') if L in lv8 else None)
+           for L, sfx in SCALE.items() for k, key in (('Raw', 'raw'), ('Img', 'img'))},
+        'PhysEightAScaleCteSlope': ('Pixel 8a: check-to-effect fit over the Contacts levels, ms per 1,000 raw contacts', '%.1f' % fit8['slope'] if fit8 else None),
+        'PhysEightAScaleCteIntercept': ('Pixel 8a: that fit, intercept ms', '%.1f' % fit8['intercept'] if fit8 else None),
+        'PhysEightAScaleCteRsq': ('Pixel 8a: that fit, R squared', '%.2f' % fit8['rsq'] if fit8 else None),
+        'PhysEightAScaleCteN': ('Pixel 8a: that fit, boundary trials', fit8['n'] if fit8 else None),
+        **{'PhysEightA%s%s' % (m.title(), k): ('Pixel 8a %s windows: %s' % (m, w), fn(FG8[m]) if m in FG8 else None) for m in ('bg', 'fg')
+           for k, w, fn in (('Cpu', 'median CPU s per window', lambda z: '%.2f' % z['cpu_s']), ('Pss', 'median PSS, MB', lambda z: '%.1f' % z['pss_mb']),
+                            ('Power', 'BatteryStats estimate, median over the windows that list the UID, mAh', lambda z: sci(z['power']) if z['power'] is not None else 'not listed'),
+                            ('Listed', 'windows that list the UID / windows', lambda z: kn(z['listed'], z['n'])), ('Windows', 'windows', lambda z: z['n']),
+                            ('Adj', 'oom_score_adj', lambda z: span(z['adj'])))},
+        'PhysEightAFgWindowS': ('Pixel 8a FGS cost: median window, s', '%.0f' % st.median(z['window_s'] for z in FG8.values()) if FG8 else None),
+        'PhysEightAFgChanges': ('Pixel 8a FGS cost: changes per window, median', '%.0f' % st.median(z['changes'] for z in FG8.values()) if FG8 else None),
+        'PhysEightAHostN': ('Pixel 8a unbatched host decisions', H8.get('n')),
+        'PhysEightAHostFacts': ('Pixel 8a unbatched host: facts per decision', H8.get('facts')),
+        'PhysEightAHostGlS': ('Pixel 8a unbatched host: median s to re-read every fact', '%.1f' % (H8['gl'] / 1000) if H8 else None),
+        'PhysEightAHostEvS': ('Pixel 8a unbatched host: median s to check watermarks and re-read the rest', '%.1f' % (H8['ev'] / 1000) if H8 else None),
+        'PhysEightAHostRatio': ('Pixel 8a unbatched host: ratio of those medians (StampCheck / global)', '%.2f' % H8['ratio'] if H8 else None),
+        'PhysEightAHostReread': ('Pixel 8a unbatched host: median facts re-read by StampCheck', '%g' % H8['reread_med'] if H8 else None),
+        'PhysEightAHostChanged': ('Pixel 8a unbatched host: changed facts', H8['changed'] if H8 else None),
+        'PhysEightAHostMissed': ('Pixel 8a unbatched host: changed facts StampCheck missed / changed facts', kn(H8['missed'], H8['changed']) if H8 else None),
+        'PhysEightAHostQueryS': ('Pixel 8a unbatched host: median adb time of one content query, s', '%.1f' % (H8['query_ms'] / 1000) if H8 else None),
+        'PhysEightADozeTrials': ('Pixel 8a verified long Doze: valid / attempted trials', kn(DZ8['n'], DZ8['att']) if DZ8 else None),
+        'PhysEightADozeUnits': ('Pixel 8a verified long Doze: units', DZ8.get('units')),
+        'PhysEightADozeSurvived': ('Pixel 8a verified long Doze: process survived / valid trials', kn(DZ8['survived'], DZ8['n']) if DZ8.get('n') else None),
+        'PhysEightADozeFclMin': ('Pixel 8a verified long Doze: earliest first callback, s', '%.2f' % min(DZ8['fcl']) if DZ8.get('fcl') else None),
+        'PhysEightADozeFclMax': ('Pixel 8a verified long Doze: latest first callback, s', '%.2f' % max(DZ8['fcl']) if DZ8.get('fcl') else None),
+        'PhysEightADozeSpanMin': ('Pixel 8a verified long Doze: shortest Doze span, min', '%.1f' % DZ8['span_min'] if DZ8.get('span_min') is not None else None),
+        **{'PhysEightADoze%s%s' % (p.title(), ph.title()): ('Pixel 8a verified long Doze, %s decision: %s missed/changed uses' % (ph, p), dz(ph, p))
+           for ph in ('early', 'late') for p in ('ev', 'evr', 'lm')},
+        'PhysEightAMtimeSame': ('Pixel 8a same-second mtime trials', pf8('mtime')),
+        'PhysEightAClockTrials': ('Pixel 8a valid clock set-back trials', PF8['clock'][1] if PF8 and PF8['clock'][1] else None),
+        'PhysEightAClockStale': ('Pixel 8a clock set-back: stale number accepted/trials', pf8('clock')),
+        'PhysEightAClockTsTransientStale': ('Pixel 8a clock, transient: timestamp StampCheck accepted the stale number/trials', pf8('clock_ts')),
+        'PhysEightAClockTsPersistentGuard': ('Pixel 8a clock, persistent: clock guard raised/trials', pf8('clock_guard')),
+        'PhysEightASmsValid': ('Pixel 8a SMS id reuse: valid / attempted trials (failed, excluded from every number)', kn(*A8['sms']) if A8['sms'][1] else None),
         'PhysSamsungRaceSameAsPixel': ('S25 race trials with the Pixel 8 outcome of the same source, trial and seed / matched trials',
                                        kn(*R['s25']['same']) if R['s25']['same'][1] else None),
         'PhysSamsungFrozen': ('S25 freezer attempts, client cached and freezer on: frozen / attempts', kn(*sf[:2]) if sf[1] else None),
@@ -1101,9 +1280,16 @@ def tables(gen, R):
                 'clock back 1\\,h: versions keep old number & ' + (wil(*PF['clock']) if PF['clock'][1] else 'not run on this phone') + r'\\']
         if PF['clock_ts'][1]:
             rows.append('same, timestamps, clock restored & %s\\\\' % wil(*PF['clock_ts']))
-    table(gen, 'tab_phys_pitfalls.tex', 'Pixel~8: evidence pitfalls, trials affected out of trials (Wilson 95\\% interval).',
-          'lr', 'Pitfall & Trials affected', rows, 'B10 pitfall trials',
-          extra=[r'SMS \texttt{\_id} reuse & %s\\' % NR] if 'sms' in NOT_RUN and not PF else [])
+    A8 = R['p8a']; P8, sms = A8['pitfalls'], A8['sms']
+    two = bool(rows and (P8 or sms[1]))          # a Pixel 8a column next to the Pixel 8 one, same rules; its SMS part only says it failed
+    if two:
+        c8 = lambda k: wil(*P8[k]) if P8 and P8[k][1] else 'n/a'
+        sc = ('failed (%s valid)' if sms[0] == 0 else 'excluded (%s valid)') % kn(*sms) if sms[1] else 'not run on phone'
+        rows = ['%s & %s\\\\' % (r[:-2], c) for r, c in zip(rows, (sc, c8('mtime'), c8('clock'), c8('clock_ts')))]
+    table(gen, 'tab_phys_pitfalls.tex', ('Pixel~8 (Android~15) and Pixel~8a (Android~17)' if two else 'Pixel~8') + ': evidence pitfalls, trials affected out of trials (Wilson 95\\% interval).'
+          + (' On the Pixel~8a the SMS writes were dropped although the writer held the SMS role, so that test failed and gives no number.' if two and sms[1] and sms[0] == 0 else ''),
+          'lrr' if two else 'lr', 'Pitfall & Pixel~8 & Pixel~8a' if two else 'Pitfall & Trials affected', rows, 'B10 pitfall trials',
+          extra=[r'SMS \texttt{\_id} reuse & %s\\' % NR] if 'sms' in NOT_RUN and not PF else [], font='\\scriptsize' if two else '')   # two columns fit the column only so
 
     F, rows = R['frozen'], []
     if F.get('valid'):
@@ -1206,6 +1392,61 @@ def tables(gen, R):
           ' callbacks was not tested.',
           'l>{\\raggedright\\arraybackslash}p{9.5cm}', 'Test & Result', rows, 'S25 tests', star=True)
 
+    # Pixel 8a, Android 17: the tests that had emulator results only (the pitfalls column is in tab_phys_pitfalls)
+    A8, rows = R['p8a'], []
+    C8, FG8, H8, DZ8 = (A8[k] for k in ('cost', 'fg', 'host', 'doze'))
+    EMU = {'contacts': ('Contacts', True), 'media': ('Media', True), 'calendar': ('Calendar', False), 'settings': ('Settings', False), 'files': ('Files', True)}
+    if C8:
+        rows.append(r'\mgroup{2}{Per-use cost (one unit, %d decisions; each round changes one source or none; median ms; emulator: Table~\ref{tab:cost})}' % A8['cost_n'])
+        for s, z in C8.items():
+            e, val = EMU[s]
+            sc = ('\\stamp %.1f unchanged, %.1f after a change' % (z['unchanged'], z['changed']) if z['stamp'] else
+                  '\\stamp answers \\Unknown (no stamp) in %.1f' % max(z['unchanged'], z['changed']))
+            rows.append('%s & refresh of one fact %.1f; %s; emulator: refresh \\CostRef%s%s\\\\' % (SRCNAME[s], z['refresh'], sc, e, ', validate \\CostVal%s' % e if val else ''))
+    if FG8:
+        rows.append(r'\mgroup{2}{Foreground-service cost (one unit, %s windows of %.0f\,s with %.0f changes each; medians; Table~\ref{tab:fgcost})}'
+                    % (' and '.join(str(z['n']) for z in FG8.values()), st.median(z['window_s'] for z in FG8.values()), st.median(z['changes'] for z in FG8.values())))
+        for m, nm in (('bg', 'Background (cached)'), ('fg', 'Foreground service')):
+            if m in FG8:
+                z = FG8[m]
+                rows.append('%s & CPU %.2f\\,s, PSS %.1f\\,MB, \\texttt{oom\\_score\\_adj} %s; BatteryStats estimate %s (listed in %s windows)\\\\'
+                            % (nm, z['cpu_s'], z['pss_mb'], span(z['adj']), sci(z['power']) + '\\,mAh' if z['power'] is not None else 'not listed', kn(z['listed'], z['n'])))
+    if H8:
+        rows.append(r'\mgroup{2}{Unbatched host agent over adb (one unit, %d decisions of %d facts; one adb call per read, median %.1f\,s per content query; Table~\ref{tab:host})}'
+                    % (H8['n'], H8['facts'], H8['query_ms'] / 1000))
+        for ch, nm in ((True, 'One change'), (False, 'No change')):
+            if ch in H8['cases']:
+                z = H8['cases'][ch]
+                rows.append('%s (%d) & global %.1f\\,s, \\stamp %.1f\\,s (ratio %.2f, faster in %s); %.1f facts re-read (mean)%s\\\\'
+                            % (nm, z['n'], z['gl'] / 1000, z['ev'] / 1000, z['ev'] / z['gl'], kn(z['faster'], z['n']), z['reread'],
+                               '; changed facts missed %s' % kn(z['missed'], z['changed']) if z['changed'] else ''))
+    if DZ8:
+        rows.append(r'\mgroup{2}{Verified long Doze (%d units, %s valid trials; deep idle at both change batches, client cgroup not frozen at either; Table~\ref{tab:gaps})}'
+                    % (DZ8['units'], kn(DZ8['n'], DZ8['att'])))
+        if DZ8['n']:
+            rows.append('Process and callbacks & survived %s; first callback from %.2f to %.2f\\,s; Doze held at least %.1f\\,min\\\\'
+                        % (kn(DZ8['survived'], DZ8['n']), min(DZ8['fcl']), max(DZ8['fcl']), DZ8['span_min']))
+            m = lambda ph, p: kn(*DZ8['miss'][ph, p]) if DZ8['miss'][ph, p] else 'n/a'
+            rows += ['%s decision & missed: event-only %s, restart-aware %s, \\stamp %s\\\\' % (ph.title(), m(ph, 'ev'), m(ph, 'evr'), m(ph, 'lm')) for ph in ('early', 'late')]
+    ident = (' (build \\texttt{%s})' % tex(build_ids(A8['tests']))) if A8['tests'] else ''
+    table(gen, 'tab_phys_eighta.tex', 'Pixel~8a' + ident + ', Android~17, on a second Device Farm account: tests that had emulator results only, with the'
+          ' rules of the emulator tables named in each block, each on the units and sample sizes given. BatteryStats gives estimates, and the phone stayed'
+          ' plugged in. Host times are dominated by adb on Device Farm, so only the ratio compares with the emulator.',
+          'l>{\\raggedright\\arraybackslash}p{12.6cm}', 'Test & Result', rows, 'Pixel 8a tests', star=True)
+
+    SC8, rows = A8['scale'], []
+    g = lambda x, fmt='%.1f': fmt % x if x is not None else 'n/a'
+    for L, z in SC8.get('levels', {}).items():
+        rows.append(' & '.join(['{:,}'.format(z['raw']).replace(',', '{,}'), '{:,}'.format(z['img']).replace(',', '{,}')]
+                               + [g(z[k]) for k in ('vc', 'vcc', 'vts', 'rc', 'vm', 'vmc', 'rm')] + [g(z['cte'], '%g')]) + '\\\\')
+    F, lv = SC8.get('fit'), list(SC8.get('levels', {}).values())
+    table(gen, 'tab_phys_eighta_scale.tex', 'Pixel~8a, Android~17, one unit: cost versus source size with the columns and rules of Table~\\ref{tab:scale} (medians, ms)'
+          + ('; per level %d decisions, half after a change, and %d boundary checks whose effect is a Contacts row' % (lv[0]['n'], lv[0]['acts']) if lv else '')
+          + ('. A least-squares fit of check-to-effect on raw contacts over the %d boundary trials of the Contacts levels gives %.1f\\,ms per 1{,}000 raw contacts plus %.1f\\,ms ($R^2=%.2f$).'
+             % (F['n'], F['slope'], F['intercept'], F['rsq']) if F else '.'),
+          'rrrrrrrrrr', 'Raw contacts & Images & C.\\ val. & C.\\ val.\\,$\\Delta$ & C.\\ val.\\ TS & C.\\ refresh & M.\\ val. & M.\\ val.\\,$\\Delta$ & M.\\ refresh & Check$\\to$effect',
+          rows, 'Pixel 8a scale', star=True, font='\\scriptsize')
+
     for name, what in (('tab_phys_statelog.tex', '24-hour state log'), ('tab_phys_battery.tex', 'battery drain')):
         table(gen, name, 'Phone %s: not run.' % what, 'l', 'Status', [], what, tbd=False, extra=[WHY + r'\\'])
 
@@ -1224,6 +1465,7 @@ def write(D, gen):
     S = R['s25']        # Galaxy S25: a valid callback trial or race trial
     lines.append(r'\newif\ifPhysSamsung\PhysSamsung%s' % ('true' if any(z['valid'] for z in S['deploy'].values()) or any(z['n'] for z in S['race'].values()) else 'false'))
     lines.append(r'\newif\ifPhysNine\PhysNine%s' % ('true' if any(z['valid'] for z in R['p9']['deploy'].values()) or R['p9']['race_kinds']['stamped'][1] else 'false'))
+    lines.append(r'\newif\ifPhysEightA\PhysEightA%s' % ('true' if R['p8a']['tests'] else 'false'))     # any Pixel 8a test record
     for name, (what, val) in macros.items():
         lines.append('\\newcommand{\\%s}{%s\\xspace}' % (name, val if val is not None else '\\PhysTBD{%s}' % what))
     (gen / 'physical_macros.tex').write_text('\n'.join(lines) + '\n', encoding='utf-8', newline='\n')
@@ -1253,7 +1495,8 @@ def self_check():
         tabs = sorted(p.name for p in gen.glob('tab_phys_*.tex'))
         dropped = {'tab_phys_statelog.tex', 'tab_phys_battery.tex'}
         assert '(\\PhysTBD{coverage trials} trials)' in tab('tab_phys_coverage.tex')
-        assert len(tabs) == 14 and all(('\\PhysTBD{' in tab(t)) == (t not in dropped) for t in tabs), tabs
+        assert len(tabs) == 16 and all(('\\PhysTBD{' in tab(t)) == (t not in dropped) for t in tabs), tabs
+        assert '\\PhysEightAfalse' in tex and 'Pitfall & Trials affected' in tab('tab_phys_pitfalls.tex')
         assert all('Device Farm' in tab(t) for t in dropped)
 
         D = {k: [] for k in FILES}
@@ -1404,7 +1647,7 @@ def self_check():
         assert '\\mgroup{5}{MediaStore}' in tab('tab_phys_deploy.tex') and tab('tab_phys_deploy.tex').count('Foreground service') == 2
         assert 'Force-stop & 1/1' in tab('tab_phys_gaps.tex') and '1/1 & 0/1 & 0/1 & 1/1 & 0/1 & 0/1' in tab('tab_phys_gaps.tex')
         assert 'not run on this phone' in tab('tab_phys_pitfalls.tex') and 'reused & 1/1 [' in tab('tab_phys_pitfalls.tex')
-        assert not any('\\PhysTBD{' in tab(t) for t in tabs), [t for t in tabs if '\\PhysTBD{' in tab(t)]
+        assert not any('\\PhysTBD{' in tab(t) for t in tabs if 'eighta' not in t), [t for t in tabs if '\\PhysTBD{' in tab(t)]   # no Pixel 8a data here
         # \ifPhysReboot: true only with a valid, non-pilot B2 reboot trial
         rb = lambda f, **k: dict(gap('reboot', 8, None, 'A', 'REFRESH'), _file=f, **k)
         write(dict(D, gaps=D['gaps'] + [rb('gaps-reboot-1500.jsonl', error='adb lost'), rb('gaps-pilot-reboot-1500.jsonl')]), gen)
@@ -1600,10 +1843,53 @@ def self_check():
         assert "No-gap exit record: ActivityManager killed the idle cached client during the hold (``too many empty'')" in tab('tab_phys_gaps.tex')
         # b13-* files load only for b13-* patterns
         (gen / 'physical-x').mkdir()
-        for f in ('deploy-a.jsonl', 'b13-t-deploy-a.jsonl'):
+        for f in ('deploy-a.jsonl', 'b13-t-deploy-a.jsonl', 'phys-g14-t-cost-a.jsonl'):
             (gen / 'physical-x' / f).write_text('{"f": "%s"}\n' % f, encoding='utf-8')
         assert [r['f'] for r in load(gen, 'deploy*.jsonl')] == [r['f'] for r in load(gen, '*.jsonl')] == ['deploy-a.jsonl']
         assert [r['f'] for r in load(gen, B13 + '*-deploy*.jsonl')] == ['b13-t-deploy-a.jsonl']
+        assert [r['f'] for r in load(gen, 'phys-g14-*.jsonl')] == ['phys-g14-t-cost-a.jsonl']
+
+        # Pixel 8a (F6). Per-use cost: refresh over the source's facts, StampCheck split by whether the round changed it
+        cr = lambda src, ns: {'source': src, 'refresh_ns': {'c.dana': 2e6, 'k.set': 4e6}, 'fact_src': {'c.dana': 'contacts', 'k.set': 'calendar'},
+                              'costs': {'lm_hist_cost': {'contacts': {'ns': ns, 'reason': 'wm_equal'}, 'calendar': {'ns': 1e5, 'reason': 'unknown'}}}}
+        PC = persource_cost([cr('contacts', 9e6), cr('calendar', 3e6), cr('none', 5e6), {'error': 'adb lost'}])
+        assert PC['contacts'] == {'refresh': 2.0, 'changed': 9.0, 'unchanged': 4.0, 'stamp': True} and PC['calendar']['stamp'] is False and 'media' not in PC, PC
+        # scale: a level without decisions is skipped; the fit uses the ACT records of the Contacts levels only
+        sr = lambda L, raw, ch, vc: {'level': L, 'raw_contacts': raw, 'images': 3, 'change': ['contacts', 'media'] if ch else [], 'lm_miss': 0,
+                                     'refresh_ns': dict.fromkeys(('c.dana', 'c.omar', 'c.set', 'm.latest', 'm.tracked'), 1e6),
+                                     'costs': {'lm_hist_cost': {'contacts': {'ns': vc * 1e6}, 'media': {'ns': 2e6}}}}
+        act = lambda L, raw, cte: {'level': L, 'raw_contacts': raw, 'images': 3, 'act': True, 'check_to_effect_ms': cte}
+        SX = scale_cost([sr('contacts+0', 2, False, 10), sr('contacts+0', 2, True, 20), act('contacts+0', 2, 60), act('contacts+0', 2, 61),
+                         sr('contacts+1000', 1002, False, 60), act('contacts+1000', 1002, 110), act('media+1000', 1002, 999)])
+        z = SX['levels']['contacts+0']
+        assert list(SX['levels']) == ['contacts+0', 'contacts+1000'] and (z['vc'], z['vcc'], z['vts'], z['rc'], z['rm'], z['cte'], z['acts']) == (10, 20, None, 3.0, 2.0, 60.5, 2), z
+        assert SX['fit']['n'] == 3 and abs(SX['fit']['slope'] - 49.5) < 1e-6, SX['fit']
+        # FGS cost: CPU ticks / 100, PSS in MB, the estimate over the windows that list it; an error window is left out
+        fw = lambda m, cpu, pw, adj: {'mode': m, 'window_s': 250.0, 'mutations': 12, 'cpu_ticks': cpu, 'pss_kb': 2048, 'est_power_mah': pw, 'oom_score_adj': adj}
+        FX = fg_cost([fw('bg', 1, 1e-5, '905'), fw('bg', 3, None, '925'), fw('fg', 150, 0.02, '200'), {'mode': 'fg', 'error': 'adb lost'}])
+        assert FX['bg'] == {'n': 2, 'window_s': 250.0, 'changes': 12, 'cpu_s': 0.02, 'pss_mb': 2.0, 'power': 1e-5, 'listed': 1, 'adj': [905, 925]} and FX['fg']['n'] == 1, FX
+        # unbatched host: ratio of the medians, content-query time over c./m./k. facts only
+        h8 = lambda ch, gl, ev, n, miss=(): {'change': ch, 't_global_ms': gl, 't_evcheck_ms': ev, 'n_global': 11, 'n_reread': n, 'changed': ['c.dana'] if ch else [],
+                                             'evcheck_miss': list(miss), 'ms_global': {'c.dana': 1000.0, 'g.mode': 100.0, 'f.todo': 100.0}}
+        HX = host_unbatched([h8(True, 10000, 7000, 6, ['c.dana']), h8(False, 10000, 5000, 4), h8(False, 9000, 9500, 4)])
+        assert (HX['ratio'], HX['reread_med'], HX['changed'], HX['missed'], HX['query_ms'], HX['cases'][False]['faster']) == (0.7, 4, 1, 1, 1000.0, 1), HX
+        # long Doze: a trial whose cgroup sample reads frozen (an int, as phones log it) is invalid
+        ld = lambda fz: dict(gap('longdoze2', 7, 11000, 'A', 'KEEP'), state_m1='IDLE', state_m2='IDLE', frozen_m1=0, frozen_m2=fz, t_gap_end=600100, device_instance='u8a')
+        DX = long_doze([ld(0), ld(1)])
+        assert (DX['n'], DX['att'], DX['span_min'], DX['units'], DX['miss']['late', 'lm']) == (1, 2, 10.0, 1, (0, 1)), DX
+        # Pixel 8a records never change a Pixel 8 macro (its units' RUNLOG lines included); its SMS part gives no number
+        p8 = lambda r, f: dict(r, device_instance='u8a', _file=f)
+        E8 = {'p8a_cost': [p8(cr('contacts', 9e6), 'phys-g14-c.jsonl'), p8(cr('calendar', 3e6), 'phys-g14-c.jsonl'), p8(cr('none', 5e6), 'phys-g14-c.jsonl')],
+              'p8a_longdoze': [p8(ld(0), 'phys-g18-d.jsonl')],
+              'p8a_pitfalls': [p8(r, 'phys-l1-p.jsonl') for r in ({'exp': 'sms_reuse', 'res': {'ok': False}}, {'exp': 'mtime', 'res': [{'ok': True, 'did': '1->2'}, {'ok': True, 'did': '2->3'}]},
+                                                                  ck6('transient', 'CHANGED', 'FRESH'))]}
+        m0, _ = write(D, gen)
+        m1, _ = write(dict(D, runlog=D.get('runlog', []) + [{'run_arn': None, 'device_instance': 'u8a', 'use_freezer_before': 'false', 'use_freezer': 'true', '_file': 'RUNLOG.md'}], **E8), gen)
+        assert {k: v for k, (_, v) in m1.items() if not k.startswith('PhysEightA')} == {k: v for k, (_, v) in m0.items() if not k.startswith('PhysEightA')}
+        w = {k: x for k, (_, x) in m1.items()}
+        assert (w['PhysEightASmsValid'], w['PhysEightAMtimeSame'], w['PhysEightAClockTsTransientStale'], w['PhysEightACostContactsStamp'], w['PhysEightADozeTrials']) == ('0/1', '0/1', '1/1', '4.0', '1/1'), w
+        assert 'Pitfall & Pixel~8 & Pixel~8a' in tab('tab_phys_pitfalls.tex') and '& failed (0/1 valid)' in tab('tab_phys_pitfalls.tex') and '\\PhysEightAtrue' in tab('physical_macros.tex')
+        assert 'answers \\Unknown (no stamp) in 0.1' in tab('tab_phys_eighta.tex') and 'Late decision & missed: event-only 1/1, restart-aware 1/1, \\stamp 0/1' in tab('tab_phys_eighta.tex')
     print('analyze_phys self-check ok')
 
 
@@ -1619,7 +1905,8 @@ if __name__ == '__main__':
                  stock_emu=emu_files('revision-20261115', 'stock-emulator-*.jsonl'),           # emulator race, same rules
                  deploy_emu=emu_files('followup-20261116', 'deploy-emulator-*.jsonl'),        # emulator callbacks, same rules
                  **{'s25_' + k: load(res, MODELS['s25'] + p) for k, p in S25_FILES.items()},
-                 **{'p9_' + k: load(res, MODELS['p9'] + p) for k, p in P9_FILES.items()})
+                 **{'p9_' + k: load(res, MODELS['p9'] + p) for k, p in P9_FILES.items()},
+                 **{'p8a_' + k: load(res, p) for k, p in P8A_FILES.items()})
         m, P = write(D, ROOT / 'manuscript/generated')
         print(json.dumps({'macros': len(m), 'tbd': sum(v is None for _, v in m.values()), 'runs': len({r.get('run_arn') for r in D['all']} - {None}),
                           'pilot_records': P['records'], 'pilot_deploy': summary(P['deploy'])}))

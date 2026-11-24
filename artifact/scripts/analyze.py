@@ -249,7 +249,7 @@ def valid(t):
     if t.get("protocol") == "v3" and bool(t["early"].get("fg")) != bool(t.get("fg")):
         return False, "client_mode_mismatch"
     if t["gap"] == "longdoze2" and not (t.get("state_m1") == "IDLE" and t.get("state_m2") == "IDLE"
-                                         and t.get("frozen_m1") != "1" and t.get("frozen_m2") != "1"):
+                                         and str(t.get("frozen_m1")) != "1" and str(t.get("frozen_m2")) != "1"):   # phones log ints
         return False, "doze_not_idle_or_frozen"
     if t["gap"] in ("freeze", "longfreeze") and str(t.get("frozen")) != "1":
         return False, "not_frozen"
